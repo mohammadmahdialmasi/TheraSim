@@ -1,47 +1,60 @@
 # TheraSim — API Contracts
 
-**Document Version:** 0.1
+**Document Version:** 0.2
 **Project Status:** Research Prototype / Pre-MVP
 **Last Updated:** 2026-11-14
+**Architecture Reference:** MVP_DECISIONS.md
+**Data Contract Reference:** DATA_CONTRACTS.md
+**Database Reference:** DATABASE_SCHEMA.md
+**Security Reference:** SECURITY_BOUNDARIES.md
 
 ---
 
 ## 1. Purpose
 
-This document defines the API contracts for communication between the TheraSim frontend, backend services, and internal simulation components.
+This document defines the external API and internal service contracts for the initial TheraSim MVP.
 
-The purpose is to establish:
+It establishes communication rules between:
 
-- Consistent communication between system components.
-- Explicit request and response structures.
-- Predictable session lifecycle management.
-- Controlled access to simulation data.
-- Protection against unauthorized disclosure of restricted case information.
-- Traceable API operations.
-- Consistent error handling.
-- Compatibility between frontend and backend versions.
+- Therapist Interface.
+- FastAPI backend.
+- Orchestrator.
+- Patient Context Service.
+- Patient Agent.
+- Event Processing Service.
+- Clinical State Engine.
+- Memory Service.
+- Evaluation Service.
+- Evaluator Agent.
+- Repository Layer.
 
-The initial API will be implemented using FastAPI.
+The API architecture must ensure:
 
-The API contracts are logical specifications. Exact Pydantic models and executable route definitions will be developed during implementation.
+- Consistent communication.
+- Sequential simulation lifecycle management.
+- Session-level and longitudinal evaluations.
+- Idempotent therapist interactions.
+- Controlled access to synthetic case information.
+- Structured error handling.
+- Evidence-linked evaluation reports.
+- Reproducible operations.
+- Compatibility with local language-model execution.
+
+The MVP uses a modular monolithic backend.
+
+Internal service contracts do not automatically require independent HTTP endpoints.
+
+MVP architectural decisions take precedence over earlier provisional specifications.
 
 ---
 
 ## 2. API Architecture
 
-TheraSim uses a backend-mediated architecture.
+### 2.1 Backend-Mediated Communication
 
-The frontend communicates with the backend API. The backend coordinates internal components through explicit service interfaces.
+The frontend communicates only with the FastAPI backend.
 
-### 2.1 Communication Flow
-
-1. The Therapist Interface submits a request to the API.
-2. The API validates the request.
-3. The Orchestrator processes the operation.
-4. The required internal component is invoked.
-5. The result is validated.
-6. Authorized data is persisted.
-7. The API returns a structured response.
+The backend coordinates all simulation components through explicit service interfaces.
 
 The frontend must not communicate directly with:
 
@@ -51,22 +64,41 @@ The frontend must not communicate directly with:
 - SQLite databases.
 - Restricted case storage.
 - Clinical State Engine internals.
+- Memory Service internals.
 
-All communication must pass through authorized backend interfaces.
+### 2.2 Communication Flow
 
-### 2.2 API Categories
+The normal interaction workflow is:
 
-The architecture defines two categories:
+1. Frontend submits a therapist message.
+2. API validates the request.
+3. Orchestrator validates the session.
+4. InteractionRequest is created or retrieved.
+5. Therapist message is persisted.
+6. Patient Context Service constructs authorized PatientContext.
+7. Patient Agent generates a response.
+8. Backend validates the response.
+9. Patient response is persisted.
+10. Deterministic interaction events are recorded.
+11. API returns the validated interaction result.
 
-**A. External API**
+Behavioral event extraction and state transition validation may run as subsequent internal processing operations.
 
-Endpoints used by the Therapist Interface.
+A failed optional event extraction operation must not invalidate a successfully persisted therapist-patient interaction.
+
+### 2.3 API Categories
+
+The architecture defines two communication categories.
+
+**A. External REST API**
+
+Endpoints accessible to the Therapist Interface.
 
 **B. Internal Service Contracts**
 
-Interfaces used between the Orchestrator, Patient Agent, Evaluator Agent, State Engine, Memory Service, and repository layer.
+Interfaces used by the Orchestrator and internal components.
 
-Internal service contracts do not automatically need to be exposed as HTTP endpoints.
+Internal contracts must remain separate from public HTTP request models.
 
 ---
 
@@ -80,9 +112,7 @@ Initial local development:
 
 ### 3.2 API Versioning
 
-All application endpoints must use versioned paths.
-
-Initial API prefix:
+All application endpoints use:
 
 `/api/v1`
 
@@ -90,7 +120,7 @@ Example:
 
 `/api/v1/sessions`
 
-Breaking changes must be introduced through a new API version or an explicitly managed compatibility migration.
+Breaking changes must be introduced through an explicitly managed API version or compatibility migration.
 
 ### 3.3 HTTP Methods
 
@@ -101,19 +131,19 @@ Breaking changes must be introduced through a new API version or an explicitly m
 | PATCH | Modify permitted resource attributes |
 | DELETE | Delete resources when explicitly authorized |
 
-The initial MVP should favor POST and GET for the main simulation workflow. Historical records must not be silently overwritten or deleted.
+The initial MVP primarily uses GET and POST.
+
+Completed transcripts and historical state records must not be silently overwritten or deleted.
 
 ### 3.4 Content Type
 
-JSON is the standard request and response format.
-
-Default content type:
+Default request and response content type:
 
 `application/json`
 
 ### 3.5 Identifiers
 
-Resource identifiers use UUID strings.
+Resource identifiers use UUID strings unless another identifier format is explicitly defined.
 
 ### 3.6 Timestamps
 
@@ -125,22 +155,30 @@ Example:
 
 ### 3.7 Pagination
 
-Collection endpoints should support pagination when needed.
-
-Initial parameters:
+Collection endpoints may support:
 
 - limit
 - offset
 
-The API must enforce a maximum page size.
+The backend must enforce a maximum page size.
+
+### 3.8 Request Correlation
+
+Each request should receive a unique request identifier.
+
+The identifier must be included in:
+
+- Application logs.
+- Structured error responses.
+- Relevant audit records.
+
+It must not contain sensitive case information.
 
 ---
 
-## 4. Standard Response Structure
+## 4. Standard Response Structures
 
-Successful responses must use consistent structures.
-
-### 4.1 Single Resource Response
+### 4.1 Successful Single Resource Response
 
 Example:
 
@@ -170,9 +208,7 @@ Example:
 
 ### 4.3 Error Response
 
-All API errors must use a consistent structure.
-
-Example:
+All API errors must use the following structure:
 
 ```json
 {
@@ -185,17 +221,63 @@ Example:
 }
 ```
 
-The `code` field must be stable and suitable for frontend error handling.
+The `code` field must remain stable for frontend error handling.
 
-The `message` field must be understandable to the user or developer, depending on the error context.
+The `message` field must be understandable to the user or developer.
 
-Internal stack traces, restricted case information, hidden prompts, and sensitive model context must never appear in external error responses.
+Internal stack traces, restricted case information, hidden prompts, and model context must never appear in external errors.
+
+### 4.4 Successful Operation Metadata
+
+Operations that may be retried should expose relevant identifiers and status information.
+
+For example:
+
+- request_id
+- operation_status
+- session_id
+- created_at
 
 ---
 
-## 5. External API — Case Management
+# PART I — CASE AND SIMULATION MANAGEMENT
 
-### 5.1 List Available Cases
+## 5. Health Check
+
+### Endpoint
+
+`GET /health`
+
+Purpose:
+
+Verify basic backend availability.
+
+Example response:
+
+```json
+{
+  "data": {
+    "status": "ok",
+    "application": "TheraSim"
+  }
+}
+```
+
+The health endpoint must not expose:
+
+- Database records.
+- Model prompts.
+- Secrets.
+- Restricted case information.
+- Internal filesystem paths.
+
+Detailed infrastructure diagnostics are outside the public health response.
+
+---
+
+## 6. Case Management
+
+### 6.1 List Available Cases
 
 **Endpoint:**
 
@@ -203,7 +285,7 @@ Internal stack traces, restricted case information, hidden prompts, and sensitiv
 
 Purpose:
 
-Retrieve cases available for simulation.
+Retrieve synthetic cases available for simulation.
 
 Query parameters:
 
@@ -212,21 +294,39 @@ Query parameters:
 - modality
 - language
 
-Response fields:
+Response:
 
-- case_id
-- case_code
-- display_name
-- modality
-- available_languages
-- available_case_versions
-- status
+```json
+{
+  "data": [
+    {
+      "case_id": "uuid",
+      "case_code": "AVA-001",
+      "display_name": "Ava",
+      "modality": "ACT",
+      "available_languages": ["fa", "en"],
+      "status": "active"
+    }
+  ],
+  "pagination": {
+    "limit": 20,
+    "offset": 0,
+    "total": 1
+  }
+}
+```
 
-The endpoint must return only cases approved for simulation.
+Only approved case metadata may be returned.
 
-Restricted case formulations and undisclosed personal history must not be included.
+The endpoint must not include:
 
-### 5.2 Retrieve Case Information
+- Hidden clinical formulation.
+- Undisclosed personal history.
+- Restricted case facts.
+- Patient Agent instructions.
+- Internal disclosure policies.
+
+### 6.2 Retrieve Case Information
 
 **Endpoint:**
 
@@ -234,23 +334,27 @@ Restricted case formulations and undisclosed personal history must not be includ
 
 Purpose:
 
-Retrieve authorized case metadata.
+Retrieve authorized therapist-facing case information.
 
-The response may contain a therapist-facing case introduction if that introduction is explicitly designated for disclosure.
+The response may include:
 
-It must not include:
+- case_id
+- case_code
+- display_name
+- modality
+- available_languages
+- approved presentation information
+- active case version
 
-- Hidden clinical formulation.
-- Undisclosed personal history.
-- Internal Patient Agent instructions.
-- Restricted simulation context.
-- Future planned responses.
+The response must include only information explicitly authorized for therapist visibility.
+
+The public case profile must not expose the complete CaseDefinition.
 
 ---
 
-## 6. External API — Simulation Runs
+## 7. Simulation Run Management
 
-### 6.1 Create Simulation Run
+### 7.1 Create Simulation Run
 
 **Endpoint:**
 
@@ -258,7 +362,7 @@ It must not include:
 
 Purpose:
 
-Create a longitudinal simulation run for a selected synthetic case.
+Create a longitudinal simulation run.
 
 Request:
 
@@ -277,9 +381,15 @@ Required fields:
 - modality
 - language
 
-The case version may be selected automatically by the backend when omitted.
+The case_version_id may be omitted when the backend can identify the approved active version.
 
-The backend must validate case availability and modality compatibility.
+The backend must verify:
+
+- Case existence.
+- Case availability.
+- Case version compatibility.
+- Supported therapeutic modality.
+- Supported language.
 
 Response:
 
@@ -289,13 +399,17 @@ Response:
     "run_id": "uuid",
     "case_id": "uuid",
     "case_version_id": "uuid",
+    "modality": "ACT",
+    "language": "fa",
     "status": "initialized",
     "created_at": "2026-11-14T12:30:00Z"
   }
 }
 ```
 
-### 6.2 Retrieve Simulation Run
+A simulation run must retain its original case version throughout its execution.
+
+### 7.2 Retrieve Simulation Run
 
 **Endpoint:**
 
@@ -305,21 +419,22 @@ Purpose:
 
 Retrieve authorized simulation metadata.
 
-The response may include:
+Response fields:
 
 - run_id
 - case_id
-- status
+- case_version_id
 - modality
 - language
-- created_at
+- status
+- session_count
 - started_at
 - completed_at
-- session_count
+- created_at
 
-It must not expose restricted clinical state or hidden case information.
+Restricted patient state and hidden case information must not be exposed.
 
-### 6.3 List Simulation Sessions
+### 7.3 List Simulation Sessions
 
 **Endpoint:**
 
@@ -327,7 +442,7 @@ It must not expose restricted clinical state or hidden case information.
 
 Purpose:
 
-Retrieve the sessions associated with a simulation run.
+Retrieve sessions belonging to a simulation run.
 
 Response fields:
 
@@ -337,39 +452,54 @@ Response fields:
 - started_at
 - ended_at
 
-The endpoint must preserve chronological ordering.
+Sessions must be returned in chronological order.
 
 ---
 
-## 7. External API — Session Management
+# PART II — SESSION MANAGEMENT
 
-### 7.1 Create Session
+## 8. Create Session
 
-**Endpoint:**
+### Endpoint
 
 `POST /api/v1/simulation-runs/{run_id}/sessions`
 
 Purpose:
 
-Create a new session within an existing simulation run.
+Create the next permitted session in the simulation run.
 
-Request:
+### 8.1 Request
+
+The client must not select an arbitrary session number.
+
+The Orchestrator determines the next session number.
+
+Initial request body:
 
 ```json
-{
-  "session_number": 1
-}
+{}
 ```
+
+### 8.2 Validation Rules
 
 The backend must verify:
 
 - The simulation run exists.
 - The run is not completed or failed.
-- The requested session number is permitted.
-- The previous session has reached an allowed terminal state.
-- The appropriate case version and longitudinal memory are available.
+- Fewer than three sessions have been created.
+- Previous sessions have reached an allowed completed state.
+- The requested case version remains available.
+- Required longitudinal context can be constructed.
 
-Response:
+Session numbering must be assigned by the backend:
+
+1. Session 1
+2. Session 2
+3. Session 3
+
+The MVP does not support arbitrary session insertion or session-number modification.
+
+### 8.3 Response
 
 ```json
 {
@@ -383,11 +513,19 @@ Response:
 }
 ```
 
-Initial Patient Agent context must be prepared through the authorized Patient Context component.
+### 8.4 Conflict Handling
 
-### 7.2 Retrieve Session
+A request to create Session 2 before Session 1 is completed must be rejected.
 
-**Endpoint:**
+A request to create more than three sessions must be rejected.
+
+An existing active session must not be duplicated.
+
+---
+
+## 9. Retrieve Session
+
+### Endpoint
 
 `GET /api/v1/sessions/{session_id}`
 
@@ -405,24 +543,32 @@ Response fields:
 - ended_at
 - transcript_version
 
-The response must not contain hidden agent context or internal state variables.
+The response must not expose:
 
-### 7.3 Retrieve Session Messages
+- Hidden PatientContext.
+- Internal agent state.
+- Restricted clinical formulation.
+- Private memory records.
+- Internal model reasoning.
 
-**Endpoint:**
+---
+
+## 10. Retrieve Session Messages
+
+### Endpoint
 
 `GET /api/v1/sessions/{session_id}/messages`
 
 Purpose:
 
-Retrieve the authorized therapist-visible conversation.
+Retrieve the therapist-visible session transcript.
 
 Query parameters:
 
 - limit
 - offset
 
-Response:
+Response example:
 
 ```json
 {
@@ -433,33 +579,48 @@ Response:
       "role": "therapist",
       "content": "Can you tell me more about that experience?",
       "created_at": "2026-11-14T12:31:00Z"
+    },
+    {
+      "message_id": "uuid",
+      "sequence_number": 2,
+      "role": "patient",
+      "content": "I remember feeling uncomfortable when my colleague interrupted me.",
+      "created_at": "2026-11-14T12:31:05Z"
     }
   ],
   "pagination": {
     "limit": 20,
     "offset": 0,
-    "total": 1
+    "total": 2
   }
 }
 ```
 
-Only messages authorized for therapist visibility may be returned.
+Only authorized therapist-visible messages may be returned.
+
+Internal reasoning and hidden prompts must not be included.
 
 ---
 
-## 8. External API — Therapist Interaction
+# PART III — THERAPIST INTERACTION
 
-### 8.1 Submit Therapist Message
+## 11. Submit Therapist Message
 
-**Endpoint:**
+### Endpoint
 
 `POST /api/v1/sessions/{session_id}/messages`
 
 Purpose:
 
-Submit a therapist message and obtain a Patient Agent response.
+Submit a therapist message and receive a synthetic client response.
 
-Request:
+### 11.1 Request
+
+Required header:
+
+`Idempotency-Key: unique-operation-key`
+
+Request body:
 
 ```json
 {
@@ -467,40 +628,63 @@ Request:
 }
 ```
 
-Required fields:
+Required field:
 
 - content
 
-Optional request header:
+The original message content must be preserved.
 
-`Idempotency-Key: unique-operation-key`
+The backend must validate:
 
-### Processing Sequence
+- Session existence.
+- Active session status.
+- Message length.
+- Message format.
+- Idempotency key.
+- Request payload hash.
+
+### 11.2 Processing Sequence
 
 1. Validate the session.
-2. Verify that the session is active.
-3. Validate message length and content format.
-4. Check the idempotency key.
-5. Persist the therapist message.
-6. Prepare authorized Patient Agent context.
-7. Generate the patient response.
-8. Validate the PatientResponse structure.
-9. Persist the patient response.
-10. Trigger the authorized event-processing workflow.
-11. Return the interaction result.
+2. Validate the idempotency key.
+3. Calculate the request hash.
+4. Check for an existing InteractionRequest.
+5. Return the existing result when the operation has already completed.
+6. Return processing status if the operation is still active.
+7. Create a new InteractionRequest when appropriate.
+8. Persist the therapist message exactly once.
+9. Construct PatientContext.
+10. Invoke Patient Agent.
+11. Validate the PatientResponse.
+12. Persist the patient response.
+13. Record deterministic application events.
+14. Complete the InteractionRequest.
+15. Return the interaction result.
 
-### Response
+Candidate behavioral event extraction is a separate internal process.
+
+Failure of optional event extraction must not invalidate a successfully completed therapist-patient interaction.
+
+### 11.3 Successful Response
+
+HTTP status: `201 Created`
+
+Example:
 
 ```json
 {
   "data": {
+    "request_id": "uuid",
+    "operation_status": "completed",
     "therapist_message": {
       "message_id": "uuid",
+      "sequence_number": 1,
       "role": "therapist",
       "content": "Can you describe what happened during that meeting?"
     },
     "patient_response": {
       "message_id": "uuid",
+      "sequence_number": 2,
       "role": "patient",
       "content": "I remember feeling embarrassed when my colleague interrupted me."
     },
@@ -509,35 +693,111 @@ Optional request header:
 }
 ```
 
-### Failure Handling
+### 11.4 Idempotency Rules
 
-If model generation fails after the therapist message has been persisted:
+The combination of session_id and Idempotency-Key must be unique.
 
-- The therapist message must remain stored.
-- The failed generation must be recorded.
-- The session must not be marked completed.
-- The API must return a structured error.
-- A retry must not duplicate the therapist message when the same idempotency key is used.
+When the same key and identical payload are submitted again:
 
-The backend must distinguish between a failed model operation and a successfully completed interaction.
+- No duplicate therapist message may be created.
+- No duplicate persisted patient response may be created.
+- The existing operation status or result must be returned.
 
-The initial MVP may use synchronous message submission. If generation latency makes synchronous requests unreliable, a background job and polling mechanism may be introduced in a later API version.
+When the same key is reused with a different payload:
+
+- The API must return an idempotency conflict.
+
+A completed request replay may return HTTP `200 OK` with the original result.
+
+A request already being processed may return HTTP `202 Accepted` with its request identifier and current status.
+
+### 11.5 Model Failure
+
+If Patient Agent generation fails after the therapist message has been persisted:
+
+- Preserve the therapist message.
+- Keep the InteractionRequest record.
+- Mark the operation as failed.
+- Record the model execution failure.
+- Do not fabricate a patient response.
+- Do not automatically modify clinical state.
+
+A retry using the original idempotency key may resume the failed operation after recovery checks.
+
+The backend must first verify whether a patient response has already been persisted.
+
+### 11.6 Recovery and Exactly-Once Limitations
+
+The API guarantees that repeated requests with the same idempotency key do not create duplicate persisted interaction effects.
+
+It does not guarantee that the local language model will be invoked exactly once after every possible process crash.
+
+If the process fails after model generation but before response persistence, a later recovery may require another generation.
+
+The resulting operation must still preserve a single authoritative persisted interaction result.
+
+This limitation must remain explicit.
 
 ---
 
-## 9. External API — Session Completion
+## 12. Retrieve Interaction Request Status
 
-### 9.1 Complete Session
+### Endpoint
 
-**Endpoint:**
+`GET /api/v1/interaction-requests/{request_id}`
+
+Purpose:
+
+Retrieve the processing status of a previously submitted therapist message operation.
+
+Response:
+
+```json
+{
+  "data": {
+    "request_id": "uuid",
+    "session_id": "uuid",
+    "processing_status": "failed",
+    "therapist_message_id": "uuid",
+    "patient_message_id": null,
+    "error_code": "MODEL_EXECUTION_FAILED",
+    "created_at": "2026-11-14T12:31:00Z",
+    "completed_at": null
+  }
+}
+```
+
+This endpoint must return operational metadata only.
+
+It must not expose:
+
+- Restricted PatientContext.
+- Internal prompts.
+- Hidden case information.
+- Unfiltered model output.
+- Application secrets.
+
+The request status must distinguish:
+
+- in_progress
+- completed
+- failed
+
+---
+
+# PART IV — SESSION COMPLETION
+
+## 13. Complete Session
+
+### Endpoint
 
 `POST /api/v1/sessions/{session_id}/complete`
 
 Purpose:
 
-Terminate the current simulation session.
+Complete an active simulation session.
 
-Request:
+### 13.1 Request
 
 ```json
 {
@@ -545,22 +805,26 @@ Request:
 }
 ```
 
-Possible completion reasons:
+Allowed completion reasons:
 
 - normal
 - trainee_ended
 - system_interrupted
 
+### 13.2 Processing Requirements
+
 The backend must:
 
-1. Verify that the session is active.
-2. Persist all completed interaction records.
-3. Finalize the transcript version.
-4. Record the completion timestamp.
-5. Update the session status.
-6. Create an audit event.
+1. Validate the session.
+2. Verify that no message operation is still active.
+3. Finalize all persisted interaction records.
+4. Finalize the transcript version.
+5. Calculate and persist its content hash.
+6. Record the completion timestamp.
+7. Update the session status.
+8. Record the completion audit event.
 
-Response:
+### 13.3 Response
 
 ```json
 {
@@ -573,25 +837,33 @@ Response:
 }
 ```
 
-Session completion and evaluation generation must be separate operations.
+### 13.4 Idempotency
 
-An evaluation failure must not invalidate an already completed session.
+Repeated completion requests for an already completed session must return the existing completion result without modifying the transcript.
+
+An interrupted or failed session must not be represented as successfully completed.
+
+### 13.5 Evaluation Separation
+
+Session completion and evaluation generation are independent operations.
+
+A failed evaluation must not change a completed session back to an active state.
 
 ---
 
-## 10. External API — Evaluation
+# PART V — EVALUATION API
 
-### 10.1 Generate Evaluation
+## 14. Session-Level Evaluation
 
-**Endpoint:**
+### Endpoint
 
 `POST /api/v1/sessions/{session_id}/evaluations`
 
 Purpose:
 
-Generate an evaluation report for a completed simulation session.
+Generate a formative evaluation report for one completed session.
 
-Request:
+### 14.1 Request
 
 ```json
 {
@@ -600,29 +872,55 @@ Request:
 }
 ```
 
+Required fields:
+
+- rubric_id
+- rubric_version
+
+### 14.2 Preconditions
+
 The backend must verify:
 
-- The session is completed.
-- A compatible rubric exists.
-- The transcript is finalized.
-- An evaluation has not already been created for the same operation unless a new evaluation is explicitly requested.
+- Session exists.
+- Session belongs to a valid simulation run.
+- Session status is completed.
+- Transcript has been finalized.
+- Requested rubric exists.
+- Rubric is compatible with the session modality.
+- Transcript version is available.
 
-The Evaluator Agent receives only:
+### 14.3 Evaluator Input
 
-- Authorized session transcript.
-- Applicable evaluation rubric.
-- Therapist-visible context.
-- Explicit evaluation instructions.
+The Evaluation Service constructs an explicit EvaluationInput object.
 
-It must never receive restricted case formulation or hidden Patient Agent instructions.
+The Evaluator Agent receives:
 
-Response:
+- Finalized session transcript.
+- Exact transcript version.
+- Authorized therapist-visible context.
+- Applicable rubric.
+- Evaluation instructions.
+
+It must not receive:
+
+- Restricted clinical formulation.
+- Hidden CaseFact records.
+- Undisclosed personal history.
+- Patient Agent internal prompts.
+- Private simulation state.
+- Future planned responses.
+
+### 14.4 Response
+
+HTTP status: `201 Created`
 
 ```json
 {
   "data": {
     "evaluation_id": "uuid",
+    "evaluation_scope": "session",
     "session_id": "uuid",
+    "run_id": "uuid",
     "status": "completed",
     "rubric_id": "ACT_RUBRIC_V0",
     "rubric_version": "0.1",
@@ -631,295 +929,523 @@ Response:
 }
 ```
 
-The initial MVP may generate the evaluation synchronously. Long-running evaluation operations may later use an asynchronous job pattern.
+### 14.5 Duplicate Evaluation Handling
 
-### 10.2 Retrieve Evaluation Report
+The initial MVP should maintain one canonical completed evaluation for each:
 
-**Endpoint:**
+- Session.
+- Transcript version.
+- Rubric version.
+- Evaluation scope.
+
+A repeated request using the same evaluation configuration must return the existing report instead of generating an unintended duplicate.
+
+Explicit evaluation revision management is deferred.
+
+### 14.6 Failure Handling
+
+If evaluation generation fails:
+
+- Preserve the completed transcript.
+- Record the failed model execution.
+- Mark the evaluation operation as failed.
+- Do not return an incomplete report as completed.
+- Allow a controlled retry.
+
+---
+
+## 15. Retrieve Session Evaluations
+
+### Endpoint
+
+`GET /api/v1/sessions/{session_id}/evaluations`
+
+Purpose:
+
+List evaluations associated with a session.
+
+Response fields:
+
+- evaluation_id
+- evaluation_scope
+- rubric_id
+- rubric_version
+- status
+- created_at
+
+The API may return multiple records when historical revisions are supported in future versions.
+
+---
+
+## 16. Generate Longitudinal Evaluation
+
+### Endpoint
+
+`POST /api/v1/simulation-runs/{run_id}/evaluations`
+
+Purpose:
+
+Generate a final evaluation of the therapist's work across all three connected simulation sessions.
+
+This is a required capability of the initial MVP.
+
+### 16.1 Request
+
+```json
+{
+  "rubric_id": "ACT_LONGITUDINAL_RUBRIC_V0",
+  "rubric_version": "0.1"
+}
+```
+
+Required fields:
+
+- rubric_id
+- rubric_version
+
+The longitudinal rubric may share competency definitions with the session-level ACT rubric but must explicitly define longitudinal evaluation criteria.
+
+### 16.2 Preconditions
+
+The backend must verify:
+
+1. The simulation run exists.
+2. The run uses the expected case version.
+3. Exactly three sessions have been completed.
+4. All three transcripts are finalized.
+5. Session ordering is valid.
+6. No required transcript is missing.
+7. The requested longitudinal rubric exists.
+8. The rubric is compatible with the simulation modality.
+
+Longitudinal evaluation must not run on incomplete simulations.
+
+### 16.3 Evaluator Input
+
+The Evaluation Service constructs one LongitudinalEvaluationInput.
+
+It contains:
+
+- run_id
+- case_version_id
+- modality
+- language
+- rubric identifier and version
+- all three finalized session transcripts
+- transcript versions
+- transcript hashes
+- therapist-visible context by session
+- longitudinal evaluation instructions
+
+Transcripts must be presented in chronological order.
+
+The evaluator must not receive:
+
+- RestrictedCaseContext.
+- Undisclosed personal history.
+- Hidden case fact definitions.
+- Internal Patient Agent instructions.
+- Private state variables.
+- Unvalidated candidate events.
+
+The Evaluator Agent must assess only information legitimately available to the therapist during the simulation.
+
+### 16.4 Longitudinal Evaluation Dimensions
+
+The longitudinal report may evaluate:
+
+- Continuity of therapeutic formulation.
+- Use of previous disclosures.
+- Review of agreed homework.
+- Adaptation to client feedback.
+- Consistency of ACT principles.
+- Responsiveness across sessions.
+- Continuity of the therapeutic relationship.
+- Evidence of therapeutic flexibility.
+- Changes in intervention strategy.
+- Appropriate management of uncertainty.
+- Limitations across the available sessions.
+
+It must not infer long-term clinical effectiveness from three simulated sessions.
+
+### 16.5 Response
+
+HTTP status: `201 Created`
+
+```json
+{
+  "data": {
+    "evaluation_id": "uuid",
+    "evaluation_scope": "longitudinal",
+    "run_id": "uuid",
+    "status": "completed",
+    "evaluated_sessions": 3,
+    "rubric_id": "ACT_LONGITUDINAL_RUBRIC_V0",
+    "rubric_version": "0.1",
+    "created_at": "2026-11-14T14:00:00Z"
+  }
+}
+```
+
+### 16.6 Duplicate Handling
+
+A repeated request with the same run, completed session set, transcript manifest, and rubric version must return the existing canonical report.
+
+The initial MVP does not support arbitrary re-evaluation revisions.
+
+---
+
+## 17. Retrieve Longitudinal Evaluations
+
+### Endpoint
+
+`GET /api/v1/simulation-runs/{run_id}/evaluations`
+
+Purpose:
+
+Retrieve evaluation reports associated with a simulation run.
+
+The response must distinguish:
+
+- Session-level evaluations.
+- Longitudinal evaluations.
+
+Each result should include:
+
+- evaluation_id
+- evaluation_scope
+- session_id, when applicable
+- run_id
+- rubric_id
+- rubric_version
+- status
+- created_at
+
+---
+
+## 18. Retrieve Evaluation Report
+
+### Endpoint
 
 `GET /api/v1/evaluations/{evaluation_id}`
 
 Purpose:
 
-Retrieve an authorized evaluation report.
+Retrieve the complete authorized evaluation report.
 
-The report may contain:
+Response fields:
 
 - evaluation_id
-- session_id
+- evaluation_scope
+- run_id
+- session_id, when applicable
+- rubric_id
+- rubric_version
 - overall_summary
 - competency_results
 - strengths
 - improvement_areas
 - evidence_references
 - missing_evidence
+- alternative_responses
 - safety_observations
 - uncertainty_notes
 - created_at
 
-The API must preserve evidence references to transcript messages.
+### 18.1 Evidence Requirements
 
-The report must not claim validated therapist competence or provide clinical certification.
+Every evidence reference must identify:
 
-### 10.3 List Session Evaluations
+- message_id
+- message role
+- evidence excerpt or span
+- relevant competency
 
-**Endpoint:**
+Evidence references must resolve to messages belonging to the evaluated session or to one of the sessions included in the longitudinal report.
 
-`GET /api/v1/sessions/{session_id}/evaluations`
+The report must not contain invented transcript evidence.
 
-Purpose:
+### 18.2 Evaluation Limitations
 
-Retrieve evaluations associated with a session.
+The report is formative educational feedback.
 
-Multiple evaluations may exist when different rubric versions or explicitly requested re-evaluations are used.
+It must not be described as:
+
+- Validated therapist competence.
+- Professional certification.
+- A clinical diagnosis.
+- Proof of successful psychotherapy.
+- A validated measure of real-world treatment effectiveness.
 
 ---
 
-## 11. Internal Service Contracts
+# PART VI — INTERNAL SERVICE CONTRACTS
 
-Internal service contracts define how the Orchestrator coordinates the system.
+## 19. Orchestrator Interface
 
-They do not imply that every internal operation requires an independently accessible HTTP endpoint.
-
-### 11.1 Orchestrator Interface
+The Orchestrator manages the simulation lifecycle.
 
 Responsibilities:
 
 - Create simulation runs.
-- Initialize sessions.
-- Process therapist messages.
-- Coordinate Patient Agent execution.
-- Trigger event extraction.
-- Invoke State Engine validation.
+- Initialize sequential sessions.
+- Coordinate therapist interactions.
+- Coordinate Patient Context construction.
+- Invoke Patient Agent.
+- Coordinate output validation.
+- Trigger deterministic event processing.
+- Coordinate state validation.
 - Complete sessions.
-- Trigger evaluation.
-- Coordinate persistence.
+- Trigger evaluation generation.
+- Coordinate memory persistence.
 
-The Orchestrator must not independently invent clinical state changes.
+The Orchestrator must not directly invent psychological state changes.
 
-### 11.2 Patient Agent Interface
+Suggested internal operations:
 
-**Method:**
+- `create_run(...)`
+- `create_next_session(...)`
+- `process_interaction(...)`
+- `complete_session(...)`
+- `evaluate_session(...)`
+- `evaluate_run(...)`
 
-`generate_response(context, therapist_message)`
-
-Input:
-
-- authorized case context
-- current simulation state
-- relevant longitudinal memory
-- current session context
-- latest therapist message
-
-Output:
-
-- PatientResponse
-- permitted structured annotations
-- generation metadata
-
-Restrictions:
-
-- Must not return hidden prompts as conversation content.
-- Must not invent established personal history outside the case definition.
-- Must preserve continuity across sessions.
-- Must distinguish explicit disclosures from internal simulation assumptions.
-
-### 11.3 Patient Context Interface
-
-**Method:**
-
-`build_patient_context(case_version_id, run_id, session_id)`
-
-Purpose:
-
-Build the minimum authorized context required by the Patient Agent.
-
-Responsibilities:
-
-- Retrieve relevant case information.
-- Include the current state.
-- Retrieve relevant longitudinal memory.
-- Apply disclosure constraints.
-- Exclude information not required for the current interaction.
-
-This interface is the authorized access path to the restricted case database.
-
-It must not provide unrestricted database access to the Patient Agent.
-
-### 11.4 Event Extraction Interface
-
-**Method:**
-
-`extract_events(transcript_segment, context)`
-
-Input:
-
-- relevant transcript messages
-- authorized event extraction instructions
-- event schema version
-
-Output:
-
-- candidate events
-- evidence references
-- extraction metadata
-- uncertainty notes
-
-The extraction layer may use deterministic rules, language models, or both.
-
-It must not directly modify the canonical clinical state.
-
-### 11.5 Clinical State Engine Interface
-
-**Method:**
-
-`validate_transitions(current_state, candidate_transitions, evidence)`
-
-Input:
-
-- current structured state
-- candidate transitions
-- accepted event records
-- relevant transcript evidence
-- transition rule version
-
-Output:
-
-- accepted transitions
-- rejected transitions
-- transitions requiring review
-- resulting state snapshot, when applicable
-
-The Clinical State Engine must enforce deterministic validation rules.
-
-### 11.6 Evaluator Agent Interface
-
-**Method:**
-
-`evaluate_session(evaluation_input)`
-
-Input:
-
-- authorized transcript
-- versioned evaluation rubric
-- therapist-visible session context
-- evaluation instructions
-
-Output:
-
-- EvaluationReport
-- competency results
-- supporting evidence references
-- uncertainty notes
-- missing evidence
-
-The evaluator must not have access to restricted case storage.
-
-### 11.7 Memory Service Interface
-
-**Methods:**
-
-- `retrieve_memory(run_id, session_id)`
-- `create_memory_candidates(transcript, events)`
-- `validate_memory_updates(candidates)`
-- `persist_memory_updates(accepted_items)`
-
-Memory records must preserve their source and information classification.
-
-A memory update must not silently convert a therapist hypothesis into a disclosed client fact.
+These are internal methods, not public HTTP routes.
 
 ---
 
-## 12. Access Control
+## 20. Patient Context Service Interface
 
-The API must enforce access boundaries at the backend.
+Method:
 
-### 12.1 External Access
+`build_patient_context(run_id, session_id)`
+
+Responsibilities:
+
+1. Retrieve the correct case version.
+2. Retrieve restricted patient information.
+3. Retrieve relevant case facts.
+4. Retrieve disclosure statuses.
+5. Retrieve current clinical state.
+6. Retrieve relevant longitudinal memory.
+7. Retrieve recent transcript messages.
+8. Apply the disclosure policy.
+9. Construct a validated PatientContext.
+10. Exclude unrelated or unauthorized information.
+
+This service is the authorized access path to `case_vault.db`.
+
+It must return a typed object rather than an unrestricted database connection.
+
+---
+
+## 21. Patient Agent Interface
+
+Method:
+
+`generate_response(patient_context, therapist_message)`
+
+Input:
+
+- Validated PatientContext.
+- Latest TherapistMessage.
+
+Output:
+
+- PatientResponse.
+- Optional candidate interaction annotations.
+- Model execution metadata.
+
+Restrictions:
+
+- No direct state modification.
+- No direct database access.
+- No arbitrary tool execution.
+- No unrestricted filesystem access.
+- No disclosure of hidden prompts.
+- No automatic confirmation of case fact disclosure.
+
+---
+
+## 22. Event Processing Service Interface
+
+Method:
+
+`process_interaction(transcript_segment, application_events)`
+
+Responsibilities:
+
+- Record application-generated operational events.
+- Collect optional behavioral event proposals.
+- Validate message references.
+- Preserve uncertainty.
+- Prevent duplicate events.
+- Submit eligible evidence to the State Engine.
+
+The initial MVP prioritizes deterministic application events.
+
+Model-assisted behavioral event extraction is optional and deferred.
+
+The Event Processing Service is not an independently deployed service or mandatory third LLM Agent.
+
+---
+
+## 23. Clinical State Engine Interface
+
+Method:
+
+`validate_transition(current_state, proposal, evidence)`
+
+Input:
+
+- Current state snapshot.
+- Candidate transition.
+- Validated evidence.
+- Versioned transition rules.
+
+Output:
+
+- Accepted transition.
+- Rejected transition.
+- Requires-review decision.
+- New snapshot when applicable.
+
+The State Engine is the only component authorized to modify canonical clinical state.
+
+All accepted changes must be transactional and auditable.
+
+---
+
+## 24. Memory Service Interface
+
+Initial methods:
+
+- `retrieve_memory(run_id, session_id)`
+- `create_memory_candidates(transcript, accepted_events)`
+- `validate_memory_updates(candidates)`
+- `persist_memory_updates(accepted_items)`
+
+The Memory Service must:
+
+- Preserve source message references.
+- Distinguish disclosed facts from hypotheses.
+- Maintain historical versions.
+- Avoid fabricating events.
+- Select only relevant information for PatientContext.
+
+Memory processing is an internal backend responsibility in the initial MVP.
+
+---
+
+## 25. Evaluation Service Interface
+
+Methods:
+
+- `evaluate_session(session_id, rubric_version_id)`
+- `evaluate_run(run_id, rubric_version_id)`
+
+Responsibilities:
+
+- Validate evaluation eligibility.
+- Construct the appropriate EvaluationInput.
+- Enforce the Evaluator Agent's information boundary.
+- Invoke Evaluator Agent.
+- Validate competency identifiers.
+- Validate ratings.
+- Validate transcript evidence.
+- Persist completed reports.
+- Record execution metadata.
+- Handle evaluation failures.
+
+The same Evaluator Agent may process both evaluation scopes through separate validated input schemas.
+
+---
+
+## 26. Evaluator Agent Interface
+
+Method:
+
+`evaluate(evaluation_input)`
+
+Input:
+
+- Session-level EvaluationInput or longitudinal EvaluationInput.
+- Explicit rubric version.
+- Finalized transcript data.
+- Authorized therapist-visible context.
+
+Output:
+
+- EvaluationReport.
+
+The Evaluator Agent must not have access to restricted database connections, unrestricted repositories, or hidden Patient Agent context.
+
+---
+
+# PART VII — ACCESS CONTROL AND SECURITY
+
+## 27. External API Access Boundaries
 
 The Therapist Interface may access:
 
 - Approved case introductions.
 - Simulation metadata.
 - Session metadata.
-- Therapist-visible transcript messages.
+- Therapist-visible conversation messages.
 - Completed evaluation reports.
 
 It must not access:
 
-- Hidden case formulation.
-- Restricted personal history.
-- Patient Agent internal prompts.
-- Internal clinical state variables.
-- Candidate event annotations.
-- Unvalidated state transitions.
-- Restricted memory records.
+- Restricted clinical formulation.
+- Hidden case facts.
+- Internal disclosure policies.
+- Private clinical state values.
+- Unvalidated candidate events.
+- Patient Agent prompts.
+- Internal model reasoning.
+- Internal memory records.
 
-### 12.2 Internal Access
+Access restrictions must be enforced by backend authorization and response serialization.
 
-| Component | Authorized Access |
-|---|---|
-| Orchestrator | Coordination and authorized service interfaces |
-| Patient Context | Restricted case data through controlled access |
-| Patient Agent | Minimum required patient context |
-| Evaluator Agent | Transcript, rubric, authorized session context |
-| State Engine | Structured state, candidate events, evidence |
-| Memory Service | Authorized longitudinal memory operations |
-| Repository Layer | Data access according to explicit repository boundaries |
+### 27.1 Local Single-User Configuration
 
-Internal components must receive typed objects rather than unrestricted database access whenever possible.
+The initial deployment is local single-user.
 
-### 12.3 Local-First Security
+Requirements:
 
-The initial application is designed for local single-user operation.
+- Bind the API to `127.0.0.1` by default.
+- Do not expose restricted databases through static file serving.
+- Do not send hidden case information to external services.
+- Do not include secrets in agent prompts.
+- Validate all incoming requests.
 
-Initial security requirements:
-
-- Bind the development server to localhost by default.
-- Do not expose the API to the public network by default.
-- Keep restricted database files outside frontend-accessible directories.
-- Never embed database credentials or unrestricted internal configuration in frontend code.
-- Validate every incoming request.
-- Avoid logging hidden prompts or restricted case content.
-
-Before multi-user or network access is introduced, authentication, authorization, encryption, and stronger process isolation must be designed and implemented.
-
-Localhost binding alone must not be treated as complete protection against unauthorized access.
+Localhost binding must not be described as complete security against unauthorized processes on the same computer.
 
 ---
 
-## 13. Idempotency and Concurrency
+## 28. Prompt Injection and Untrusted Inputs
 
-Operations that create messages, sessions, evaluations, or state transitions must handle duplicate requests safely.
+Therapist messages and transcript content must be treated as untrusted data.
 
-### 13.1 Idempotency
+Agents must not obey conversational instructions that attempt to:
 
-The following operations should support idempotency keys:
+- Reveal hidden prompts.
+- Reveal restricted case information.
+- Modify evaluation rubrics.
+- Bypass access boundaries.
+- Execute operating-system commands.
+- Modify canonical state.
+- Access database contents.
 
-- Therapist message submission.
-- Session creation.
-- Evaluation generation.
-- Other operations that may create duplicate records during retries.
+Prompt wording must be supported by application-level restrictions.
 
-A repeated request with the same idempotency key and identical payload must not create duplicate resources.
-
-Reusing the same key with a different payload must return a conflict error.
-
-### 13.2 Concurrency
-
-The initial MVP may limit each session to one active interaction request at a time.
-
-The backend must prevent:
-
-- Two simultaneous therapist messages from corrupting sequence ordering.
-- Duplicate Patient Agent responses.
-- Concurrent conflicting state transitions.
-- Multiple session-completion operations from creating inconsistent records.
-
-Operations requiring multiple database writes must use appropriate transactions.
+The backend must validate both agent inputs and outputs.
 
 ---
 
-## 14. Standard Error Codes
+# PART VIII — ERROR HANDLING
+
+## 29. Standard Error Codes
 
 Initial API error codes:
 
@@ -927,132 +1453,211 @@ Initial API error codes:
 |---|---|
 | VALIDATION_ERROR | Invalid request data |
 | RESOURCE_NOT_FOUND | Requested resource does not exist |
-| CASE_NOT_AVAILABLE | Case is not available for simulation |
-| SESSION_NOT_ACTIVE | Session does not accept new messages |
-| RUN_ALREADY_COMPLETED | Simulation run is already completed |
+| CASE_NOT_AVAILABLE | Case is unavailable |
+| INVALID_CASE_VERSION | Case version is invalid |
+| SESSION_NOT_ACTIVE | Session does not accept messages |
+| SESSION_ORDER_INVALID | Previous session is incomplete |
+| SESSION_LIMIT_REACHED | Three-session limit reached |
+| RUN_NOT_COMPLETE | Run is not eligible for longitudinal evaluation |
 | DUPLICATE_REQUEST | Duplicate operation detected |
-| IDEMPOTENCY_CONFLICT | Same idempotency key used with different payload |
-| MODEL_EXECUTION_FAILED | Language-model execution failed |
-| COMPONENT_UNAVAILABLE | Required internal component is unavailable |
-| EVALUATION_NOT_ALLOWED | Session is not eligible for evaluation |
+| IDEMPOTENCY_CONFLICT | Same key used with a different payload |
+| REQUEST_IN_PROGRESS | Original request is still being processed |
+| MODEL_EXECUTION_FAILED | Local model execution failed |
+| COMPONENT_UNAVAILABLE | Required component is unavailable |
+| EVALUATION_NOT_ALLOWED | Evaluation preconditions are not satisfied |
 | ACCESS_DENIED | Operation is not authorized |
+| OUTPUT_VALIDATION_FAILED | Model output failed validation |
 | STATE_VALIDATION_FAILED | State transition failed validation |
 | INTERNAL_ERROR | Unexpected internal error |
 
-Suggested HTTP status mapping:
+### 29.1 HTTP Status Mapping
 
 | HTTP Status | Typical Use |
 |---|---|
-| 200 | Successful retrieval or operation |
-| 201 | Resource created |
-| 202 | Operation accepted for asynchronous processing |
+| 200 | Successful retrieval or replay of completed operation |
+| 201 | New resource or operation successfully created |
+| 202 | Operation remains in progress |
 | 400 | Invalid request |
 | 403 | Access denied |
 | 404 | Resource not found |
-| 409 | State conflict or duplicate operation |
-| 422 | Request validation failure |
-| 500 | Unexpected server error |
+| 409 | State conflict or idempotency conflict |
+| 422 | Schema validation failure |
+| 500 | Unexpected internal error |
 | 503 | Required component unavailable |
 
-The external error response must not reveal whether restricted case information exists unless that information is already authorized for the requester.
+HTTP status codes must remain consistent across endpoint implementations.
+
+### 29.2 Error Information
+
+Errors must not expose:
+
+- Hidden case context.
+- Internal prompts.
+- Full model input.
+- Database connection strings.
+- Stack traces.
+- Application secrets.
 
 ---
 
-## 15. API Documentation and Testing
+## 30. Concurrency and Recovery
 
-FastAPI should expose generated OpenAPI documentation during development.
+The initial MVP allows only one active message-generation operation per session.
 
-Initial documentation endpoints:
+The backend must prevent:
+
+- Duplicate message sequence numbers.
+- Duplicate patient responses.
+- Concurrent conflicting state updates.
+- Simultaneous completion and message generation.
+- Duplicate disclosure confirmation.
+- Duplicate evaluation creation.
+
+### 30.1 Recovery Requirements
+
+After an interrupted operation:
+
+1. Retrieve the original request record.
+2. Check whether the therapist message exists.
+3. Check whether a patient response was persisted.
+4. Determine whether generation is still active.
+5. Determine whether a controlled retry is permitted.
+6. Reuse the original idempotency identity.
+7. Preserve audit history.
+
+The system must never assume that a timeout proves that model generation did not happen.
+
+---
+
+# PART IX — API TESTING
+
+## 31. Required API Tests
+
+The initial test suite must verify:
+
+1. Case listing excludes restricted fields.
+2. Case retrieval returns only authorized information.
+3. Simulation run creation works.
+4. Case version references remain consistent.
+5. Sessions are created in sequential order.
+6. Session 2 cannot start before Session 1 completes.
+7. Session 3 cannot start before Session 2 completes.
+8. A fourth session cannot be created.
+9. Therapist messages are stored correctly.
+10. Duplicate interaction requests do not create duplicate persisted messages.
+11. Reusing an idempotency key with a different payload is rejected.
+12. Failed patient generation does not invalidate the therapist message.
+13. Interaction status can be retrieved.
+14. Completed sessions reject new therapist messages.
+15. Completed sessions can be evaluated.
+16. Longitudinal evaluation requires all three completed sessions.
+17. Longitudinal evaluation uses all three transcript versions.
+18. Evaluator input excludes restricted case information.
+19. Evaluation evidence references valid messages.
+20. Invalid rating values are rejected.
+21. Invalid evidence references are rejected.
+22. Unauthorized API requests are rejected.
+23. Standard error responses are preserved.
+24. Database and application failures do not create partially accepted state transitions.
+
+### 31.1 Security Tests
+
+Specific tests must verify:
+
+- No hidden case information in frontend responses.
+- No PatientContext in evaluator input.
+- No arbitrary agent tool access.
+- No unauthorized state modification.
+- No secret exposure through logs.
+- No public access to database files.
+
+---
+
+## 32. API Documentation
+
+FastAPI generates development API documentation automatically.
+
+Initial development endpoints:
 
 - `/docs`
 - `/redoc`
 - `/openapi.json`
 
-These endpoints should be disabled or restricted appropriately in any later production deployment.
+These endpoints must be reviewed before any later production deployment.
 
-### Required API Tests
+The OpenAPI specification must reflect the actual implemented Pydantic schemas and endpoint behavior.
 
-The initial test suite must verify:
-
-1. Case listing does not expose restricted fields.
-2. Simulation run creation works with valid input.
-3. Sessions are created in the correct order.
-4. Therapist messages are stored correctly.
-5. Patient Agent failures do not corrupt stored messages.
-6. Duplicate message requests do not create duplicate interactions.
-7. Inactive sessions reject new messages.
-8. Completed sessions reject further therapist messages.
-9. Evaluation cannot run on an incomplete session.
-10. Evaluator inputs exclude hidden case information.
-11. Evaluation evidence references valid transcript messages.
-12. Unauthorized requests are rejected.
-13. State transitions do not bypass validation.
-14. API errors use the standard response structure.
+Documentation must not claim functionality that has not been implemented.
 
 ---
 
-## 16. Initial MVP Endpoint Summary
+## 33. Initial MVP Endpoint Summary
 
 | Method | Endpoint | Purpose |
 |---|---|---|
-| GET | `/health` | Service health check |
+| GET | `/health` | Backend health |
 | GET | `/api/v1/cases` | List available cases |
-| GET | `/api/v1/cases/{case_id}` | Retrieve authorized case metadata |
+| GET | `/api/v1/cases/{case_id}` | Retrieve authorized case profile |
 | POST | `/api/v1/simulation-runs` | Create simulation run |
-| GET | `/api/v1/simulation-runs/{run_id}` | Retrieve simulation run |
+| GET | `/api/v1/simulation-runs/{run_id}` | Retrieve run |
 | GET | `/api/v1/simulation-runs/{run_id}/sessions` | List sessions |
-| POST | `/api/v1/simulation-runs/{run_id}/sessions` | Create session |
+| POST | `/api/v1/simulation-runs/{run_id}/sessions` | Create next sequential session |
 | GET | `/api/v1/sessions/{session_id}` | Retrieve session |
-| GET | `/api/v1/sessions/{session_id}/messages` | Retrieve transcript messages |
+| GET | `/api/v1/sessions/{session_id}/messages` | Retrieve therapist-visible transcript |
 | POST | `/api/v1/sessions/{session_id}/messages` | Submit therapist message |
+| GET | `/api/v1/interaction-requests/{request_id}` | Retrieve interaction operation status |
 | POST | `/api/v1/sessions/{session_id}/complete` | Complete session |
-| POST | `/api/v1/sessions/{session_id}/evaluations` | Generate evaluation |
+| POST | `/api/v1/sessions/{session_id}/evaluations` | Generate session-level evaluation |
 | GET | `/api/v1/sessions/{session_id}/evaluations` | List session evaluations |
+| POST | `/api/v1/simulation-runs/{run_id}/evaluations` | Generate longitudinal evaluation |
+| GET | `/api/v1/simulation-runs/{run_id}/evaluations` | List run evaluations |
 | GET | `/api/v1/evaluations/{evaluation_id}` | Retrieve evaluation report |
 
-The `/health` endpoint may return basic service status only. It must not expose database contents, model configuration secrets, or restricted case information.
-
-State transition, hidden memory, and restricted case-management endpoints are intentionally excluded from the therapist-facing API in the initial MVP.
+Disclosure management, hidden memory, state transitions, and restricted case access are intentionally excluded from the public Therapist Interface API.
 
 ---
 
-## 17. Open Design Questions
+## 34. Initial Implementation Scope
 
-The following decisions remain to be finalized:
-
-- Should interaction generation use synchronous responses or asynchronous jobs?
-- Should server-sent events be introduced for streamed patient responses?
-- How should model generation timeouts be handled?
-- How should interrupted message operations be recovered?
-- Should session access use additional authorization tokens in local single-user mode?
-- Which internal services should remain in-process?
-- When should internal service boundaries become separate processes?
-- How should API compatibility be tested across frontend and backend versions?
-- How should evaluation retries preserve reproducibility?
-- How should API request and response schemas be versioned?
-
-These questions must be addressed before implementation.
-
----
-
-## 18. Initial Implementation Scope
-
-The first API implementation will include:
+The first API implementation must support:
 
 - Versioned REST API.
-- Case listing and authorized metadata retrieval.
+- Case listing.
+- Authorized case metadata retrieval.
 - Simulation run creation.
-- Session creation and retrieval.
-- Therapist message submission.
+- Three sequential sessions.
+- Session retrieval.
+- Message submission.
 - Patient Agent response delivery.
+- Idempotent message submission.
+- Interaction recovery status.
 - Session completion.
-- Evaluation generation and retrieval.
+- Session-level evaluation.
+- Longitudinal evaluation.
+- Evaluation report retrieval.
 - Standard error handling.
-- Idempotency for message submission.
-- Strict access boundaries for restricted case information.
+- Restricted information isolation.
 - Automated API tests.
 
-Advanced streaming, multi-user authentication, distributed services, and external API providers are outside the initial MVP scope.
+Advanced streaming, multi-user authentication, external model APIs, and distributed services are outside the initial MVP scope.
+
+---
+
+## 35. Open Implementation Questions
+
+The following issues remain for the implementation phase:
+
+- Should model generation timeout values differ by agent?
+- How should interrupted model generation be recovered?
+- How should model-specific output parsing be normalized?
+- How should the application handle simultaneous evaluation requests?
+- How should transcript content hashes be generated?
+- Which endpoints require stronger authentication before multi-user deployment?
+- Should event processing run immediately after each interaction or at session completion?
+- How should memory update failures be retried?
+- How should the OpenAPI contract be compared with implementation changes?
+
+These decisions must be resolved through implementation and testing.
 
 ---
 

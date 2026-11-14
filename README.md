@@ -8,7 +8,8 @@ TheraSim is a research-oriented project proposing a local-first, LLM-assisted en
 **Initial Therapeutic Framework:** Acceptance and Commitment Therapy (ACT)  
 **Initial Simulation Scope:** One fictional client, three sequential sessions
 
-**Copyright:** © 2026 Mohammad Mahdi Almasi Dargah. All rights reserved. See [COPYRIGHT.md](COPYRIGHT.md).
+Copyright (c) 2026 Mohammad Mahdi Almasi Dargah.
+Documentation license: CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/). See LICENSE.md.
 
 ## Overview
 

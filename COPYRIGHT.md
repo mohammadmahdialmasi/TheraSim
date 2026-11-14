@@ -1,9 +1,11 @@
-# Copyright and Usage Notice
+# Copyright and Attribution
 
-Copyright (c) 2026 Mohammad Mahdi Almasi Dargah. All rights reserved.
+Copyright (c) 2026 Mohammad Mahdi Almasi Dargah.
 
-Unless explicitly stated otherwise, the original materials in this repository, including documentation, specifications, architecture descriptions, evaluation rubrics, scenarios, and original source code, are reserved to their respective rights holder under applicable law.
+Original TheraSim README, documentation, specifications, architecture descriptions, evaluation rubrics, and scenarios are licensed under CC BY 4.0.
 
-No license or permission is granted by this notice to reproduce, redistribute, modify, publish, create derivative works from, or commercially exploit these materials. Prior written permission from the rights holder is required, except where applicable law provides otherwise.
+Reuse and adaptation are permitted subject to the attribution requirements of the license.
 
-Third-party materials, if any, remain subject to their respective licenses and rights. This notice does not claim ownership of third-party materials.
+License: https://creativecommons.org/licenses/by/4.0/
+
+Third-party materials and future executable software may have separate terms.

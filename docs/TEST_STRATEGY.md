@@ -1,6 +1,6 @@
 # TheraSim — Test Strategy and Benchmark Specification
 
-**Document Version:** 0.1
+**Document Version:** 0.2
 **Project Status:** Research Prototype / Pre-MVP
 **Last Updated:** 2026-11-14
 
@@ -515,7 +515,11 @@ A high average quality score must not conceal a critical security or consistency
 
 # PART II — LONGITUDINAL CONTINUITY
 
-## 9. Longitudinal Evaluation
+## 9. Longitudinal Patient-State Continuity Evaluation
+
+This section evaluates continuity of the simulated client's identity, disclosures, memory, and canonical state across sessions. It primarily tests the Patient Agent, Memory Service, and State Engine.
+
+This is distinct from the Evaluator Agent's longitudinal assessment of therapist performance across the three-session simulation run, which is defined in Section 10.7.
 
 Longitudinal consistency is one of the central properties of TheraSim.
 
@@ -642,6 +646,32 @@ Measures whether the report provides:
 
 ---
 
+### 10.7 Evaluation Scope and Rubric Routing
+
+The Evaluator Agent supports two distinct evaluation scopes. The selected scope determines the rubric, eligible transcript evidence, required identifiers, and output validation rules.
+
+**Session-level evaluation**
+
+- Evaluates therapist behavior within one completed session only.
+- Uses ACT_RUBRIC_V0, version 0.2.
+- Must not infer therapist competence from events outside the supplied session transcript.
+- Must identify the session and the exact rubric ID and version.
+
+**Longitudinal run-level evaluation**
+
+- Evaluates therapist behavior across the complete three-session simulation run.
+- Uses ACT_LONGITUDINAL_RUBRIC_V0, version 0.1.
+- Must not be generated until all three required sessions are complete and their final transcripts are available.
+- Must consider the chronological relationship among sessions and may cite evidence from one or more session transcripts.
+- Must identify the run, set session_id to null, and reference all three session transcripts as required by the rubric output contract.
+
+**Shared controls**
+
+- The Evaluator Agent receives only permitted final transcript(s), the selected versioned rubric, and therapist-visible context.
+- It must not receive hidden case formulation, undisclosed case facts, Patient Agent prompts, or future disclosure plans.
+- The evaluator must not substitute one rubric for the other, combine their dimension scores, or produce an undocumented overall score.
+- Evaluation and human-reference datasets must preserve evaluation_scope, rubric ID, and rubric version. Session and longitudinal results must be analyzed separately.
+- Each output must pass schema validation and evidence-reference validation before storage or display.
 ## 11. Human Reference Evaluation
 
 Human expert evaluation is necessary for assessing the quality of the Evaluator Agent.
@@ -1411,6 +1441,11 @@ Required:
 - NE is used when evidence is insufficient.
 - Human comparison results are available for the pilot benchmark.
 
+- Session-level therapist evaluations use ACT_RUBRIC_V0 and identify the correct session and rubric version.
+- Run-level therapist evaluation is executed only after all three sessions are complete and uses ACT_LONGITUDINAL_RUBRIC_V0.
+- Evaluation scope, rubric ID and version, run/session identifiers, and transcript references satisfy the applicable output contract.
+- Session-level and longitudinal results remain separate; no unsupported aggregate score is produced.
+
 ### Gate 7 — Multilingual Functionality
 
 Required:
@@ -1585,6 +1620,10 @@ Implement:
 - ACT interaction scenarios.
 - Longitudinal continuity scenarios.
 - Human review procedures.
+
+- Session-level ACT evaluator tests against ACT_RUBRIC_V0.
+- Three-session longitudinal evaluator tests against ACT_LONGITUDINAL_RUBRIC_V0, including incomplete-run rejection.
+- Human-reference evaluation is performed separately for each evaluation scope.
 
 ### Phase 5 — Benchmark Dataset
 

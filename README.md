@@ -8,6 +8,8 @@ TheraSim is a research-oriented project proposing a local-first, LLM-assisted en
 **Initial Therapeutic Framework:** Acceptance and Commitment Therapy (ACT)  
 **Initial Simulation Scope:** One fictional client, three sequential sessions
 
+**Copyright:** © 2026 Mohammad Mahdi Almasi Dargah. All rights reserved. See [COPYRIGHT.md](COPYRIGHT.md).
+
 ## Overview
 
 TheraSim aims to provide a controlled environment in which users can practice psychotherapy-related conversational skills with a simulated client and receive structured, evidence-grounded feedback.

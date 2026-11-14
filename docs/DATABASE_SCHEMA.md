@@ -1,163 +1,176 @@
 # TheraSim — Database Schema
 
-**Document Version:** 0.1
+**Document Version:** 0.2
 **Project Status:** Research Prototype / Pre-MVP
 **Last Updated:** 2026-11-14
+**Architecture Reference:** MVP_DECISIONS.md
+**Data Contract Reference:** DATA_CONTRACTS.md
 
 ---
 
 ## 1. Purpose
 
-This document defines the logical database schema for TheraSim.
+This document defines the logical database schema for the initial TheraSim MVP.
 
-The initial implementation will use SQLite for persistent storage of:
+The database architecture must support:
 
-- Synthetic case metadata.
-- Case versions.
-- Longitudinal simulation runs.
-- Individual psychotherapy sessions.
+- Synthetic case management.
+- Versioned case definitions.
+- Restricted case information isolation.
+- Three sequential simulation sessions.
 - Therapist and patient messages.
-- Interaction events.
-- Clinical state snapshots.
-- State transition records.
+- Idempotent interaction requests.
+- Disclosure tracking.
+- Structured interaction events.
+- Clinical state snapshots and transitions.
 - Longitudinal memory.
-- Therapeutic evaluation reports.
-- Model execution metadata.
+- Session-level evaluations.
+- Run-level longitudinal evaluations.
+- Model and prompt execution metadata.
 - Audit records.
 
-The schema is designed to support reproducibility, data integrity, longitudinal consistency, and controlled access to sensitive synthetic case information.
+The MVP uses two SQLite database files:
 
-This document defines the logical database design. Exact SQL statements, indexes, migrations, and Pydantic models will be specified during implementation.
+1. `therasim.db`
+2. `case_vault.db`
+
+This document defines the logical schema. Executable SQL migrations and repository implementations will be developed separately.
+
+`MVP_DECISIONS.md` takes precedence over conflicting provisional database designs.
 
 ---
 
 ## 2. Database Architecture
 
-The preferred initial architecture separates operational simulation data from restricted synthetic case information.
-
 ### 2.1 Operational Database
 
 **File:** `therasim.db`
 
-Contains:
+Stores:
 
-- Case metadata and public profiles.
+- Cases and case versions.
+- Public case profiles.
 - Simulation runs.
-- Session records.
-- Conversation messages.
+- Sessions.
+- Messages.
+- Interaction requests.
+- Disclosure statuses and history.
 - Events and evidence references.
-- Clinical state snapshots.
+- State snapshots.
 - State transitions.
 - Longitudinal memory.
 - Rubric versions.
 - Evaluation reports.
 - Model execution metadata.
-- Audit records.
+- Audit events.
 
 ### 2.2 Restricted Case Database
 
 **File:** `case_vault.db`
 
-Contains:
+Stores:
 
-- Restricted clinical formulations.
+- Restricted case formulations.
 - Undisclosed personal history.
-- Maintaining-factor hypotheses.
-- Hidden behavioral patterns.
-- Restricted case information.
-- Internal case-specific simulation instructions.
+- Individual case facts.
+- Case hypotheses.
+- Disclosure policies.
+- Hidden simulation instructions.
+- Restricted safety baseline information.
 
-The restricted database is accessible only through an authorized Patient Context component.
+The Patient Context Service is the authorized access path to this database.
 
-The Evaluator Agent must never receive a database connection or unrestricted repository access to this database.
+### 2.3 Cross-Database Relationships
 
-### 2.3 Access Separation
+SQLite foreign keys cannot enforce relationships between separate database files in the same way as tables within one database.
 
-The separation between the two databases is intended to reduce accidental information leakage.
+Therefore:
 
-The application must also enforce access restrictions through repository interfaces, service boundaries, and explicit data-transfer objects.
+- Foreign keys within each database must be enforced by SQLite.
+- Cross-database identifiers must be validated by application services.
+- Each restricted record must reference an existing case version in the operational database.
+- The Evaluator Agent must never receive a connection to the restricted database.
 
-SQLite does not provide built-in row-level access control. Separate database files alone are not a complete security boundary, particularly when all components execute within the same operating-system process.
-
-Stronger isolation may be introduced through separate processes and restricted operating-system permissions in later versions.
+Separate database files provide logical separation, not complete security against a process or local user with unrestricted filesystem access.
 
 ---
 
 ## 3. Database Conventions
 
-The following conventions apply to all tables.
+### 3.1 Identifier Format
 
-### 3.1 Identifiers
+Primary keys use UUID strings unless an explicitly defined case fact identifier is required.
 
-- Primary keys use UUID strings.
-- Foreign keys reference the associated record identifiers.
-- Identifiers must remain stable across the lifetime of a record.
+Examples:
 
-### 3.2 Timestamps
+- case_id
+- case_version_id
+- run_id
+- session_id
+- message_id
+- request_id
+- event_id
+- snapshot_id
+- transition_id
+- memory_id
+- evaluation_id
+- model_run_id
+
+Case fact identifiers use stable strings such as:
+
+- AVA-FACT-001
+- AVA-FACT-002
+
+### 3.2 Timestamp Format
 
 All timestamps must:
 
 - Use UTC.
-- Be stored in a consistent ISO 8601 representation.
+- Follow ISO 8601.
 - Include timezone information.
-- Avoid dependence on the local computer's timezone.
+- Remain consistent across the application.
 
 ### 3.3 Structured Data
 
-SQLite does not require a dedicated JSON column type for this design.
+Structured fields may be stored as JSON-serialized TEXT.
 
-Structured objects may be stored as JSON-serialized TEXT values.
+Examples:
 
-The application must validate these values before insertion and after retrieval.
+- generation_parameters
+- profile_metadata
+- event_payload
+- variable_values
+- evaluation_metadata
+- restricted case formulation
 
-Examples include:
+All JSON values must be validated against their corresponding application schemas before persistence.
 
-- Model configuration.
-- Event payloads.
-- Case formulation structures.
-- Evaluation metadata.
+### 3.4 SQLite Requirements
 
-### 3.4 Data Integrity
+The application must:
 
-The implementation must enable:
+- Enable foreign key enforcement on every connection.
+- Use parameterized SQL statements.
+- Use transactions for related operations.
+- Use explicit CHECK constraints.
+- Use unique constraints where required.
+- Validate data before writing.
+- Preserve historical records.
+- Handle database failures explicitly.
 
-- Foreign key enforcement.
-- Explicit CHECK constraints.
-- Unique constraints where required.
-- Transactional state updates.
-- Validated references between related records.
+Required connection setting:
 
-The application must execute `PRAGMA foreign_keys = ON` for every SQLite connection.
-
----
-
-## 4. Entity Relationship Overview
-
-The main operational database contains the following logical relationships:
-
-- One case may have multiple case versions.
-- One case version may have multiple simulation runs.
-- One simulation run contains multiple sessions.
-- One session contains multiple messages.
-- One session may generate multiple events.
-- An event may reference multiple transcript messages.
-- One simulation run may contain multiple state snapshots.
-- A state snapshot contains multiple variable values.
-- A transition may reference supporting evidence.
-- One simulation run may contain multiple memory items.
-- One session may have multiple evaluation records.
-- One evaluation contains multiple competency results.
-- A model execution may be associated with a session or an internal component operation.
-
-The restricted case database references the corresponding case version through its identifier.
+`PRAGMA foreign_keys = ON;`
 
 ---
 
-## 5. Main Database Tables
+# PART I — OPERATIONAL DATABASE
 
-### 5.1 cases
+## 4. Case Management Tables
 
-Stores the identity and general metadata of a synthetic case.
+### 4.1 cases
+
+Stores general metadata for synthetic cases.
 
 | Field | Type | Constraints |
 |---|---|---|
@@ -174,9 +187,9 @@ Possible statuses:
 - active
 - archived
 
-This table must not contain restricted clinical formulation information.
+Restricted formulation and undisclosed personal history must not be stored in this table.
 
-### 5.2 case_versions
+### 4.2 case_versions
 
 Stores versioned definitions of synthetic cases.
 
@@ -193,13 +206,13 @@ Stores versioned definitions of synthetic cases.
 
 Constraint:
 
-- A case must not contain duplicate version numbers.
+- Unique combination of case_id and version_number.
 
-Previous case versions must remain available when a case is modified.
+Historical versions must remain accessible.
 
-### 5.3 public_case_profiles
+### 4.3 public_case_profiles
 
-Stores the information that may be used to introduce the synthetic client.
+Stores authorized therapist-facing case introductions.
 
 | Field | Type | Constraints |
 |---|---|---|
@@ -209,66 +222,30 @@ Stores the information that may be used to introduce the synthetic client.
 | presenting_concerns | TEXT | JSON |
 | initial_disclosure | TEXT | Optional |
 | profile_metadata | TEXT | JSON, Optional |
-
-This information is not automatically visible to the therapist in full. The Therapist Interface must display only the content authorized for the simulation.
-
----
-
-## 6. Restricted Case Database
-
-### 6.1 restricted_case_profiles
-
-**Database:** `case_vault.db`
-
-Stores the confidential simulation definition required by the Patient Agent.
-
-| Field | Type | Constraints |
-|---|---|---|
-| restricted_profile_id | TEXT | Primary Key |
-| case_version_id | TEXT | Not Null, Unique |
-| clinical_formulation | TEXT | JSON |
-| relevant_personal_history | TEXT | JSON |
-| maintaining_factors | TEXT | JSON |
-| avoidance_patterns | TEXT | JSON |
-| hypothesized_functions | TEXT | JSON |
-| undisclosed_information | TEXT | JSON |
-| initial_safety_baseline | TEXT | JSON |
-| patient_simulation_instructions | TEXT | Optional |
 | created_at | TEXT | Not Null |
 
-The application must validate that the referenced case version exists in the operational database.
+The application must display only information permitted by the scenario's disclosure configuration.
 
-This reference is maintained at the application level because SQLite foreign keys cannot enforce relationships across separate database files.
-
-### Access Restrictions
-
-- Patient Context component: authorized read access.
-- Patient Agent: receives only the required context.
-- Evaluator Agent: no access.
-- Therapist Interface: no direct access.
-- State Engine: no direct access unless an explicitly authorized rule requires a limited input.
-- Orchestrator: coordinates access but should not expose restricted content to unrelated components.
+A public case profile must not contain restricted clinical formulation.
 
 ---
 
-## 7. Simulation and Session Tables
+## 5. Simulation and Session Tables
 
-### 7.1 simulation_runs
+### 5.1 simulation_runs
 
 Represents one longitudinal execution of a synthetic case.
-
-A simulation run may contain several connected psychotherapy sessions.
 
 | Field | Type | Constraints |
 |---|---|---|
 | run_id | TEXT | Primary Key |
 | case_id | TEXT | Foreign Key |
 | case_version_id | TEXT | Foreign Key |
-| status | TEXT | Not Null |
-| language | TEXT | Not Null |
 | modality | TEXT | Not Null |
-| configuration_hash | TEXT | Optional |
-| started_at | TEXT | Not Null |
+| language | TEXT | Not Null |
+| status | TEXT | Not Null |
+| configuration_version | TEXT | Not Null |
+| started_at | TEXT | Optional |
 | completed_at | TEXT | Optional |
 | created_at | TEXT | Not Null |
 
@@ -280,9 +257,9 @@ Possible statuses:
 - interrupted
 - failed
 
-A simulation run must retain the exact case version used during execution.
+Each run must reference exactly one case version.
 
-### 7.2 sessions
+### 5.2 sessions
 
 Stores individual sessions belonging to a simulation run.
 
@@ -292,9 +269,9 @@ Stores individual sessions belonging to a simulation run.
 | run_id | TEXT | Foreign Key |
 | session_number | INTEGER | Not Null |
 | status | TEXT | Not Null |
+| transcript_version | INTEGER | Not Null |
 | started_at | TEXT | Optional |
 | ended_at | TEXT | Optional |
-| transcript_version | INTEGER | Not Null |
 | created_at | TEXT | Not Null |
 
 Possible statuses:
@@ -305,62 +282,26 @@ Possible statuses:
 - interrupted
 - failed
 
-Constraint:
+Constraints:
 
-- Session numbers must be unique within the same simulation run.
+- Session number must be unique within a run.
+- Session number must be between 1 and 3 in the initial MVP.
 
----
+The application must enforce sequential session initialization.
 
-## 8. Model Execution Table
+Session 2 must not begin before Session 1 reaches an allowed completed state.
 
-### 8.1 model_runs
+Session 3 must not begin before Session 2 reaches an allowed completed state.
 
-Stores metadata about language-model executions.
-
-| Field | Type | Constraints |
-|---|---|---|
-| model_run_id | TEXT | Primary Key |
-| run_id | TEXT | Foreign Key, Optional |
-| session_id | TEXT | Foreign Key, Optional |
-| component | TEXT | Not Null |
-| provider | TEXT | Not Null |
-| model_identifier | TEXT | Not Null |
-| model_version | TEXT | Optional |
-| prompt_version | TEXT | Optional |
-| generation_parameters | TEXT | JSON |
-| input_hash | TEXT | Optional |
-| output_hash | TEXT | Optional |
-| random_seed | INTEGER | Optional |
-| execution_status | TEXT | Not Null |
-| started_at | TEXT | Not Null |
-| completed_at | TEXT | Optional |
-
-Possible components:
-
-- patient_agent
-- evaluator_agent
-- event_extractor
-- memory_processor
-- other
-
-Possible execution statuses:
-
-- started
-- completed
-- failed
-- interrupted
-
-Model metadata is required for reproducibility and comparison.
-
-Hidden prompts and internal reasoning must not be exposed through ordinary session or evaluation records.
+The database constraints alone are not sufficient to enforce the complete workflow.
 
 ---
 
-## 9. Conversation Tables
+## 6. Conversation Tables
 
-### 9.1 messages
+### 6.1 messages
 
-Stores the chronological conversation.
+Stores therapist-visible conversation messages.
 
 | Field | Type | Constraints |
 |---|---|---|
@@ -370,44 +311,256 @@ Stores the chronological conversation.
 | role | TEXT | Not Null |
 | content | TEXT | Not Null |
 | model_run_id | TEXT | Foreign Key, Optional |
-| visible_to_therapist | INTEGER | Not Null |
+| content_hash | TEXT | Optional |
 | created_at | TEXT | Not Null |
 
 Allowed roles:
 
 - therapist
 - patient
-- system
 
-The sequence number must be unique within a session.
+Constraints:
 
-Message content must preserve the original interaction.
+- Sequence numbers must be unique within a session.
+- Role must be restricted to the allowed values.
 
-Internal agent reasoning, hidden prompts, and restricted case material must not be stored as ordinary therapist-visible messages.
+Internal prompts, agent reasoning, database credentials, and restricted context must not be stored as ordinary conversation messages.
 
-### 9.2 Transcript Integrity
+### 6.2 Transcript Integrity
 
-The transcript is reconstructed from messages ordered by sequence number.
+The transcript is reconstructed from messages ordered by sequence_number.
 
 After session completion:
 
 - Existing messages must not be silently modified.
-- Corrections must create an auditable record.
-- The transcript version must be incremented when an authorized correction changes the transcript.
-- Evaluation reports must reference the transcript version and preferably its content hash.
+- Corrections require an auditable versioned operation.
+- The transcript version must be updated when an authorized correction changes its content.
+- Evaluation reports must reference the exact transcript version used.
+
+The original message content must remain recoverable.
 
 ---
+
+## 7. Interaction Request and Idempotency
+
+### 7.1 interaction_requests
+
+Stores therapist message submission operations.
+
+| Field | Type | Constraints |
+|---|---|---|
+| request_id | TEXT | Primary Key |
+| session_id | TEXT | Foreign Key |
+| idempotency_key | TEXT | Not Null |
+| request_hash | TEXT | Not Null |
+| therapist_message_id | TEXT | Foreign Key, Optional |
+| patient_message_id | TEXT | Foreign Key, Optional |
+| processing_status | TEXT | Not Null |
+| error_code | TEXT | Optional |
+| created_at | TEXT | Not Null |
+| completed_at | TEXT | Optional |
+
+Possible processing statuses:
+
+- in_progress
+- completed
+- failed
+
+### 7.2 Uniqueness
+
+The combination of session_id and idempotency_key must be unique.
+
+### 7.3 Idempotency Rules
+
+When a request is repeated with the same key and identical request hash:
+
+- A duplicate therapist message must not be created.
+- A duplicate patient response must not be generated.
+- The existing request status or result must be returned.
+
+When a key is reused with a different request hash:
+
+- The operation must be rejected.
+- The API must return an idempotency conflict.
+
+Failed requests must remain recorded.
+
+A retry must follow an explicit recovery procedure and reuse the original operation identity.
+
+The system must not assume that a timeout proves that the original model generation did not occur.
+
+---
+
+## 8. Disclosure Tracking Tables
+
+Case fact content remains in the restricted database.
+
+The operational database stores only disclosure metadata and supporting therapist-visible evidence references.
+
+### 8.1 case_fact_disclosures
+
+Stores the current disclosure status of a case fact within a simulation run.
+
+| Field | Type | Constraints |
+|---|---|---|
+| disclosure_id | TEXT | Primary Key |
+| run_id | TEXT | Foreign Key |
+| case_id | TEXT | Not Null |
+| case_version_id | TEXT | Not Null |
+| case_fact_id | TEXT | Not Null |
+| disclosure_status | TEXT | Not Null |
+| source_message_id | TEXT | Foreign Key, Optional |
+| evidence_start_offset | INTEGER | Optional |
+| evidence_end_offset | INTEGER | Optional |
+| validation_method | TEXT | Not Null |
+| updated_at | TEXT | Not Null |
+
+Possible disclosure statuses:
+
+- not_disclosed
+- candidate_disclosed
+- confirmed_disclosed
+- requires_review
+
+Constraint:
+
+- Unique combination of run_id and case_fact_id.
+
+`case_fact_id` does not use a database foreign key because its definition is stored in the separate restricted database.
+
+The application must validate the referenced case fact and case version.
+
+### 8.2 case_fact_disclosure_history
+
+Stores historical changes to disclosure status.
+
+| Field | Type | Constraints |
+|---|---|---|
+| history_id | TEXT | Primary Key |
+| disclosure_id | TEXT | Foreign Key |
+| previous_status | TEXT | Optional |
+| new_status | TEXT | Not Null |
+| source_message_id | TEXT | Foreign Key, Optional |
+| evidence_description | TEXT | Optional |
+| operation_id | TEXT | Unique, Not Null |
+| created_at | TEXT | Not Null |
+
+Every disclosure status change must produce a history record.
+
+The current disclosure status is stored in case_fact_disclosures.
+
+Historical status changes must remain available.
+
+### 8.3 Disclosure Validation
+
+A candidate disclosure may be produced by the Patient Agent through an internal annotation.
+
+The backend must verify:
+
+- The case fact exists in the restricted case database.
+- The case fact belongs to the same case version.
+- The referenced message exists.
+- The message belongs to the correct session.
+- The source message is a patient message.
+- The evidence span is valid.
+- The disclosure policy permits the relevant disclosure.
+
+An annotation alone must not establish confirmed disclosure.
+
+---
+
+# PART II — RESTRICTED CASE DATABASE
+
+## 9. Restricted Case Tables
+
+### 9.1 restricted_case_profiles
+
+**Database:** `case_vault.db`
+
+Stores restricted case definitions.
+
+| Field | Type | Constraints |
+|---|---|---|
+| restricted_profile_id | TEXT | Primary Key |
+| case_id | TEXT | Not Null |
+| case_version_id | TEXT | Unique, Not Null |
+| clinical_formulation | TEXT | JSON |
+| relevant_personal_history | TEXT | JSON |
+| maintaining_factors | TEXT | JSON |
+| avoidance_patterns | TEXT | JSON |
+| hypothesized_functions | TEXT | JSON |
+| initial_safety_baseline | TEXT | JSON |
+| patient_simulation_instructions | TEXT | Optional |
+| created_at | TEXT | Not Null |
+
+The referenced case version must exist in the operational database.
+
+This relationship must be checked by the Patient Context Service.
+
+### 9.2 case_facts
+
+Stores individually identifiable fictional case information items.
+
+| Field | Type | Constraints |
+|---|---|---|
+| case_fact_id | TEXT | Primary Key |
+| case_id | TEXT | Not Null |
+| case_version_id | TEXT | Not Null |
+| fact_category | TEXT | Not Null |
+| information_class | TEXT | Not Null |
+| content | TEXT | Not Null |
+| disclosure_policy | TEXT | Not Null |
+| relevance_metadata | TEXT | JSON, Optional |
+| created_at | TEXT | Not Null |
+
+Example identifiers:
+
+- AVA-FACT-001
+- AVA-FACT-002
+- AVA-FACT-003
+
+Possible information classes:
+
+- established_fact
+- case_hypothesis
+- unspecified_information
+
+Possible disclosure policies:
+
+- initial_disclosure
+- contextually_disclosable
+- restricted
+- not_applicable
+
+Constraint:
+
+- The combination of case_id, case_version_id, and case_fact_id must be unique.
+
+The application must ensure that every fact belongs to a valid restricted case profile.
+
+### 9.3 Database Access
+
+The Patient Context Service is the only authorized access path for constructing PatientContext.
+
+The Patient Agent receives an explicitly constructed context object rather than an unrestricted database connection.
+
+The Evaluator Agent must never receive this database connection.
+
+---
+
+# PART III — EVENT AND STATE MANAGEMENT
 
 ## 10. Event Tables
 
 ### 10.1 events
 
-Stores structured interaction events.
+Stores operational and behavioral events.
 
 | Field | Type | Constraints |
 |---|---|---|
 | event_id | TEXT | Primary Key |
-| session_id | TEXT | Foreign Key |
+| run_id | TEXT | Foreign Key |
+| session_id | TEXT | Foreign Key, Optional |
 | sequence_number | INTEGER | Not Null |
 | event_type | TEXT | Not Null |
 | actor | TEXT | Not Null |
@@ -417,10 +570,11 @@ Stores structured interaction events.
 | event_status | TEXT | Not Null |
 | idempotency_key | TEXT | Not Null |
 | created_at | TEXT | Not Null |
+| validated_at | TEXT | Optional |
 
 Possible extraction methods:
 
-- rule_based
+- application_rule
 - model_assisted
 - manual
 
@@ -431,30 +585,34 @@ Possible event statuses:
 - rejected
 - requires_review
 
-The combination of session ID and idempotency key must be unique.
+The combination of run_id and idempotency_key must be unique.
+
+Deterministic application events may be accepted directly through validated backend operations.
+
+Behavioral events must remain candidates until validated.
 
 ### 10.2 event_evidence
 
-Links events to exact transcript evidence.
+Links events to transcript messages.
 
 | Field | Type | Constraints |
 |---|---|---|
 | event_id | TEXT | Foreign Key |
 | message_id | TEXT | Foreign Key |
+| evidence_type | TEXT | Not Null |
 | start_offset | INTEGER | Optional |
 | end_offset | INTEGER | Optional |
-| evidence_type | TEXT | Not Null |
 | annotation | TEXT | Optional |
 
-Composite Primary Key:
+Composite primary key:
 
 - event_id
 - message_id
-- start_offset
+- evidence_type
 
-Offsets must refer to the original message content using a consistent character-indexing convention.
+The application must verify that the referenced message belongs to the same session as the event.
 
-The referenced message must belong to the same session as its event.
+Evidence offsets must follow a consistent character-indexing convention.
 
 ---
 
@@ -462,7 +620,7 @@ The referenced message must belong to the same session as its event.
 
 ### 11.1 state_snapshots
 
-Stores historical snapshots of the structured simulation state.
+Stores immutable state snapshots.
 
 | Field | Type | Constraints |
 |---|---|---|
@@ -474,13 +632,11 @@ Stores historical snapshots of the structured simulation state.
 | snapshot_reason | TEXT | Not Null |
 | created_at | TEXT | Not Null |
 
-The initial snapshot must be stored before the first simulated interaction.
-
-A new snapshot must be created after accepted state changes or explicit checkpoints.
+The initial state snapshot must be created before the first simulated interaction.
 
 ### 11.2 state_snapshot_values
 
-Stores the individual variable values within each snapshot.
+Stores individual variable values.
 
 | Field | Type | Constraints |
 |---|---|---|
@@ -488,12 +644,12 @@ Stores the individual variable values within each snapshot.
 | variable_name | TEXT | Not Null |
 | variable_value | INTEGER | Not Null |
 
-Composite Primary Key:
+Composite primary key:
 
 - snapshot_id
 - variable_name
 
-Initial variables:
+Allowed variables:
 
 - therapeutic_alliance
 - disclosure_readiness
@@ -504,17 +660,13 @@ Initial variables:
 
 Constraint:
 
-- The initial state variables must contain values from 0 to 4.
+- Every initial variable value must be between 0 and 4.
 
-The application must validate the permitted variable names and their operational definitions.
+The application must also validate the permitted variable names.
 
----
+### 11.3 state_transitions
 
-## 12. State Transition Tables
-
-### 12.1 state_transitions
-
-Stores proposed and validated state changes.
+Stores proposed and validated state transitions.
 
 | Field | Type | Constraints |
 |---|---|---|
@@ -530,6 +682,7 @@ Stores proposed and validated state changes.
 | transition_rule_id | TEXT | Optional |
 | transition_rule_version | TEXT | Optional |
 | resulting_snapshot_id | TEXT | Foreign Key, Optional |
+| confidence | TEXT | Optional |
 | uncertainty_notes | TEXT | Optional |
 | idempotency_key | TEXT | Not Null |
 | created_at | TEXT | Not Null |
@@ -544,14 +697,16 @@ Possible validation statuses:
 
 Constraints:
 
-- Previous and proposed values must be within the permitted range.
-- Accepted value must remain within the permitted range.
+- Values must be within the allowed range.
 - Accepted value must be populated only after successful validation.
-- Transition idempotency keys must be unique within a session.
+- Rejected transitions must remain stored.
+- The combination of run_id and idempotency_key must be unique.
 
-### 12.2 transition_evidence
+The LLM must not write directly to state_snapshots or state_snapshot_values.
 
-Links a transition to its supporting messages.
+### 11.4 transition_evidence
+
+Links proposed transitions to supporting messages.
 
 | Field | Type | Constraints |
 |---|---|---|
@@ -560,22 +715,22 @@ Links a transition to its supporting messages.
 | evidence_role | TEXT | Not Null |
 | relevance_note | TEXT | Optional |
 
-Composite Primary Key:
+Composite primary key:
 
 - transition_id
 - message_id
 
-The implementation must verify that the referenced messages belong to the same simulation run and relevant session.
+Messages must belong to the relevant simulation run.
 
-Rejected transitions must remain stored for audit and debugging purposes.
+The State Engine remains responsible for validating the evidence.
 
 ---
 
-## 13. Longitudinal Memory Tables
+## 12. Longitudinal Memory Tables
 
-### 13.1 memory_items
+### 12.1 memory_items
 
-Stores structured memory across sessions.
+Stores selected information retained between sessions.
 
 | Field | Type | Constraints |
 |---|---|---|
@@ -591,9 +746,10 @@ Stores structured memory across sessions.
 | created_at | TEXT | Not Null |
 | updated_at | TEXT | Not Null |
 
-Possible information classes:
+Allowed information classes:
 
-- disclosed_fact
+- confirmed_fact
+- explicit_disclosure
 - therapist_hypothesis
 - system_generated_summary
 - reported_outcome
@@ -605,13 +761,11 @@ Possible statuses:
 - superseded
 - requires_review
 
-Confidence must represent system uncertainty and must not be described as a validated psychological probability.
+The confidence field represents system uncertainty, not a validated psychological probability.
 
-Memory items must retain their information class and source references.
+### 12.2 memory_evidence
 
-### 13.2 memory_evidence
-
-Links memory records to their supporting evidence.
+Links memory items to original messages.
 
 | Field | Type | Constraints |
 |---|---|---|
@@ -619,20 +773,24 @@ Links memory records to their supporting evidence.
 | message_id | TEXT | Foreign Key |
 | relationship_type | TEXT | Not Null |
 
-Composite Primary Key:
+Composite primary key:
 
 - memory_id
 - message_id
 
-A memory record must not be presented as a directly disclosed fact when it originated from a system-generated interpretation.
+Memory updates must preserve historical versions and source references.
+
+The original transcript remains the authoritative record.
 
 ---
 
-## 14. Evaluation Tables
+# PART IV — EVALUATION
 
-### 14.1 rubric_versions
+## 13. Rubric Tables
 
-Stores versioned evaluation rubrics.
+### 13.1 rubric_versions
+
+Stores versioned therapeutic evaluation rubrics.
 
 | Field | Type | Constraints |
 |---|---|---|
@@ -643,30 +801,42 @@ Stores versioned evaluation rubrics.
 | language | TEXT | Not Null |
 | schema_version | TEXT | Not Null |
 | rubric_definition | TEXT | JSON |
+| content_hash | TEXT | Optional |
 | created_at | TEXT | Not Null |
 
 Constraint:
 
-- Rubric ID and version number must form a unique pair.
+- Unique combination of rubric_id and version_number.
 
-Previously used rubric versions must remain available for historical evaluations.
+Historical rubric versions must remain available.
 
-### 14.2 evaluations
+---
 
-Stores the overall evaluation report.
+## 14. Evaluation Tables
+
+### 14.1 evaluations
+
+Stores both session-level and longitudinal evaluation reports.
 
 | Field | Type | Constraints |
 |---|---|---|
 | evaluation_id | TEXT | Primary Key |
-| session_id | TEXT | Foreign Key |
+| run_id | TEXT | Foreign Key |
+| session_id | TEXT | Foreign Key, Optional |
+| evaluation_scope | TEXT | Not Null |
 | rubric_version_id | TEXT | Foreign Key |
-| transcript_version | INTEGER | Not Null |
-| transcript_hash | TEXT | Optional |
+| transcript_manifest | TEXT | JSON |
 | evaluator_model_run_id | TEXT | Foreign Key, Optional |
 | overall_summary | TEXT | Optional |
-| report_metadata | TEXT | JSON |
+| report_metadata | TEXT | JSON, Optional |
+| evaluation_revision | INTEGER | Not Null |
 | status | TEXT | Not Null |
 | created_at | TEXT | Not Null |
+
+Allowed evaluation scopes:
+
+- session
+- longitudinal
 
 Possible statuses:
 
@@ -675,7 +845,31 @@ Possible statuses:
 - failed
 - requires_review
 
-The evaluator must receive only the authorized evaluation input, not the restricted case database.
+Constraints:
+
+- Session-level evaluation requires a non-null session_id.
+- Longitudinal evaluation requires a null session_id.
+- Every evaluation must reference a valid run_id.
+- Every evaluation must reference a specific rubric version.
+
+The application must verify that all transcript references belong to the same run and case version.
+
+### 14.2 Evaluation Scope Rules
+
+**Session-level evaluation:**
+
+- References exactly one completed session.
+- Uses the finalized transcript version for that session.
+- Produces competency-specific results.
+
+**Longitudinal evaluation:**
+
+- References the entire simulation run.
+- Uses all three completed session transcripts.
+- Preserves chronological order.
+- Evaluates therapeutic continuity and adaptation across sessions.
+
+The longitudinal evaluation must be generated only after all three sessions have been completed.
 
 ### 14.3 evaluation_items
 
@@ -688,9 +882,11 @@ Stores individual competency results.
 | competency_id | TEXT | Not Null |
 | rating_code | TEXT | Not Null |
 | justification | TEXT | Optional |
+| alternative_response | TEXT | Optional |
 | limitations | TEXT | Optional |
+| uncertainty_notes | TEXT | Optional |
 
-Allowed rating codes:
+Allowed rating values:
 
 - 0
 - 1
@@ -698,35 +894,82 @@ Allowed rating codes:
 - 3
 - NE
 
-Constraint:
-
-- A competency must not appear more than once within the same evaluation unless an explicitly versioned rubric permits multiple sub-items.
+The permitted competency identifiers must come from the referenced rubric version.
 
 ### 14.4 evaluation_evidence
 
-Links evaluation results to supporting transcript messages.
+Links competency results to transcript evidence.
 
 | Field | Type | Constraints |
 |---|---|---|
 | evaluation_item_id | TEXT | Foreign Key |
 | message_id | TEXT | Foreign Key |
 | evidence_role | TEXT | Not Null |
+| start_offset | INTEGER | Optional |
+| end_offset | INTEGER | Optional |
+| evidence_excerpt | TEXT | Optional |
 | evidence_note | TEXT | Optional |
 
-Composite Primary Key:
+Composite primary key:
 
 - evaluation_item_id
 - message_id
+- evidence_role
 
-Evaluation justifications must distinguish supporting evidence from missing evidence.
+All referenced messages must belong to the evaluated session or to one of the sessions included in the longitudinal evaluation.
+
+The application must verify this condition.
 
 ---
 
-## 15. Audit Table
+## 15. Model Execution Table
 
-### 15.1 audit_events
+### 15.1 model_runs
 
-Stores important system operations.
+Stores metadata for every language-model execution.
+
+| Field | Type | Constraints |
+|---|---|---|
+| model_run_id | TEXT | Primary Key |
+| run_id | TEXT | Foreign Key, Optional |
+| session_id | TEXT | Foreign Key, Optional |
+| component | TEXT | Not Null |
+| provider | TEXT | Not Null |
+| model_identifier | TEXT | Not Null |
+| model_version | TEXT | Optional |
+| model_artifact_digest | TEXT | Optional |
+| prompt_id | TEXT | Optional |
+| prompt_version | TEXT | Optional |
+| input_schema_version | TEXT | Optional |
+| output_schema_version | TEXT | Optional |
+| generation_parameters | TEXT | JSON |
+| input_hash | TEXT | Optional |
+| output_hash | TEXT | Optional |
+| random_seed | INTEGER | Optional |
+| execution_status | TEXT | Not Null |
+| output_validation_status | TEXT | Optional |
+| started_at | TEXT | Not Null |
+| completed_at | TEXT | Optional |
+
+Initial components:
+
+- patient_agent
+- evaluator_agent
+
+Optional future components:
+
+- event_extractor
+- memory_processor
+
+The initial MVP does not require independently running models for event extraction or memory generation.
+
+---
+
+## 16. Audit Table
+
+### 16.1 audit_events
+
+Stores security and operational events.
 
 | Field | Type | Constraints |
 |---|---|---|
@@ -738,14 +981,18 @@ Stores important system operations.
 | run_id | TEXT | Optional |
 | session_id | TEXT | Optional |
 | operation_status | TEXT | Not Null |
-| metadata | TEXT | JSON |
+| metadata | TEXT | JSON, Optional |
 | created_at | TEXT | Not Null |
 
-Initial audit events include:
+Examples:
 
-- session_created
-- session_completed
+- simulation_run_created
+- session_started
 - message_persisted
+- interaction_failed
+- patient_context_retrieved
+- disclosure_candidate_created
+- disclosure_confirmed
 - event_accepted
 - event_rejected
 - state_transition_accepted
@@ -754,13 +1001,141 @@ Initial audit events include:
 - evaluation_failed
 - memory_updated
 
-Audit records must avoid unnecessary duplication of sensitive content.
+Audit records must avoid unnecessary duplication of restricted content.
 
 ---
 
-## 16. Indexing Strategy
+# PART V — DATA INTEGRITY
 
-The initial implementation should include indexes for frequently accessed relationships.
+## 17. Referential Integrity
+
+All relationships within the operational database must use valid foreign keys.
+
+The following relationships must be enforced:
+
+- case_versions to cases.
+- public_case_profiles to case_versions.
+- simulation_runs to cases and case_versions.
+- sessions to simulation_runs.
+- messages to sessions.
+- interaction_requests to sessions and messages.
+- events to simulation_runs and sessions.
+- event_evidence to events and messages.
+- case_fact_disclosures to runs and evidence messages.
+- case_fact_disclosure_history to disclosure records.
+- state_snapshots to simulation_runs and sessions.
+- state_snapshot_values to state_snapshots.
+- state_transitions to runs, sessions, and snapshots.
+- transition_evidence to transitions and messages.
+- memory_items to runs and sessions.
+- memory_evidence to memory items and messages.
+- evaluations to runs, sessions, and rubric versions.
+- evaluation_items to evaluations.
+- evaluation_evidence to evaluation items and messages.
+- model_runs to their associated run and session where applicable.
+
+Cross-database relationships must be verified by application services.
+
+---
+
+## 18. Transaction and Consistency Rules
+
+Operations involving multiple database writes must use transactions.
+
+### 18.1 Interaction Processing
+
+The interaction workflow must:
+
+1. Validate the session.
+2. Validate the idempotency key and request hash.
+3. Persist the InteractionRequest.
+4. Persist the therapist message exactly once.
+5. Execute Patient Agent generation.
+6. Validate the PatientResponse.
+7. Persist the patient response.
+8. Update interaction status.
+9. Persist deterministic operational events.
+10. Commit the corresponding database operations.
+
+Where model generation happens outside the database transaction, the request record must preserve its intermediate status.
+
+The system must not hold a long-running SQLite write transaction open while waiting for model generation.
+
+If generation fails:
+
+- Preserve the therapist message.
+- Record the failure.
+- Keep the request recoverable.
+- Do not fabricate a patient response.
+- Do not modify clinical state as a result of the failed generation.
+
+### 18.2 State Update Transaction
+
+An accepted state transition should:
+
+1. Validate the transition proposal.
+2. Begin a database transaction.
+3. Insert the transition record.
+4. Create the new state snapshot.
+5. Insert its variable values.
+6. Link the transition to the snapshot.
+7. Record the audit event.
+8. Commit the transaction.
+
+If any required database operation fails, the transaction must be rolled back.
+
+### 18.3 Disclosure Update
+
+A validated disclosure update must:
+
+1. Verify the case fact reference against the restricted database.
+2. Validate the patient message reference.
+3. Validate the evidence span.
+4. Begin an operational database transaction.
+5. Update the current disclosure status.
+6. Insert the disclosure history record.
+7. Insert the corresponding audit event.
+8. Commit the transaction.
+
+### 18.4 Evaluation Completion
+
+Evaluation generation must be independent of session completion.
+
+The system must:
+
+- Preserve completed sessions.
+- Store the evaluation request.
+- Record model execution.
+- Validate report structure.
+- Persist evaluation and competency results transactionally.
+- Keep failed evaluations marked as failed.
+
+A failed evaluation must not invalidate the completed simulation session.
+
+---
+
+## 19. Idempotency Rules
+
+The database must support safe repeated requests.
+
+Initial protected operations:
+
+- Therapist message submission.
+- Session creation.
+- Evaluation generation.
+- Event processing.
+- State transition acceptance.
+- Disclosure status updates.
+
+Each operation must have a stable idempotency identity.
+
+Repeated operations must not create duplicate accepted results.
+
+A repeated operation with conflicting input must return an explicit error.
+
+---
+
+## 20. Indexing Strategy
 
 Recommended indexes:
 
@@ -770,139 +1145,190 @@ Recommended indexes:
 - sessions.run_id
 - messages.session_id
 - messages.session_id + sequence_number
+- interaction_requests.session_id + idempotency_key
+- events.run_id
 - events.session_id
 - events.event_type
-- event_evidence.message_id
+- case_fact_disclosures.run_id + case_fact_id
+- case_fact_disclosure_history.disclosure_id
 - state_snapshots.run_id
 - state_transitions.run_id
 - state_transitions.session_id
 - memory_items.run_id
+- evaluations.run_id
 - evaluations.session_id
 - evaluation_items.evaluation_id
 - model_runs.session_id
 
-Unique constraints and indexes must be selected based on actual query patterns and validated against the implemented schema.
+Unique constraints and indexes must be validated against actual queries during implementation.
 
 ---
 
-## 17. Transaction and Consistency Rules
-
-Operations involving multiple related records must use database transactions.
-
-### 17.1 State Update Transaction
-
-An accepted state transition should follow this sequence:
-
-1. Validate the candidate transition.
-2. Begin a database transaction.
-3. Insert the transition record.
-4. Create the resulting state snapshot.
-5. Insert all state variable values.
-6. Link the transition to the resulting snapshot.
-7. Record the audit event.
-8. Commit the transaction.
-
-If any required operation fails, the transaction must be rolled back.
-
-### 17.2 Session Completion
-
-Session completion should:
-
-1. Validate the session status.
-2. Finalize the transcript version.
-3. Persist any pending accepted events.
-4. Record the completion timestamp.
-5. Update the session status.
-6. Record the audit event.
-
-Evaluation generation should be a separate operation so that evaluation failure does not destroy a completed transcript.
-
-### 17.3 Memory Updates
-
-Memory updates must preserve:
-
-- Previous versions.
-- Source references.
-- Information classification.
-- Creation and update timestamps.
-
-Contradictory information must not silently overwrite older records.
-
----
-
-## 18. Database Access Boundaries
-
-The application should expose separate repositories or services for different data categories.
+## 21. Database Access Boundaries
 
 | Component | Operational Database | Restricted Database |
 |---|---|---|
-| Therapist Interface | Authorized session data | No access |
-| Patient Agent | Limited session context | Authorized context through Patient Context |
-| Evaluator Agent | Authorized transcript, rubric, and evaluation data | No access |
-| State Engine | Events and state records | No direct access by default |
-| Memory Service | Authorized memory records | No direct access by default |
-| Orchestrator | Session metadata and coordination | No unrestricted access by default |
+| Therapist Interface | Authorized API data only | No access |
+| Patient Context Service | Authorized operational data | Authorized read |
+| Patient Agent | Explicit PatientContext | No direct connection |
+| Evaluator Agent | Explicit EvaluationInput | No access |
+| Event Processing Service | Authorized transcripts and events | No direct access |
+| Clinical State Engine | State, events, and evidence | No direct access |
+| Memory Service | Authorized memory and transcript data | No direct access |
+| Orchestrator | Controlled repository interfaces | No unrestricted access |
 
-The Evaluator Agent must receive an explicit EvaluationInput object.
+The Evaluator Agent must not receive an unrestricted database session or repository object.
 
-It must never receive an unrestricted database session or repository that can query hidden case material.
+The Patient Agent must receive an explicitly constructed context object.
 
----
-
-## 19. Data Retention and Recovery
-
-The initial system must support:
-
-- Persistent session history.
-- Historical case versions.
-- Historical rubric versions.
-- Historical state snapshots.
-- Recovery after interrupted sessions.
-- Database backup and restoration.
-- Traceability of failed operations.
-
-The system must not silently delete records required to reproduce a completed simulation.
-
-Any deletion or modification of historical data must be an explicit, auditable operation.
-
-The database must contain synthetic case information only during the initial MVP.
+The architecture is a local single-user prototype, not a complete security boundary against a local administrator.
 
 ---
 
-## 20. Initial Implementation Scope
+## 22. Backup and Recovery
 
-The first database implementation will focus on:
+The initial application must support:
 
-1. Case and case-version storage.
-2. Simulation runs and sessions.
-3. Conversation messages.
-4. Model execution metadata.
-5. Structured interaction events.
-6. State snapshots and transitions.
-7. Longitudinal memory.
-8. Rubric versions and evaluation reports.
-9. Audit logging.
-10. Restricted case data isolation.
+- Operational database backup.
+- Restricted database backup.
+- Consistent backup metadata.
+- Restoration validation.
+- Historical session recovery.
+- Case version preservation.
+- Rubric version preservation.
+- Transcript integrity checks.
 
-Advanced analytics, distributed storage, multi-user access management, and cloud synchronization are outside the initial MVP scope.
+When backing up both databases, the application must record their corresponding backup set and timestamp.
+
+Backups must preserve the association between case versions and simulation runs.
+
+Restricted case information must remain subject to access restrictions in backups.
 
 ---
 
-## 21. Open Design Questions
+## 23. Migration Strategy
 
-The following decisions remain to be finalized:
+Database schema changes must be versioned.
 
-- Should database migrations use a dedicated migration tool?
-- Should the two SQLite databases be managed by separate repository interfaces?
-- Should the restricted database be encrypted at rest?
-- Should the application use a dedicated database service layer?
-- How should concurrent session operations be handled?
-- Should model input and output payloads be stored, hashed, or selectively retained?
-- How should schema migrations preserve historical simulation reproducibility?
-- Which records should be immutable at the database level?
-- How should backups protect restricted case information?
+The implementation will maintain a migration history table.
 
-These questions must be resolved before implementation.
+Proposed table:
+
+`schema_migrations`
+
+Fields:
+
+- migration_id
+- version
+- description
+- applied_at
+- checksum
+
+Migration rules:
+
+1. Every schema change must have a version identifier.
+2. Migrations must be repeatable in controlled test environments.
+3. Historical data must not be silently reinterpreted.
+4. Destructive migrations require an explicit backup and recovery plan.
+5. Operational and restricted databases must track their migration versions independently.
+
+The migration tool and repository technology will be selected during implementation.
+
+---
+
+## 24. Data Retention
+
+The initial MVP uses synthetic case information only.
+
+The system must preserve completed simulation records for reproducibility unless an explicit deletion policy is implemented.
+
+Any deletion or correction must be an auditable operation where appropriate.
+
+The system must not silently delete:
+
+- Historical transcripts.
+- Accepted transitions.
+- Rejected transition records.
+- Historical memory versions.
+- Evaluation reports.
+- Model execution metadata needed for reproducibility.
+
+---
+
+## 25. Initial MVP Table Inventory
+
+### Operational Database: ther asim.db
+
+Required tables:
+
+1. cases
+2. case_versions
+3. public_case_profiles
+4. simulation_runs
+5. sessions
+6. messages
+7. interaction_requests
+8. case_fact_disclosures
+9. case_fact_disclosure_history
+10. events
+11. event_evidence
+12. state_snapshots
+13. state_snapshot_values
+14. state_transitions
+15. transition_evidence
+16. memory_items
+17. memory_evidence
+18. rubric_versions
+19. evaluations
+20. evaluation_items
+21. evaluation_evidence
+22. model_runs
+23. audit_events
+24. schema_migrations
+
+### Restricted Database: case_vault.db
+
+Required tables:
+
+1. restricted_case_profiles
+2. case_facts
+3. schema_migrations
+
+---
+
+## 26. Important Implementation Notes
+
+1. Every table must have explicit primary-key and nullability definitions.
+2. JSON fields must be schema-validated by the application.
+3. Cross-database foreign keys must be validated manually.
+4. Operational and restricted databases must have separate connection interfaces.
+5. Evaluator Agent must never receive a restricted database connection.
+6. Patient Agent must receive only explicit PatientContext.
+7. Session transcripts must remain immutable after completion.
+8. Historical state snapshots must remain recoverable.
+9. Evaluation scope must distinguish session and longitudinal reports.
+10. Interaction idempotency must be enforced through database constraints and application logic.
+11. Disclosure history must remain traceable.
+12. Model and prompt versions must be recorded.
+13. Database writes involving related records must use transactions.
+14. Security boundaries must be tested independently from logical schema separation.
+
+---
+
+## 27. Open Implementation Questions
+
+The following decisions remain for the implementation phase:
+
+- Which database access library should be used?
+- Should repository operations use raw SQL or an ORM?
+- Which migration implementation best fits the modular monolith?
+- Should database backups use SQLite's online backup API?
+- Should restricted database files receive additional Windows ACL protection?
+- How should concurrent local requests be serialized?
+- Should large transcripts be paginated or retrieved as complete session objects?
+- Which JSON fields need dedicated indexing?
+
+These decisions must be resolved during implementation without changing the established data contracts unnecessarily.
 
 ---
 

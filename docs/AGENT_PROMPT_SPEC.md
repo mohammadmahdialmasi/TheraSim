@@ -1,6 +1,6 @@
 # TheraSim — Agent Prompt Architecture and Behavioral Contracts
 
-**Document Version:** 0.1
+**Document Version:** 0.2
 **Project Status:** Research Prototype / Pre-MVP
 **Last Updated:** 2026-11-14
 
@@ -14,7 +14,7 @@ The initial system includes three model-assisted components:
 
 1. Patient Agent
 2. Evaluator Agent
-3. Event Extraction Agent
+3. Event Processing Service
 
 These components have different responsibilities and must operate under separate instructions and information-access boundaries.
 
@@ -42,7 +42,7 @@ This specification defines the intended behavior of the agents. Actual complianc
 |---|---|---|
 | Patient Agent | Simulate the fictional client | No |
 | Evaluator Agent | Evaluate therapist performance | No |
-| Event Extraction Agent | Identify candidate interaction events | No |
+| Event Processing Service | Identify candidate interaction events | No |
 | Clinical State Engine | Validate state transitions | Yes, through deterministic rules |
 
 The first three components may use language models.
@@ -58,7 +58,7 @@ The initial interaction workflow is:
 3. The Patient Agent generates a response.
 4. The backend validates the response.
 5. The response is stored and returned to the Therapist Interface.
-6. The conversation is processed by the Event Extraction Agent.
+6. The conversation is processed by the Event Processing Service.
 7. Candidate events are validated.
 8. The Clinical State Engine evaluates permitted transitions.
 9. Accepted changes are stored as new state snapshots.
@@ -122,7 +122,7 @@ The following prompt groups must remain independent:
 | Patient-specific case context | Patient Context / Patient Agent |
 | Evaluator system prompt | Evaluator Agent |
 | Evaluation rubric instructions | Evaluator Agent |
-| Event extraction prompt | Event Extraction Agent |
+| Event processing rules/configuration | Event Processing Service |
 | State transition rules | Clinical State Engine |
 | Memory processing instructions | Memory Service |
 
@@ -537,7 +537,7 @@ They must not automatically:
 - Trigger a confirmed disclosure event.
 - Determine evaluator ratings.
 
-The Event Extraction and validation processes must independently verify the relevant evidence.
+The Event processing and validation services must independently verify the relevant evidence.
 
 ### 9.3 Output Restrictions
 
@@ -600,14 +600,14 @@ This restriction helps reduce evaluator bias.
 
 The Evaluator Agent receives an EvaluationInput object.
 
-### 11.1 Required Fields
+### 11.1 Base Required Fields
 
 | Field | Description |
 |---|---|
 | evaluation_id | Unique evaluation identifier |
-| session_id | Completed session identifier |
-| transcript_id | Finalized transcript identifier |
-| transcript_version | Exact transcript version |
+| session_id | Required for session scope; null for longitudinal scope |
+| transcript_id | Session-level transcript identifier; longitudinal scope uses session_transcripts |
+| transcript_version | Session-level transcript version; longitudinal versions are provided per session |
 | transcript_hash | Optional content hash |
 | modality | Therapeutic modality |
 | language | Session language |
@@ -656,6 +656,35 @@ The Agent must not modify rubric definitions.
 
 ---
 
+
+### 11.4 Evaluation Scope and Input Routing
+
+The Evaluator Agent must receive an explicit `evaluation_scope`. The only permitted values are `session` and `longitudinal`.
+
+**Session-level input**
+
+- Uses `ACT_RUBRIC_V0`, version 0.2.
+- Requires a non-null `session_id`.
+- Receives exactly one finalized session transcript.
+- Uses the session-level `transcript_id`, `transcript_version`, and optional `transcript_hash` fields.
+- Must not use evidence from other sessions.
+
+**Longitudinal input**
+
+- Uses `ACT_LONGITUDINAL_RUBRIC_V0`, version 0.1.
+- Requires a valid `run_id`.
+- Sets the top-level `session_id` to null.
+- Receives a `session_transcripts` collection containing exactly three finalized session transcript records.
+- Each record must identify `session_number`, `session_id`, `transcript_id`, `transcript_version`, and, when available, `transcript_hash`.
+- The records must be ordered chronologically from session 1 through session 3.
+- Evaluation is prohibited until all three sessions are completed.
+
+**Shared routing requirements**
+
+- The rubric ID and version must match the selected evaluation scope.
+- The Evaluator Agent must not select, replace, or combine rubrics autonomously.
+- Only finalized transcripts and therapist-visible context may be supplied.
+- Hidden case formulation, undisclosed facts, Patient Agent prompts, and future disclosure plans remain prohibited inputs.
 ## 12. Evaluator Behavioral Instructions
 
 ### 12.1 Evidence-Based Assessment
@@ -731,9 +760,18 @@ The Evaluator Agent must return a structured EvaluationReport.
 ```json
 {
   "evaluation_id": "uuid",
+  "evaluation_scope": "session",
+  "run_id": null,
   "session_id": "uuid",
+  "transcript_refs": [
+    {
+      "session_id": "uuid",
+      "transcript_id": "uuid",
+      "transcript_version": "1.0"
+    }
+  ],
   "rubric_id": "ACT_RUBRIC_V0",
-  "rubric_version": "0.1",
+  "rubric_version": "0.2",
   "overall_summary": "The therapist demonstrated several relevant ACT-consistent behaviors, although the available transcript provides limited evidence of values clarification.",
   "competency_results": [
     {
@@ -790,11 +828,42 @@ Before persistence, the backend must verify:
 
 ---
 
-# PART III — EVENT EXTRACTION AGENT
 
-## 14. Event Extraction Purpose
+### 13.6 Scope-Specific Output Requirements
 
-The Event Extraction Agent identifies potentially relevant interaction events from the session transcript.
+Every Evaluator report must include `evaluation_scope`, `rubric_id`, `rubric_version`, and `transcript_refs`.
+
+**Session-level output**
+
+- `evaluation_scope` must be `session`.
+- `session_id` must identify the evaluated session.
+- `transcript_refs` must identify the single evaluated transcript.
+- `rubric_id` and `rubric_version` must identify `ACT_RUBRIC_V0`, version 0.2.
+
+**Longitudinal output**
+
+- `evaluation_scope` must be `longitudinal`.
+- `run_id` must identify the evaluated simulation run.
+- `session_id` must be null.
+- `transcript_refs` must identify all three finalized session transcripts in chronological order.
+- Evidence references must identify both `session_id` and `message_id`, so evidence remains traceable to its source session.
+- `rubric_id` and `rubric_version` must identify `ACT_LONGITUDINAL_RUBRIC_V0`, version 0.1.
+
+A longitudinal report must not be generated from an incomplete run. Session-level and longitudinal results must remain separate. No unsupported combined score or cross-scope averaging is permitted.
+# PART III — EVENT PROCESSING SERVICE
+
+## 14. Event Processing Service Purpose
+
+The Event Processing Service identifies potentially relevant interaction events from the session transcript.
+
+**Architectural boundary**
+
+- It is an internal application service, not a third primary LLM agent.
+- The only primary LLM agents in the MVP are the Patient Agent and the Evaluator Agent.
+- It follows a deterministic-first processing approach.
+- It does not own a separate LLM system prompt, model identity, or independent agent execution lifecycle.
+- Extracted events are candidate data and must not directly modify canonical clinical state.
+- Deterministic validation and the State Engine control event acceptance and state transitions.
 
 It helps convert natural-language conversation into structured candidate events that can be reviewed and validated by the application.
 
@@ -802,7 +871,7 @@ It is not responsible for determining the definitive psychological state of the 
 
 ### 14.1 Core Responsibilities
 
-The Event Extraction Agent may:
+The Event Processing Service may:
 
 - Identify explicit disclosures.
 - Identify reported emotional experiences.
@@ -834,11 +903,11 @@ The extraction system should prefer conservative candidate generation.
 
 It is better to mark an event as uncertain or require review than to create a false structured observation.
 
-The Event Extraction Agent identifies evidence; the application determines whether the event is accepted.
+The Event Processing Service identifies evidence; the application determines whether the event is accepted.
 
 ---
 
-## 15. Event Extraction Input Contract
+## 15. Event Processing Input Contract
 
 Required input:
 
@@ -852,7 +921,7 @@ Required input:
 | extraction_language | Language used in the session |
 | allowed_event_types | Permitted event categories |
 
-The Agent must receive only the transcript segment and context required for extraction.
+The service must receive only the transcript segment and context required for extraction.
 
 It must not receive the complete restricted case formulation.
 
@@ -865,7 +934,7 @@ Each message must preserve:
 - content
 - sequence_number
 
-The Agent must distinguish statements made by:
+The service must distinguish statements made by:
 
 - therapist
 - patient
@@ -874,7 +943,7 @@ A therapist statement about the client's feelings is not equivalent to a direct 
 
 ---
 
-## 16. Event Extraction Behavioral Instructions
+## 16. Event Processing Rules
 
 ### 16.1 Evidence Preservation
 
@@ -884,7 +953,7 @@ Where possible, it must identify the exact evidence span.
 
 ### 16.2 Observation and Interpretation
 
-The Agent must distinguish:
+The service must distinguish:
 
 1. Explicitly stated information.
 2. Observable conversational behavior.
@@ -909,7 +978,7 @@ The Clinical State Engine must independently validate any proposed transition.
 
 ---
 
-## 17. Event Extraction Output Contract
+## 17. Event Processing Output Contract
 
 The expected output is a CandidateEventCollection.
 
@@ -1030,7 +1099,7 @@ Examples:
 - Reference exact supporting messages.
 - Identify limitations.
 
-**Event Extraction Agent:**
+**Event Processing Service:**
 
 - Provide the event classification.
 - Reference transcript evidence.
@@ -1128,7 +1197,7 @@ If evaluation generation fails:
 
 The transcript and session completion status must remain unaffected.
 
-### 21.3 Event Extraction Agent
+### 21.3 Event Processing Service
 
 If extraction fails:
 
@@ -1275,7 +1344,7 @@ Potential metrics include:
 - Unsupported-claim frequency.
 - Rating stability.
 
-### Event Extraction Agent
+### Event Processing Service
 
 - Event precision.
 - Event recall.

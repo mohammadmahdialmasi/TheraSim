@@ -1,13 +1,20 @@
-﻿.venv/
-__pycache__/
+﻿# Secrets
 .env
 .env.*
 !.env.example
-*.sqlite3
-*.db
-*.gguf
-*.safetensors
-*.onnx
-*.log
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Node
 node_modules/
 dist/
+build/
+
+# Local data
+*.db
+*.sqlite3
+*.log

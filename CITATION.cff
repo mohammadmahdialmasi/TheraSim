@@ -1,0 +1,11 @@
+cff-version: 1.2.0
+message: "If you use this project, please cite it as follows."
+type: software
+title: "TheraSim: A Local-First Framework for Psychotherapy Skills Simulation and Evaluation"
+version: 0.1.0
+date-released: 2026-11-14
+authors:
+  - family-names: "Almasi Dargah"
+    given-names: "Mohammad Mahdi"
+url: "https://github.com/mohammadmahdialmasi/TheraSim"
+license: MIT

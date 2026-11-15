@@ -269,7 +269,7 @@ Stores individual sessions belonging to a simulation run.
 | run_id | TEXT | Foreign Key |
 | session_number | INTEGER | Not Null |
 | status | TEXT | Not Null |
-| transcript_version | INTEGER | Not Null |
+| transcript_version | INTEGER | Not Null, CHECK (transcript_version >= 1) |
 | started_at | TEXT | Optional |
 | ended_at | TEXT | Optional |
 | created_at | TEXT | Not Null |
@@ -413,6 +413,8 @@ Stores the current disclosure status of a case fact within a simulation run.
 | evidence_start_offset | INTEGER | Optional |
 | evidence_end_offset | INTEGER | Optional |
 | validation_method | TEXT | Not Null |
+| validation_notes | TEXT | Optional |
+| created_at | TEXT | Not Null |
 | updated_at | TEXT | Not Null |
 
 Possible disclosure statuses:
@@ -1257,7 +1259,7 @@ The system must not silently delete:
 
 ## 25. Initial MVP Table Inventory
 
-### Operational Database: ther asim.db
+### Operational Database: therasim.db
 
 Required tables:
 

@@ -868,7 +868,7 @@ Generate a formative evaluation report for one completed session.
 ```json
 {
   "rubric_id": "ACT_RUBRIC_V0",
-  "rubric_version": "0.1"
+  "rubric_version": "0.2"
 }
 ```
 
@@ -923,7 +923,7 @@ HTTP status: `201 Created`
     "run_id": "uuid",
     "status": "completed",
     "rubric_id": "ACT_RUBRIC_V0",
-    "rubric_version": "0.1",
+    "rubric_version": "0.2",
     "created_at": "2026-11-14T13:05:00Z"
   }
 }

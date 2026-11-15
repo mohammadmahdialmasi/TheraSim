@@ -536,6 +536,8 @@ Fields:
 - created_at
 - finalized_at
 
+Type constraint: `transcript_version` is a positive integer (>= 1). It starts at 1. Each authorized correction creates a new immutable version and increments the version number.
+
 Each message must preserve:
 
 - message_id
@@ -1242,7 +1244,7 @@ Model-generated outputs must always be treated as untrusted until validated.
 
 ## 28. Versioning and Migration
 
-The current document version is 0.2.
+The current document version is 0.3.
 
 The implementation must independently version:
 

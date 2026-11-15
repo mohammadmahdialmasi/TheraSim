@@ -23,7 +23,7 @@ The testing strategy covers:
 7. Event extraction performance.
 8. Clinical state transition validation.
 9. Security and information isolation.
-10. Persian and English language performance.
+10. Persian-first MVP language performance; English evaluation is deferred.
 11. Local model compatibility.
 12. Reproducibility and performance.
 
@@ -1034,11 +1034,11 @@ An average security score must never be used to excuse a single confirmed critic
 
 # PART VIII — MULTILINGUAL EVALUATION
 
-## 17. Persian and English Performance
+## 17. Persian-First MVP and Future English Evaluation
 
-TheraSim is intended to support Persian and English.
+The initial MVP is Persian-first. Persian end-to-end functionality is an acceptance requirement.
 
-The benchmark must evaluate both languages independently.
+English localization and bilingual comparison testing are deferred until the Persian workflow is stable. The English test material below is retained as a future benchmark specification, not an initial MVP acceptance requirement.
 
 ### 17.1 Persian Evaluation
 
@@ -1446,13 +1446,14 @@ Required:
 - Evaluation scope, rubric ID and version, run/session identifiers, and transcript references satisfy the applicable output contract.
 - Session-level and longitudinal results remain separate; no unsupported aggregate score is produced.
 
-### Gate 7 — Multilingual Functionality
+### Gate 7 — Persian MVP Language Functionality
 
 Required:
 
-- Persian and English interactions are supported.
-- Critical schema and workflow tests pass in both languages.
-- Persian-specific behavioral limitations are documented.
+- Persian interactions work end-to-end in the initial MVP.
+- Critical schema, workflow, and agent-contract tests pass in Persian.
+- Known Persian-specific behavioral limitations are documented.
+- English localization and its acceptance tests are deferred until after the Persian MVP is stable.
 
 ### Gate 8 — Reproducibility
 

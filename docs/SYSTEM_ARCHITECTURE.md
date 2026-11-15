@@ -240,7 +240,7 @@ The system must follow these principles:
 4. Explainability: Evaluations must reference observable conversational evidence.
 5. Longitudinal Consistency: Client behavior must remain coherent across sessions.
 6. Local-First: Core functionality must not require external APIs.
-7. Multilingual Support: Persian and English are initial target languages.
+7. Persian-first MVP: Persian is required for the initial end-to-end workflow; English localization is deferred until the Persian workflow is stable.
 8. Extensibility: Additional therapeutic modalities must be integrable without redesigning the entire system.
 9. Clinical Boundaries: The platform is an educational simulation, not a clinical service.
 

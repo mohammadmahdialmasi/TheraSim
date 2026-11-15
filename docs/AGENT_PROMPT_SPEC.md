@@ -767,7 +767,7 @@ The Evaluator Agent must return a structured EvaluationReport.
     {
       "session_id": "uuid",
       "transcript_id": "uuid",
-      "transcript_version": "1.0"
+      "transcript_version": 1
     }
   ],
   "rubric_id": "ACT_RUBRIC_V0",

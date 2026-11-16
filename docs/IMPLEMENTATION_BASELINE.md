@@ -181,3 +181,74 @@ Passing software tests does not establish clinical validity or educational effec
 - Automated clinical competency scoring.
 
 These require separate decisions and validation before implementation.
+
+## Implementation update: pluggable local LLM runtimes and GUI
+
+This section supersedes the earlier Ollama-only runtime decision.
+
+### Local LLM providers
+
+- TheraSim supports two selectable local inference providers: Ollama and LM Studio.
+- The initial shared integration target is the OpenAI-compatible Chat Completions API.
+- Ollama compatibility is treated as an adapter-specific integration because its OpenAI compatibility is documented as experimental.
+- Provider base URLs, model identifiers, and API credentials are configuration values, not hardcoded application logic.
+- Initial defaults:
+  - Ollama: `http://127.0.0.1:11434/v1`
+  - LM Studio: `http://127.0.0.1:1234/v1`
+- The first implementation selects one provider at a time through `THERASIM_LLM_PROVIDER`.
+- Provider-specific adapters must isolate API differences and be tested independently.
+- Core functionality remains local-first; no cloud model API is required.
+
+### Frontend architecture
+
+- The future frontend will use React and TypeScript.
+- The interface will be Persian-first and right-to-left (RTL).
+- The frontend communicates with the FastAPI backend through versioned API routes.
+- The frontend must not connect directly to Ollama or LM Studio.
+- Provider selection will eventually be exposed through the backend to the GUI.
+- Streaming, live session rendering, and advanced interaction will be implemented after the basic request/response workflow is stable.
+- CORS must use explicit trusted frontend origins; wildcard origins are not the default.
+
+### Documentation references
+
+- LM Studio OpenAI-compatible endpoints: https://lmstudio.ai/docs/developer/openai-compat
+- Ollama OpenAI compatibility: https://ollama.readthedocs.io/en/openai/
+- LM Studio local API quickstart: https://lmstudio.ai/docs/developer/rest/quickstart
+
+## Verified implementation checkpoint — 2026-11-16
+
+### Backend foundation
+
+- Python 3.13 virtual environment created.
+- FastAPI application initialized.
+- Pydantic 2 request validation enabled.
+- Uvicorn local server configured.
+- Dependency manifest and resolved dependency lock file added.
+
+### Local LLM integration
+
+- Shared OpenAI-compatible HTTP client implemented.
+- Ollama and LM Studio provider configurations implemented.
+- Provider model discovery endpoint implemented.
+- Chat completion endpoint implemented.
+- Provider credentials are excluded from provider catalog responses.
+- Empty model lists are handled without treating them as server errors.
+- Empty final model responses are rejected.
+- Model-provider failures are translated into API errors.
+
+### Verified API routes
+
+- `GET /health`
+- `GET /api/v1/llm/providers`
+- `GET /api/v1/llm/models/{provider_name}`
+- `POST /api/v1/llm/chat`
+
+### Verification results
+
+- Automated backend tests: 14 passed.
+- Ollama real local inference: successful.
+- LM Studio real local inference: successful.
+- Persian UTF-8 response verified through the backend.
+- Both local providers returned non-empty responses through TheraSim.
+
+These results establish technical integration only. They do not establish clinical validity, therapeutic effectiveness, or professional competency measurement validity.

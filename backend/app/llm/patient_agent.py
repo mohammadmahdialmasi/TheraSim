@@ -19,7 +19,10 @@ from app.llm.patient_agent_prompt import (
     PATIENT_AGENT_PROMPT_VERSION,
     PATIENT_AGENT_SYSTEM_PROMPT,
 )
-from app.llm.patient_context_serializer import patient_context_to_payload
+from app.llm.patient_context_serializer import (
+    PATIENT_AGENT_CONTEXT_SCHEMA_VERSION,
+    patient_context_to_payload,
+)
 from app.services.patient_context import PatientContext
 
 
@@ -227,7 +230,7 @@ class PatientAgent:
             model_identifier=reported_model.strip(),
             prompt_id=PATIENT_AGENT_PROMPT_ID,
             prompt_version=PATIENT_AGENT_PROMPT_VERSION,
-            input_schema_version=context.context_schema_version,
+            input_schema_version=PATIENT_AGENT_CONTEXT_SCHEMA_VERSION,
             output_schema_id=PATIENT_AGENT_OUTPUT_SCHEMA_ID,
             output_schema_version=PATIENT_AGENT_OUTPUT_SCHEMA_VERSION,
             temperature=self.temperature,

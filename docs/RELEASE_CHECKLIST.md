@@ -47,7 +47,8 @@ release-ready, production-ready, or clinically validated.
   notices, and any scenario/material-specific terms.
 - [ ] Review README, changelog, citation metadata, installation instructions,
   supported Python/Node versions, and all documented limitations for
-  consistency. Do not assign a release date before a formal release is made.
+  consistency. Keep the GitHub source-release target (v0.2.0) clearly marked
+  unpublished until a release is formally created.
 - [ ] Confirm `CITATION.cff` is valid and does not contain provisional release
   metadata; do not create Zenodo-specific metadata unless it is required and
   approved.
@@ -74,6 +75,9 @@ release-ready, production-ready, or clinically validated.
   package and installer; neither claim is currently supported.
 - [ ] Verify the archive contains no user data, local model, `.env`, secrets,
   virtual environment, dependency/build output, or unintended backup files.
+- [ ] Confirm the Patient Agent model request includes only public identity,
+  authorized disclosures, explicit-disclosure memories, and transcript text;
+  document that response-schema validation is not semantic disclosure review.
 
 ## Data and validation boundaries
 
@@ -92,10 +96,12 @@ it is enforced by TheraSim.
 
 ## Release status
 
-There is no confirmed formal release tag or GitHub Release. The first formal
-source release may be version `0.1.0`, subject to final readiness verification;
-no definitive release date has been assigned. A release must not be described
-as production-ready or clinically validated.
+Zenodo v0.1.0 is a published documentation-only archive (version DOI
+`10.5281/zenodo.24244882`; concept DOI `10.5281/zenodo.24244881`). It does
+not constitute an executable source release. The first public GitHub source
+release is being prepared for v0.2.0; no GitHub release or tag has been
+published. A release must not be described as production-ready or clinically
+validated.
 
 This document is a readiness aid, not authorization to create a tag, GitHub
 Release, or external deposit.

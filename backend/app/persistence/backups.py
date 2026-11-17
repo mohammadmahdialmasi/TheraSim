@@ -549,7 +549,8 @@ def restore_paired_backup(
                     expected_hash=entry["sha256"],
                 )
             else:
-                assert validated is not None
+                if validated is None:
+                    raise BackupError("Validated backup contents are unavailable.")
                 source, expected_size, expected_hash = validated[name]
                 shutil.copyfile(source, target)
                 if (

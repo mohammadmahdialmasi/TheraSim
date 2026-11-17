@@ -1,15 +1,20 @@
 # Changelog
 
-Notable project changes are recorded here. There is no formal application
-release or release tag yet. The `Unreleased` section records current
-development work and is not a published release. The first formal source
-release may use version `0.1.0`, subject to final release-readiness
-verification; no definitive release date has been assigned.
+Notable project changes are recorded here. The `Unreleased` section records
+current development work and is not a published software release. Zenodo
+v0.1.0 is a published documentation-only archive; it is not an executable
+source release. The first public GitHub source release is being prepared for
+v0.2.0, which has not been published or tagged.
 
 ## Unreleased
 
 ### Added
 
+- Added a bilingual project landing page and authentic application screenshots
+  using fictional demonstration data.
+- Added a versioned least-privilege Patient Agent model-input projection that
+  excludes hidden formulation, undisclosed or review-pending facts,
+  model-generated memory summaries, and internal state.
 - Implemented separate experimental ACT session and longitudinal Evaluator
   Agents. They require a configured local model, validate rubric coverage and
   transcript references/quotes, preserve rubric and transcript provenance,
@@ -37,6 +42,13 @@ verification; no definitive release date has been assigned.
 - Added Windows development launchers with process ownership checks, safe
   initialization, logs, health checks, and shutdown support.
 
+### Security and dependencies
+
+- Updated the cryptography requirement and lock to `50.0.2` after the previous
+  locked version was reported vulnerable by pip-audit.
+- Updated the compatible frontend lint dependency graph in the lockfile;
+  npm audit then reported no vulnerable packages.
+
 ### Limitations and release notes
 
 - ACT remains the only runnable modality. The ACT rubrics and evaluators are
@@ -58,3 +70,6 @@ verification; no definitive release date has been assigned.
   and an installer are not implemented.
 - Passing automated software tests does not constitute a security audit or
   establish clinical or psychometric validity. Use synthetic data only.
+- Patient Agent output validation checks JSON structure, not semantic
+  disclosure safety. The reduced model input is a data-minimization control,
+  not a guarantee against unsafe generated text.

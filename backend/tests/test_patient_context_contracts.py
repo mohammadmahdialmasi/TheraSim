@@ -301,21 +301,15 @@ def test_patient_context_serializer_uses_explicit_field_allowlists():
 
     assert set(payload) == {
         "context_schema_version",
-        "case_id",
-        "case_version_id",
-        "run_id",
-        "session_id",
-        "session_number",
         "language",
         "modality",
         "public_identity",
-        "restricted_profile",
-        "relevant_case_facts",
-        "current_state",
-        "longitudinal_memory",
+        "disclosed_case_facts",
+        "longitudinal_disclosures",
         "recent_transcript",
         "therapist_message",
     }
+    assert payload["context_schema_version"] == "2.0"
 
     assert set(payload["public_identity"]) == {
         "display_name",
@@ -325,37 +319,16 @@ def test_patient_context_serializer_uses_explicit_field_allowlists():
         "initial_disclosure",
     }
 
-    assert set(payload["restricted_profile"]) == {
-        "clinical_formulation",
-        "relevant_personal_history",
-        "maintaining_factors",
-        "avoidance_patterns",
-        "hypothesized_functions",
-        "initial_safety_baseline",
-        "patient_simulation_instructions",
-    }
-
-    assert set(payload["current_state"]) == {
-        "snapshot_id",
-        "state_schema_version",
-        "values",
-    }
-
     assert set(payload["recent_transcript"][0]) == {
-        "message_id",
-        "session_id",
-        "session_number",
-        "sequence_number",
         "role",
         "content",
-        "created_at",
     }
 
-    assert payload["therapist_message"]["message_id"] == "current-message"
-    assert all(
-        item["message_id"] != "current-message"
-        for item in payload["recent_transcript"]
-    )
+    assert payload["therapist_message"]["role"] == "therapist"
+    assert payload["recent_transcript"] == [{
+        "role": "patient",
+        "content": "Test message",
+    }]
 
 
 def test_patient_context_serializer_preserves_nested_authorized_data():
@@ -370,7 +343,7 @@ def test_patient_context_serializer_preserves_nested_authorized_data():
     profile = RestrictedProfileContext(
         clinical_formulation=freeze_json_object(
             {
-                "core": "fear of negative evaluation",
+                "core": "private formulation sentinel",
                 "nested": {
                     "indicators": ["avoidance", "self-criticism"],
                 },
@@ -389,7 +362,7 @@ def test_patient_context_serializer_preserves_nested_authorized_data():
         ),
         avoidance_patterns=("avoids speaking in meetings",),
         hypothesized_functions=freeze_json_object(
-            {"function": "reduce anticipated discomfort"},
+            {"function": "private hypothesis sentinel"},
             "hypothesized_functions",
         ),
         initial_safety_baseline=empty,
@@ -407,6 +380,24 @@ def test_patient_context_serializer_preserves_nested_authorized_data():
             {"source": "case_definition"},
             "relevance_metadata",
         ),
+    )
+    pending_fact = PatientCaseFact(
+        case_fact_id="fact-pending",
+        fact_category="personal_history",
+        information_class="established_fact",
+        content="Pending disclosure sentinel.",
+        disclosure_policy="contextually_disclosable",
+        disclosure_status="candidate_disclosed",
+        relevance_metadata=None,
+    )
+    initial_fact = PatientCaseFact(
+        case_fact_id="fact-initial",
+        fact_category="presenting_concern",
+        information_class="established_fact",
+        content="An initially authorized fact.",
+        disclosure_policy="initial_disclosure",
+        disclosure_status="not_disclosed",
+        relevance_metadata=None,
     )
 
     memory = PatientMemoryItem(
@@ -427,38 +418,29 @@ def test_patient_context_serializer_preserves_nested_authorized_data():
     context = replace(
         context,
         restricted_profile=profile,
-        relevant_case_facts=(fact,),
+        relevant_case_facts=(fact, pending_fact, initial_fact),
         longitudinal_memory=(memory,),
     )
 
     payload = patient_context_to_payload(context)
 
-    assert payload["restricted_profile"]["clinical_formulation"] == {
-        "core": "fear of negative evaluation",
-        "nested": {
-            "indicators": ["avoidance", "self-criticism"],
+    assert payload["disclosed_case_facts"] == [
+        {
+            "fact_category": "personal_history",
+            "content": "A fictional established fact.",
         },
-    }
-
-    assert payload["restricted_profile"]["maintaining_factors"] == [
-        {"factor": "short-term relief"}
+        {
+            "fact_category": "presenting_concern",
+            "content": "An initially authorized fact.",
+        },
     ]
-
-    assert payload["relevant_case_facts"][0]["case_fact_id"] == "fact-001"
-    assert payload["relevant_case_facts"][0]["relevance_metadata"] == {
-        "source": "case_definition"
-    }
-
-    assert payload["longitudinal_memory"][0] == {
-        "memory_id": "memory-001",
-        "source_session_id": "session-001",
-        "memory_type": "disclosed_fact",
-        "information_class": "explicit_disclosure",
+    assert payload["longitudinal_disclosures"] == [{
         "content": "The client previously described an uncomfortable meeting.",
-        "source_message_ids": ["history-message"],
-        "confidence": 0.95,
-        "memory_version": 1,
-    }
+    }]
+    serialized_payload = json.dumps(payload)
+    assert "private formulation sentinel" not in serialized_payload
+    assert "private hypothesis sentinel" not in serialized_payload
+    assert "Pending disclosure sentinel" not in serialized_payload
 
 
 def test_patient_context_serializer_produces_json_safe_persian_payload():
@@ -542,30 +524,9 @@ def test_character_personality_and_dynamic_state_are_separate_from_act_state():
 
     payload = patient_context_to_payload(context)
 
-    assert payload["character_personality"]["configured"] is True
-    assert payload["character_personality"]["profile_data"]["communication_style"] == [
-        "careful",
-        "measured",
-    ]
-
-    assert payload["character_state"]["snapshot_id"] == (
-        "character-snapshot-001"
-    )
-
-    character_values = {
-        item["name"]: item["value"]
-        for item in payload["character_state"]["values"]
-    }
-
-    assert character_values["affect_valence"] == -1
-    assert character_values["social_evaluative_threat"] == 4
-
-    # The existing six ACT process variables remain an independent structure.
-    assert set(payload["current_state"]) == {
-        "snapshot_id",
-        "state_schema_version",
-        "values",
-    }
+    assert "character_personality" not in payload
+    assert "character_state" not in payload
+    assert "current_state" not in payload
 
 
 def test_character_state_rejects_out_of_range_valence():

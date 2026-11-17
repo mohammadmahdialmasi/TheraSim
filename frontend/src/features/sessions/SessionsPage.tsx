@@ -1134,7 +1134,7 @@ export function SessionsPage({ language }: { language: Language }) {
 
       {activeRun && (
         <MemoryReviewPanel
-          key={activeRun.run_id}
+          key={`${activeRun.run_id}-memory`}
           runId={activeRun.run_id}
           language={language}
           refreshKey={memoryRefreshKey}
@@ -1143,7 +1143,7 @@ export function SessionsPage({ language }: { language: Language }) {
 
       {activeRun && (
         <EventReviewPanel
-          key={activeRun.run_id}
+          key={`${activeRun.run_id}-events`}
           runId={activeRun.run_id}
           language={language}
           refreshKey={memoryRefreshKey}
@@ -1152,7 +1152,7 @@ export function SessionsPage({ language }: { language: Language }) {
 
       {activeRun && (
         <TreatmentPlanPanel
-          key={activeRun.run_id}
+          key={`${activeRun.run_id}-treatment-plan`}
           runId={activeRun.run_id}
           language={language}
           refreshKey={memoryRefreshKey}
@@ -1170,7 +1170,7 @@ export function SessionsPage({ language }: { language: Language }) {
       )}
       {activeRun && (
         <LongitudinalEvaluationPanel
-          key={activeRun.run_id}
+          key={`${activeRun.run_id}-longitudinal-evaluation`}
           runId={activeRun.run_id}
           modality={activeRun.modality}
           completedSessionCount={
@@ -1182,7 +1182,7 @@ export function SessionsPage({ language }: { language: Language }) {
       )}
       {activeRun && (
         <RunAnalyticsPanel
-          key={activeRun.run_id}
+          key={`${activeRun.run_id}-analytics`}
           runId={activeRun.run_id}
           refreshKey={memoryRefreshKey}
           language={language}

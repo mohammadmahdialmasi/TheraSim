@@ -5,6 +5,11 @@
 **Decision Status:** Initial Architecture Baseline
 **Date:** 2026-11-14
 
+> Historical decision record: status statements below describe the initial
+> planning baseline, not the current implementation. For current capabilities
+> and limitations, see [IMPLEMENTATION_BASELINE.md](IMPLEMENTATION_BASELINE.md)
+> and the repository [README](../README.md).
+
 ---
 
 ## 1. Purpose

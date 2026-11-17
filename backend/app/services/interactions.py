@@ -21,7 +21,10 @@ from app.llm.patient_agent_prompt import (
     PATIENT_AGENT_PROMPT_ID,
     PATIENT_AGENT_PROMPT_VERSION,
 )
-from app.llm.patient_context_serializer import patient_context_to_payload
+from app.llm.patient_context_serializer import (
+    PATIENT_AGENT_CONTEXT_SCHEMA_VERSION,
+    patient_context_to_payload,
+)
 from app.persistence.database import DatabaseManager
 from app.persistence.repositories.events import EventRepository
 from app.persistence.repositories.memory_extraction_jobs import (
@@ -39,10 +42,7 @@ from app.persistence.repositories.simulation_runs import (
     SimulationRunRepository,
 )
 from app.persistence.repositories.sessions import SessionRepository
-from app.services.patient_context import (
-    PATIENT_CONTEXT_SCHEMA_VERSION,
-    PatientContext,
-)
+from app.services.patient_context import PatientContext
 from app.services.patient_context_service import (
     PatientContextService,
     PatientContextServiceError,
@@ -421,7 +421,7 @@ class InteractionService:
             },
             prompt_id=PATIENT_AGENT_PROMPT_ID,
             prompt_version=PATIENT_AGENT_PROMPT_VERSION,
-            input_schema_version=PATIENT_CONTEXT_SCHEMA_VERSION,
+            input_schema_version=PATIENT_AGENT_CONTEXT_SCHEMA_VERSION,
             output_schema_version=PATIENT_AGENT_OUTPUT_SCHEMA_VERSION,
         )
 

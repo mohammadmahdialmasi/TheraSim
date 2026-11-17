@@ -35,11 +35,12 @@ npm run build
 
 Implemented screens include the dashboard, local model laboratory, therapy
 approach overview, and simulation sessions with transcript and memory-review
-controls. Several navigation destinations remain roadmap/placeholder views.
-Evaluation reports, therapist analytics, evidence-linked charts, and complete
-Persian/English localization are not implemented. Persian is used in parts of
-the interface; do not assume all routes or content have complete RTL/LTR
-coverage.
+controls. Session and longitudinal evaluation reports, review controls,
+Run-level descriptive analytics, and evidence-linked exploratory charts are
+available within the Sessions workspace. Some navigation destinations remain
+roadmap/placeholder views. A standalone evaluation dashboard is not
+implemented. Persian and English are available in parts of the interface;
+complete localization and RTL/LTR validation are not.
 
 API calls are centralized in `src/lib/api.ts` and feature modules under
 `src/features/`. Shared English/Persian strings are in `src/i18n.ts`; the

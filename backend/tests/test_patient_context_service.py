@@ -860,7 +860,7 @@ def test_allows_memory_evidence_from_a_prior_session(system):
         "memory-prior-session-evidence",
     }
 
-def test_loads_run_pinned_personality_and_serializes_memory_scope(system):
+def test_internal_personality_and_state_are_not_sent_to_patient_agent(system):
     from app.llm.patient_context_serializer import patient_context_to_payload
     from app.services.character_model import CharacterPersonalityProfile
     from app.services.character_personality_service import (
@@ -1003,10 +1003,9 @@ def test_loads_run_pinned_personality_and_serializes_memory_scope(system):
 
     payload = patient_context_to_payload(context)
 
-    profile_payload = payload["character_personality"]["profile_data"]
-    assert profile_payload["communication_style"] == ["careful", "measured"]
-    assert "authoring_notes" not in profile_payload
-    assert "initial_state" not in profile_payload
-    assert "personality_profile_id" not in profile_payload
-
-    assert payload["longitudinal_memory"][0]["memory_scope"] == "episodic"
+    assert "character_personality" not in payload
+    assert "character_state" not in payload
+    assert "current_state" not in payload
+    assert payload["longitudinal_disclosures"] == [{
+        "content": "The client reported tension during meetings.",
+    }]

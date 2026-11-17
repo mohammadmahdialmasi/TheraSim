@@ -1,244 +1,78 @@
+[English](#english) | [فارسی](#persian)
+
 # TheraSim
 
-**An experimental, local-first research and educational prototype for
-psychotherapy-skills simulation**
+<a id="english"></a>
+## English
 
-TheraSim is an educational software project for practicing therapist-client
-conversations with fictional clients. It combines a local FastAPI service, a
-React interface, SQLite persistence, and optional local language-model
-providers.
+**A local-first research and educational prototype for psychotherapy-skills simulation**
 
-> **Synthetic data only:** Use fictional and synthetic cases only. Do not enter
-> real client or patient information. TheraSim is an experimental research and
-> educational prototype; it does not provide psychotherapy, diagnosis,
-> clinical advice, professional supervision, certification, or a validated
-> measure of therapist competence.
+TheraSim is an experimental application for rehearsing therapist-client conversations with fictional cases. It combines a FastAPI backend, a React interface, SQLite persistence, and optional local language-model providers.
 
-## Current implementation status
+> **Use synthetic data only.** TheraSim is not psychotherapy, diagnosis, clinical advice, professional supervision, therapist certification, or a validated measure of competence. It is not a clinical product.
 
-The repository contains a working local simulation workflow: case and run
-management, sequential sessions with no universal count limit, model-assisted
-patient interactions, immutable completed transcripts, and review-gated
-evidence-linked memory proposals. The database uses versioned migrations and
-keeps operational records separate from restricted case material.
+### Purpose and status
 
-Important limitations:
+The project explores whether fictional conversations, explicit information boundaries, longitudinal records, and transcript-linked formative feedback can support skills practice and software research. The current implementation is a prototype; it does not demonstrate improved clinical outcomes.
 
-- ACT is the only supported modality. Other approaches are not executable.
-- Session-planning policies are recorded configuration. Versioned treatment
-  plans and evidence-linked, review-gated revisions are available, but an
-  engine that automatically adapts plans from longitudinal progress is not
-  implemented.
-- The ACT rubrics are experimental and have not been clinically or
-  psychometrically validated.
-- A separate local-model-backed ACT session Evaluator Agent provides
-  experimental formative feedback when a model is configured. It validates
-  competency coverage and exact therapist-message quote references, saves
-  immutable `requires_review` revisions, and does not establish semantic
-  evidence validity or clinical/psychometric validity. Without a configured
-  model, evaluation generation is unavailable; invalid model output is not
-  saved.
-  A separate experimental longitudinal evaluator analyzes every completed
-  session in a Run (minimum two), requires scored competencies to cite evidence
-  from at least two sessions, and preserves transcript and run-session
-  provenance. Reports become stale when the Run's session snapshot changes.
-  Older placeholder reports are preserved but their ratings are withheld by
-  the API. Authenticated reviewers can append acceptance or revision-request
-  feedback; review history does not mutate the generated report.
-- Interaction-scoped model-assisted event and character-state proposals are
-  extracted with exact patient-message evidence. Events and state transitions
-  remain review-pending until explicitly reviewed. Event review is available
-  through the sessions workspace and backend API. Deterministic cross-session
-  memory consolidation suggestions preserve source snapshots and transcript
-  references and remain pending human review; they do not overwrite source
-  memories.
-- Persian and English are available in parts of the interface, but complete
-  localization and RTL/LTR validation are incomplete. A session evaluation
-  panel displays reports and transcript evidence, and the run workspace
-  displays longitudinal reports, cross-session evidence, provenance, and stale
-  status. A standalone evaluation dashboard is not implemented. The Sessions
-  workspace includes persisted Run analytics, compatible rubric-scoped raw
-  rating-code comparisons, an evidence-linked exploratory chart, and a
-  research-oriented JSON export. These are descriptive analytics, not
-  validated competency trends or clinical outcomes.
-- The Windows launcher runs development servers. Clean-machine installation
-  has not been verified; desktop packaging and an installer are not
-  implemented.
-- Frontend lint and production-build checks are available, but a frontend
-  automated component-test runner is not configured; populated chart states
-  lack dedicated automated component tests.
+The application supports a fictional ACT workflow. **Acceptance and Commitment Therapy (ACT) is the only runnable modality.** Other approaches shown in the interface are roadmap categories, not executable therapy modules. The `v0.2.0` GitHub source release is a preparation target and has not been published or tagged.
 
-See [docs/IMPLEMENTATION_BASELINE.md](docs/IMPLEMENTATION_BASELINE.md) for
-verified implementation notes and gaps.
+### Implemented capabilities
 
-## Purpose and research direction
+- Create cases, runs, and sequential sessions; there is no universal session-count cap. Completed transcripts are read-only.
+- Generate fictional patient responses through a configured local Ollama or LM Studio service. A local model is required for patient replies and evaluator generation; the application can start without one.
+- Record review-gated memory, behavioral-event, character-state, and treatment-plan proposals with transcript provenance. Retrieval and cross-session suggestions use limited deterministic signals; they do not establish psychological realism.
+- Create experimental ACT session and longitudinal evaluator reports when a compatible local model is configured. Reports preserve rubric and transcript references, require human review, and do not establish that evidence semantically supports a rating.
+- Review versioned treatment plans and propose evidence-linked revisions. Guidance is limited to available evidence; autonomous treatment adaptation and intervention selection are not implemented.
+- Inspect persisted run counts and rubric-compatible raw observations. Charts and exports are exploratory descriptions, not validated competency trends or clinical outcomes.
 
-Trainees need safe opportunities to rehearse difficult conversations and
-reflect on what they said. TheraSim explores how fictional clients, explicit
-information boundaries, longitudinal continuity, and transcript-linked
-formative feedback might support that practice. The current software is a
-technical prototype, not evidence that these methods improve clinical
-outcomes.
+### Application screenshots
 
-The initial scenario is the fictional ACT case AVA-001. It is an example, not
-a fixed treatment course; runs may continue for any positive number of
-sequential sessions.
+All examples below use fictional synthetic demonstration data. The screenshots are genuine captures of the running interface. The capture environment intentionally left model providers disconnected; no model was invoked. Evaluation and analytics examples are fixture-backed UI demonstrations, not model-performance or clinical evidence.
 
-## Architecture
+![TheraSim dashboard showing the ACT-first prototype and local provider status](docs/assets/readme/dashboard.png)
 
-TheraSim is a modular monolith:
+*Dashboard. Local inference providers were intentionally disconnected for this capture.*
+
+![Fictional case selection and an empty simulation workspace](docs/assets/readme/simulation-workspace.png)
+
+*Simulation workspace. The fictional case profile is demonstration data.*
+
+![Completed synthetic therapist-client session transcript](docs/assets/readme/session-transcript.png)
+
+*Session transcript. The dialogue is synthetic fixture data, not a model response or clinical record.*
+
+![Experimental ACT rubric results with not-enough-evidence indicators](docs/assets/readme/session-evaluation.png)
+
+*Session evaluation. Fixture output for interface demonstration only; human review is required.*
+
+![Run-level analytics summary for synthetic demonstration data](docs/assets/readme/run-analytics.png)
+
+*Run analytics. Descriptive fixture counts only; no competency trend or clinical outcome is established.*
+
+### Architecture
 
 ```text
-React + TypeScript frontend
+React + TypeScript + Vite
             |
        FastAPI /api/v1
             |
-  application services and agents
-       |                |
-operational SQLite   restricted SQLite
-       |
-optional local inference provider
+ application services, agents, repositories
+       |                         |
+operational SQLite       restricted case-vault SQLite
+            |
+ optional local Ollama / LM Studio provider
 ```
 
-- **Backend:** Python, FastAPI, Pydantic, SQLite, and Uvicorn.
-- **Frontend:** React, TypeScript, and Vite.
-- **Persistence:** `data/therasim.db` for operational data and
-  `data/case_vault.db` for restricted case information. Migrations are kept
-  under `backend/app/persistence/migrations/`.
-- **Local inference:** Ollama or LM Studio through the Backend's
-  OpenAI-compatible client. A provider and model are optional for startup, but
-  required to generate simulated patient responses.
-- **Agents:** The Patient Agent runs with an explicitly constructed context.
-  A separate Evaluator Agent assesses completed ACT session transcripts when
-  configured; both agents use the local model provider.
+The backend uses Python, FastAPI, Pydantic, SQLite, and versioned migrations. The frontend is a React and TypeScript application. The operational database and restricted case vault are logically separated, not encrypted from other users or processes on the same device. Local model access uses an OpenAI-compatible client; TheraSim does not require a TheraSim-hosted model API.
 
-See [docs/SYSTEM_ARCHITECTURE.md](docs/SYSTEM_ARCHITECTURE.md),
-[docs/SECURITY_BOUNDARIES.md](docs/SECURITY_BOUNDARIES.md), and
-[docs/adr/](docs/adr/) for design decisions. These documents describe intended
-controls as well as implementation; check the baseline before assuming a
-specified feature exists.
+### Installation and execution
 
-Paired SQLite backup and restore instructions are in
-[docs/BACKUP_RESTORE.md](docs/BACKUP_RESTORE.md).
+**Windows development launcher:** install Python 3.11+ and Node.js LTS, then run `START_THERASIM.bat` from the repository root. The launcher offers setup for missing dependencies, initializes local databases without resetting existing data, and opens `http://127.0.0.1:5173`. On first use, create the single local reviewer account with a password of at least 12 characters. Use `STOP_THERASIM.bat` to stop only processes owned by the launcher.
 
-## Sessions, planning, and modalities
+Clean-machine installation has not been verified. Initial dependency installation or model downloads may require internet access; this project does not claim a fully air-gapped installation.
 
-Sessions are created in sequence and may continue without a global maximum.
-An earlier session must be completed before the next is created. Runs can be
-interrupted and resumed. The API stores a planning-policy identifier such as
-flexible, goal-based, milestone-based, or open-ended, but does not yet execute
-a treatment-planning engine that autonomously rewrites a plan. Versioned
-initial plans and evidence-linked, human-proposed revisions are supported; a
-revision must be approved before becoming active. A limited deterministic
-assessment now flags newly accepted setbacks, contradictions, or
-progress-related events for human review. It does not infer outcomes, choose
-clinical interventions, or change a plan automatically.
-
-The initial case and protocol use ACT. The data model records modality and
-protocol versions, and a backend registry contract now describes modality
-protocol and rubric references. ACT is the only runnable modality and remains
-partial. Registering another approach does not make it runnable; CBT, DBT,
-CFT, MBCT, MBSR, Schema Therapy, Psychodynamic Therapy, EFT, and MCT remain
-unavailable.
-
-## Memory and evaluation
-
-Persisted therapist/patient exchanges enqueue durable memory-extraction jobs.
-When a local model is configured, a worker processes proposals with leases and
-bounded retries. Evidence validation and explicit review gate whether a
-proposal becomes active. The sessions interface includes memory review.
-The review workspace also proposes related memories across sessions using
-deterministic text overlap and a conservative negation hint. A reviewer must
-write and approve every consolidation proposal; source memories and transcript
-evidence remain preserved. These hints are not verified clinical conclusions.
-Reviews are attributed to the authenticated local reviewer account; the
-single-user account is not a multi-user authorization system.
-Patient context retrieval now ranks active memories deterministically by
-current-turn token relevance, evidence support, recency, confidence, and
-memory scope; unrelated episodic entries without topical overlap are omitted.
-This does not provide semantic embeddings or automatic contradiction
-resolution.
-
-The optional post-interaction extractor proposes behavioral/emotional events
-and character-state transitions from only the completed exchange. Exact patient
-quotes are checked against the source transcript, and proposals are stored as
-`requires_review`; they do not automatically change approved character state.
-Each extraction job pins the character-state snapshot that existed when the
-interaction was saved, preventing later state from leaking into delayed work.
-Migration `011_memory_extraction_state_context` adds this nullable reference;
-legacy jobs without a pinned snapshot remain processable but cannot produce a
-state transition proposal. Event reviews are append-only and preserve the
-authenticated reviewer ID; the initial implementation supports one local
-reviewer account and does not provide password reset.
-The sessions workspace presents proposed events, observed reports, model
-interpretations, source excerpts, and rationale-based accept/reject actions.
-It also supports a versioned Run plan, goal display, and evidence-linked plan
-revision proposals with approval/rejection history. These capabilities are
-review-gated workflows. Deterministic adaptation guidance is based only on
-newly accepted events; it is not clinically validated or an autonomous planner.
-
-The versioned ACT session rubric is `ACT_RUBRIC_V0` 0.2. The current,
-count-agnostic longitudinal rubric is `ACT_LONGITUDINAL_RUBRIC_V0` 0.2;
-version 0.1 is retained as a historical three-session example. Neither rubric
-is validated. Session evaluation reports are experimental, transcript-linked
-and require human review; no semantic evidence judgment is guaranteed.
-Evaluation generation requires a configured local Evaluator Agent/model.
-Without one, the API returns `503 evaluator_unavailable_experimental`; invalid
-model output returns `502` and is not persisted as a report. Longitudinal
-evaluation is also experimental:
-therapist-message references and excerpts are checked against the exact
-transcripts, but semantic support for a rating is not established. Reports are
-immutable, review-required revisions over all completed sessions in the Run
-(at least two), with transcript hashes and a snapshot of all Run sessions.
-Subsequent session creation, status changes, or transcript changes mark a
-report stale. The Run workspace displays these reports and their referenced
-source messages. Persisted Run analytics and JSON export include source
-identifiers, event/memory/state counts, treatment-plan status, and evaluation
-staleness. The workspace also lists raw session-level competency observations,
-grouped by rubric version with confidence, missing-session reasons, evaluation
-IDs, and evidence-message IDs. It does not calculate averages or combine
-incompatible rubric versions. The workspace provides a session-range-filtered
-chart only within an exact rubric version and content hash; numeric codes are
-plotted as raw observations, while NE and missing data are omitted and
-separately counted. This exploratory comparison is not a validated competency
-trend or clinical outcome. Exports omit transcript and case text but still
-contain sensitive operational identifiers.
-
-## Windows quick start
-
-### Prerequisites
-
-- Windows 10/11.
-- Python 3.11 or newer.
-- Node.js LTS with npm.
-- Optional: Ollama or LM Studio and a compatible chat model for simulated
-  patient interactions.
-
-1. Install Python and Node.js if needed.
-2. From the repository root, double-click `START_THERASIM.bat`.
-3. On first run, approve the prompts to create the Python virtual environment
-   or install missing dependencies. Dependency installation may need network
-   access; already-installed dependencies are reused.
-4. The launcher applies safe database migrations and idempotently seeds
-   AVA-001. It does not reset or delete existing databases.
-5. The browser opens at <http://127.0.0.1:5173>. Backend API documentation is
-   at <http://127.0.0.1:8000/docs>.
-6. On first browser access, create the single local reviewer account with a
-   password of at least 12 characters. Later access requires signing in again
-   after the browser session closes or the eight-hour token expires.
-7. Create a simulation run, start it, add sessions as needed, and submit
-   therapist messages. A local model must be configured for patient replies.
-8. Double-click `STOP_THERASIM.bat` to stop only the Backend and Frontend
-   processes started by this launcher. `CHECK_THERASIM.bat` checks local
-   prerequisites and project dependencies.
-
-The launcher logs are stored under `%LOCALAPPDATA%\TheraSim\logs`; process
-ownership records are under `%LOCALAPPDATA%\TheraSim\runtime`. If startup
-fails, inspect those logs and the error shown by the launcher.
-
-### Manual development setup
-
-From the repository root in PowerShell:
+**Manual development setup** from PowerShell:
 
 ```powershell
 py -3 -m venv .venv
@@ -247,7 +81,7 @@ Set-Location frontend
 npm ci
 ```
 
-In separate terminals, initialize the databases and start the services:
+Initialize the databases and start the backend in one terminal:
 
 ```powershell
 Set-Location backend
@@ -255,144 +89,181 @@ Set-Location backend
 ..\.venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000
 ```
 
+Start the frontend in a second terminal:
+
 ```powershell
 Set-Location frontend
 npm run dev -- --host 127.0.0.1
 ```
 
-If the virtual environment is at the repository root, from `backend` its
-Python path is `..\.venv\Scripts\python.exe` (one parent directory).
-
-## Configuration
-
-Configuration is read from the process environment; `.env` files are not
-automatically loaded. For example, set these in PowerShell before starting the
-Backend:
+For Ollama, configure the process environment before starting the backend; LM Studio can be configured similarly. `.env` files are not automatically loaded:
 
 ```powershell
 $env:THERASIM_LLM_PROVIDER = "ollama"
 $env:OLLAMA_BASE_URL = "http://127.0.0.1:11434/v1"
 $env:OLLAMA_MODEL = "your-installed-model"
-$env:THERASIM_LLM_TIMEOUT = "120"
 ```
 
-For LM Studio use `THERASIM_LLM_PROVIDER=lm_studio`, set
-`LM_STUDIO_BASE_URL` (default `http://127.0.0.1:1234/v1`) and
-`LM_STUDIO_MODEL`. Provider credentials are optional local configuration and
-must not be committed or embedded in a URL. Provider URLs must use HTTP(S) and
-cannot contain user-info, query strings, or fragments; the provider catalog
-shows only the origin. `THERASIM_DATA_DIR` can select a different local data
-directory; otherwise the repository's ignored `data/` directory is used.
-The launcher does not overwrite configuration files or install model runtimes.
+Backend tests run from `backend` with `..\.venv\Scripts\python.exe -m pytest -q`. Frontend checks run from `frontend` with `npm run lint` and `npm run build`. A frontend component-test runner is not configured.
 
-## Tests and development
+### Privacy, security, and scientific limitations
 
-Run the Backend test suite from the `backend` directory:
+- Use only fictional and synthetic data; do not enter real client or patient information.
+- Development services bind to loopback by default. Local model requests go to the configured provider, but local-first operation is not a guarantee of full offline installation or secure deployment.
+- The single local reviewer account is not a multi-user authorization system. Password recovery, multi-user roles, automated retention, and encryption of live SQLite databases at rest are not implemented. Optional encrypted backups protect backup copies only.
+- Analytics exports omit transcript and case text but contain operational identifiers; review them before sharing.
+- ACT rubrics and evaluators are experimental. Exact transcript-reference checks do not prove semantic evidence support, evaluator reliability, clinical validity, or psychometric validity. Reports require human review and must not be used for certification.
+- Treatment plans are not autonomously adapted from longitudinal progress. Memory and character-state proposals remain subject to review and are not validated psychological measurements.
+- Complete English/Persian localization, RTL and responsive/accessibility verification, clean-machine installation validation, and Windows desktop packaging remain incomplete or unimplemented.
+
+See the [implementation baseline](docs/IMPLEMENTATION_BASELINE.md), [security boundaries](docs/SECURITY_BOUNDARIES.md), [system architecture](docs/SYSTEM_ARCHITECTURE.md), and [backup/restore guide](docs/BACKUP_RESTORE.md) for details.
+
+### License and citation
+
+`LICENSE.md` applies CC BY 4.0 to the original documentation and research materials identified there; **it does not license executable source code**. Unless a separate software license is introduced, source code remains under the copyright holder's exclusive rights. Third-party dependencies and materials retain their own licenses.
+
+Cite the project using [`CITATION.cff`](CITATION.cff). The published Zenodo `v0.1.0` record is a documentation-only archive ([version DOI: 10.5281/zenodo.24244882](https://doi.org/10.5281/zenodo.24244882); [concept DOI: 10.5281/zenodo.24244881](https://doi.org/10.5281/zenodo.24244881)). It is not an executable source release. No Zenodo `v0.2.0` deposit or GitHub source release has been published.
+
+### Project links
+
+- [GitHub repository](https://github.com/mohammadmahdialmasi/TheraSim)
+- [Changelog](CHANGELOG.md) · [Release checklist](docs/RELEASE_CHECKLIST.md)
+- [MVP decisions](docs/MVP_DECISIONS.md) · [Security boundaries](docs/SECURITY_BOUNDARIES.md)
+- [Documentation license](LICENSE.md) · [Copyright notice](COPYRIGHT.md) · [Citation metadata](CITATION.cff)
+- [Zenodo concept record](https://doi.org/10.5281/zenodo.24244881)
+- [Report an issue](https://github.com/mohammadmahdialmasi/TheraSim/issues)
+
+---
+
+<a id="persian"></a>
+## فارسی
+
+**نمونهٔ اولیهٔ پژوهشی و آموزشیِ محلی برای شبیه‌سازی مهارت‌های روان‌درمانی**
+
+TheraSim نرم‌افزاری آزمایشی برای تمرین گفت‌وگو میان درمانگر و مراجعان کاملاً داستانی است. این پروژه یک بک‌اند FastAPI، رابط کاربری React، ذخیره‌سازی SQLite و امکان استفاده از ارائه‌دهندگان محلی مدل زبانی را ترکیب می‌کند.
+
+> **فقط از داده‌های ساختگی استفاده کنید.** TheraSim روان‌درمانی، تشخیص، توصیهٔ بالینی، نظارت حرفه‌ای، گواهی صلاحیت درمانگر یا سنجهٔ معتبر مهارت درمانگری ارائه نمی‌کند و محصول بالینی نیست.
+
+### هدف و وضعیت پروژه
+
+این پروژه بررسی می‌کند که آیا گفت‌وگوهای داستانی، مرزبندی روشن اطلاعات، ثبت پیوستگی میان جلسات و بازخورد تکوینیِ متصل به رونوشت می‌توانند به تمرین مهارت‌ها و پژوهش نرم‌افزاری کمک کنند یا نه. پیاده‌سازی فعلی نمونهٔ اولیه است و بهبود پیامدهای بالینی را نشان نمی‌دهد.
+
+برنامه از یک جریان کاری داستانی مبتنی بر درمان مبتنی بر پذیرش و تعهد پشتیبانی می‌کند. **ACT تنها رویکرد درمانیِ قابل اجرا در نسخهٔ فعلی است.** رویکردهای دیگری که در رابط دیده می‌شوند دسته‌های احتمالیِ آینده‌اند، نه ماژول‌های درمانیِ اجرایی. انتشار منبع در GitHub با هدف `v0.2.0` در مرحلهٔ آماده‌سازی است و هنوز منتشر یا برچسب‌گذاری نشده است.
+
+### قابلیت‌های پیاده‌سازی‌شده
+
+- ایجاد پرونده، اجرای شبیه‌سازی و جلسات پیاپی؛ سقف عمومی برای تعداد جلسات وجود ندارد. رونوشت جلسهٔ تکمیل‌شده فقط‌خواندنی است.
+- تولید پاسخ مراجع داستانی با سرویس محلی Ollama یا LM Studio که پیکربندی شده باشد. برای پاسخ‌های مراجع و تولید ارزیابی، مدل محلی لازم است؛ برنامه بدون مدل نیز اجرا می‌شود.
+- ثبت پیشنهادهای حافظه، رویدادهای رفتاری، وضعیت شخصیت و طرح درمان که به رونوشت مستند شده و نیازمند بازبینی انسانی‌اند. بازیابی و پیشنهادهای میان‌جلسه‌ای از نشانه‌های قطعی و محدود استفاده می‌کنند و واقع‌گرایی روان‌شناختی را اثبات نمی‌کنند.
+- تولید گزارش‌های آزمایشی ارزیاب جلسه و ارزیابی طولی ACT، در صورت پیکربندی مدل محلی سازگار. گزارش‌ها پیوند به رونوشت و نسخهٔ rubric را نگه می‌دارند، به بازبینی انسانی نیاز دارند و ثابت نمی‌کنند که شواهد از نظر معنایی یک امتیاز را پشتیبانی می‌کنند.
+- بررسی طرح‌های نسخه‌بندی‌شدهٔ درمان و پیشنهاد اصلاح‌های مستند به شواهد. راهنمایی به شواهد موجود محدود است؛ انطباق خودکار درمان و انتخاب مداخلهٔ درمانی پیاده‌سازی نشده است.
+- مشاهدهٔ شمارش‌های ذخیره‌شدهٔ هر اجرا و داده‌های خامِ سازگار با rubric. نمودارها و خروجی‌ها توصیفی و اکتشافی‌اند، نه روند معتبر مهارت یا پیامد بالینی.
+
+### تصاویر برنامه
+
+همهٔ نمونه‌ها از داده‌های ساختگی و داستانی استفاده می‌کنند و تصاویر، عکس‌های واقعی از رابط در حال اجرا هستند. برای ثبت تصاویر، ارائه‌دهندگان مدل عمداً قطع بودند و هیچ مدلی فراخوانی نشد. نمونه‌های ارزیابی و تحلیل بر پایهٔ داده‌های آزمایشیِ ثابت‌اند و شاهدی دربارهٔ عملکرد مدل یا نتیجهٔ بالینی نیستند.
+
+![داشبورد TheraSim با نمایش نمونهٔ اولیهٔ ACT و وضعیت ارائه‌دهندگان محلی](docs/assets/readme/dashboard.png)
+
+*داشبورد؛ اتصال به مدل محلی برای ثبت تصویر عمداً غیرفعال بود.*
+
+![انتخاب پروندهٔ داستانی و فضای خالی اجرای شبیه‌سازی](docs/assets/readme/simulation-workspace.png)
+
+*فضای شبیه‌سازی؛ مشخصات پروندهٔ داستانی صرفاً دادهٔ نمایشی است.*
+
+![رونوشت تکمیل‌شدهٔ یک جلسهٔ ساختگی درمانگر و مراجع](docs/assets/readme/session-transcript.png)
+
+*رونوشت جلسه؛ گفت‌وگو دادهٔ ساختگیِ آزمایشی است، نه پاسخ مدل یا پروندهٔ بالینی.*
+
+![نتایج rubric آزمایشی ACT همراه با نشانگرهای شواهد ناکافی](docs/assets/readme/session-evaluation.png)
+
+*ارزیابی جلسه؛ خروجی ثابت برای نمایش رابط است و به بازبینی انسانی نیاز دارد.*
+
+![خلاصهٔ تحلیل یک اجرای شبیه‌سازی با داده‌های ساختگی](docs/assets/readme/run-analytics.png)
+
+*تحلیل اجرا؛ فقط شمارش‌های توصیفیِ دادهٔ نمایشی است و روند مهارت یا پیامد بالینی را اثبات نمی‌کند.*
+
+### معماری
+
+```text
+رابط React + TypeScript + Vite
+            |
+       FastAPI /api/v1
+            |
+ سرویس‌های برنامه، عامل‌ها و مخزن‌های داده
+       |                         |
+SQLite عملیاتی       SQLite جداگانه برای پرونده‌های محدود
+            |
+ ارائه‌دهندهٔ محلی Ollama / LM Studio (اختیاری)
+```
+
+بک‌اند با Python، FastAPI، Pydantic، SQLite و مهاجرت‌های نسخه‌بندی‌شده ساخته شده است. رابط کاربری React و TypeScript است. پایگاه دادهٔ عملیاتی و مخزن محدود پرونده‌ها از نظر منطقی جدا هستند، اما در برابر کاربران یا فرایندهای دیگر همان دستگاه رمزنگاری نشده‌اند. دسترسی مدل محلی از طریق کلاینت سازگار با OpenAI انجام می‌شود؛ TheraSim به API میزبانی‌شدهٔ مدل توسط خود پروژه نیاز ندارد.
+
+### نصب و اجرا
+
+**راه‌انداز توسعه در ویندوز:** Python نسخهٔ 3.11 یا جدیدتر و Node.js LTS را نصب کنید و از ریشهٔ مخزن `START_THERASIM.bat` را اجرا کنید. راه‌انداز برای وابستگی‌های نصب‌نشده گزینهٔ آماده‌سازی ارائه می‌دهد، پایگاه‌دادهٔ محلی را بدون بازنشانی دادهٔ موجود مقداردهی می‌کند و نشانی `http://127.0.0.1:5173` را باز می‌کند. در نخستین اجرا، حساب تک‌کاربرهٔ محلی را با گذرواژه‌ای حداقل ۱۲ نویسه‌ای بسازید. برای توقف فقط فرایندهای متعلق به راه‌انداز، `STOP_THERASIM.bat` را اجرا کنید.
+
+نصب روی دستگاه پاک راستی‌آزمایی نشده است. نصب اولیهٔ وابستگی‌ها یا دریافت مدل ممکن است به اینترنت نیاز داشته باشد؛ پروژه ادعای نصب کاملاً بدون اینترنت ندارد.
+
+**آماده‌سازی دستی توسعه** در PowerShell:
 
 ```powershell
-..\.venv\Scripts\python.exe -m pytest -q
+py -3 -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r backend\requirements-lock.txt
+Set-Location frontend
+npm ci
 ```
 
-Run Frontend checks from `frontend`:
-
-```powershell
-npm run lint
-npm run build
-```
-
-Tests use local SQLite databases in temporary directories. Ordinary Backend
-tests do not require a cloud API or local model. See
-[docs/TEST_STRATEGY.md](docs/TEST_STRATEGY.md).
-
-## API and database
-
-The REST API is versioned under `/api/v1`; OpenAPI documentation is available
-at `/docs` while the Backend is running. Database initialization and migration
-are safe to repeat:
+در یک پنجرهٔ ترمینال، پایگاه‌داده را آماده و بک‌اند را اجرا کنید:
 
 ```powershell
 Set-Location backend
 ..\.venv\Scripts\python.exe -m app.persistence.cli
+..\.venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000
 ```
 
-Before manually copying a database for backup, stop TheraSim. Copy both
-databases using the backup command, which validates and bundles them without
-overwriting an existing backup:
+در پنجرهٔ دوم، فرانت‌اند را اجرا کنید:
 
 ```powershell
-Set-Location backend
-..\.venv\Scripts\python.exe -m app.persistence.backup_cli backup
+Set-Location frontend
+npm run dev -- --host 127.0.0.1
 ```
 
-For an optional passphrase-encrypted backup, add `--encrypt`; the command
-prompts for a passphrase that must be retained separately. Encryption protects
-the backup copy, not the live SQLite databases.
+برای Ollama، متغیرهای محیطی فرایند را پیش از اجرای بک‌اند تنظیم کنید؛ LM Studio نیز به شکل مشابه قابل تنظیم است. فایل‌های `.env` به‌طور خودکار بارگذاری نمی‌شوند:
 
-For restore instructions and limitations, see
-[docs/BACKUP_RESTORE.md](docs/BACKUP_RESTORE.md). Do not remove either
-database to troubleshoot startup. Migrations should be tested against isolated
-temporary databases before upgrading an important local dataset.
+```powershell
+$env:THERASIM_LLM_PROVIDER = "ollama"
+$env:OLLAMA_BASE_URL = "http://127.0.0.1:11434/v1"
+$env:OLLAMA_MODEL = "your-installed-model"
+```
 
-## Troubleshooting
+برای اجرای آزمون‌های بک‌اند، از پوشهٔ `backend` دستور `..\.venv\Scripts\python.exe -m pytest -q` را اجرا کنید. بررسی‌های فرانت‌اند از پوشهٔ `frontend` با `npm run lint` و `npm run build` انجام می‌شوند. در حال حاضر اجراکنندهٔ آزمون خودکار برای اجزای فرانت‌اند پیکربندی نشده است.
 
-- **Python or Node.js not found:** install the prerequisite and reopen the
-  launcher. `CHECK_THERASIM.bat` reports missing tools.
-- **Dependency install fails:** confirm network access, then rerun the
-  launcher. It will reuse a completed virtual environment or `node_modules`.
-- **A port is already in use:** the launcher will not terminate an unowned
-  process. Close the service you started yourself or change its port
-  configuration deliberately.
-- **Backend starts but simulation replies fail:** configure a reachable local
-  inference provider and model. The Backend can start without one.
-- **Database migration error:** preserve both database files and the logs;
-  do not delete or reset local data.
-- **Launcher shutdown:** use `STOP_THERASIM.bat`; it verifies saved process ID,
-  start time, executable, and command line before stopping a process.
+### حریم خصوصی، امنیت و محدودیت‌های علمی
 
-## Security, privacy, and limitations
+- فقط از داده‌های داستانی و ساختگی استفاده کنید؛ اطلاعات واقعی مراجع یا بیمار را وارد نکنید.
+- سرویس‌های توسعه به‌طور پیش‌فرض به loopback متصل می‌شوند. درخواست‌های مدل محلی به ارائه‌دهندهٔ پیکربندی‌شده فرستاده می‌شوند؛ محلی‌بودن به معنی نصب کاملاً آفلاین یا استقرار امن نیست.
+- حساب بازبین محلی، سامانهٔ مجوزدهی چندکاربره نیست. نقش‌های چندکاربره، بازیابی گذرواژه، نگهداری خودکار داده و رمزنگاری پایگاه‌داده‌های SQLite زنده در حالت سکون پیاده‌سازی نشده‌اند. رمزنگاری اختیاری فقط نسخهٔ پشتیبان را محافظت می‌کند.
+- خروجی تحلیل، متن رونوشت یا پرونده را شامل نمی‌شود، اما شناسه‌های عملیاتی دارد؛ پیش از اشتراک‌گذاری آن را بازبینی کنید.
+- rubricها و ارزیاب‌های ACT آزمایشی‌اند. بررسی دقیق ارجاع به رونوشت، پشتیبانی معناییِ شواهد، پایایی ارزیاب، اعتبار بالینی یا اعتبار روان‌سنجی را ثابت نمی‌کند. گزارش‌ها نیازمند بازبینی انسانی‌اند و نباید برای گواهی صلاحیت استفاده شوند.
+- طرح درمان به‌طور خودکار بر اساس پیشرفت طولی تغییر نمی‌کند. پیشنهادهای حافظه و وضعیت شخصیت نیازمند بازبینی‌اند و سنجه‌های روان‌شناختیِ معتبر نیستند.
+- بومی‌سازی کامل فارسی/انگلیسی، اعتبارسنجی راست‌به‌چپ و دسترس‌پذیری واکنش‌گرا، نصب روی دستگاه پاک و بسته‌بندی دسکتاپ ویندوز ناقص یا پیاده‌سازی‌نشده‌اند.
 
-The application binds its development servers to loopback. SQLite separation
-is logical, not operating-system access control. A single local reviewer
-account protects the API, but multi-user authorization, password reset, and
-database encryption at rest are not implemented. Encrypted backups are
-available as an explicit passphrase-protected option; ordinary backups remain
-unencrypted. Login attempts are throttled per
-hashed client address after five attempts in a 15-minute window. Local-model
-requests/transcripts should be treated as sensitive even though this prototype
-is designed for synthetic data. Do not enter real client information. Review
-[docs/SECURITY_BOUNDARIES.md](docs/SECURITY_BOUNDARIES.md) before deployment;
-this repository is not production-ready.
+برای جزئیات به [مبنای پیاده‌سازی](docs/IMPLEMENTATION_BASELINE.md)، [مرزهای امنیتی](docs/SECURITY_BOUNDARIES.md)، [معماری سامانه](docs/SYSTEM_ARCHITECTURE.md) و [راهنمای پشتیبان‌گیری و بازیابی](docs/BACKUP_RESTORE.md) مراجعه کنید.
 
-Known gaps include independent evaluator validation and semantic/clinical
-validity, clinical or psychometric validation of the ACT rubrics, automated
-longitudinal treatment adaptation, complete event processing, complete
-Persian/English localization, full responsive/accessibility verification,
-automated retention, live database encryption at rest, clean-machine
-installation verification, and desktop packaging. Analytics remain
-descriptive/exploratory; no validated competency trend or clinical outcome is
-provided.
+### مجوز و استناد
 
-## Release status and roadmap
+مجوز `LICENSE.md`، مجوز CC BY 4.0 را فقط برای مستندات و مواد پژوهشیِ اصیلِ مشخص‌شده در آن اعمال می‌کند؛ **این مجوز کد اجرایی را پوشش نمی‌دهد**. تا زمانی که مجوز نرم‌افزاری جداگانه‌ای معرفی نشود، حقوق کد منبع برای دارندهٔ حق نشر محفوظ است. وابستگی‌ها و مواد اشخاص ثالث تابع مجوزهای خود هستند.
 
-The intended near-term work is independent evaluator validation and review,
-compatible longitudinal evaluation interpretation, further memory/event
-lifecycle completion, bilingual accessibility, responsive/accessibility
-verification, and integration testing. A Windows installer is only a proposed
-architecture; a reproducible installer has not been built or tested. Current
-release preparation is source-based, and no formal release or release tag has
-been published. The first formal source release may be version `0.1.0`,
-subject to final readiness verification; no definitive release date has been
-assigned.
+برای استناد از [`CITATION.cff`](CITATION.cff) استفاده کنید. رکورد منتشرشدهٔ Zenodo با نسخهٔ `v0.1.0` فقط آرشیوی از مستندات است ([DOI نسخه: 10.5281/zenodo.24244882](https://doi.org/10.5281/zenodo.24244882)، [DOI مفهومی: 10.5281/zenodo.24244881](https://doi.org/10.5281/zenodo.24244881)) و انتشار اجراییِ کد منبع نیست. نسخهٔ `v0.2.0` نه در Zenodo سپرده شده و نه به‌عنوان انتشار منبع GitHub منتشر شده است.
 
-See [CHANGELOG.md](CHANGELOG.md) and
-[docs/RELEASE_CHECKLIST.md](docs/RELEASE_CHECKLIST.md).
+### پیوندهای پروژه
 
-## License and citation
+- [مخزن GitHub](https://github.com/mohammadmahdialmasi/TheraSim)
+- [تاریخچهٔ تغییرات](CHANGELOG.md) · [چک‌لیست انتشار](docs/RELEASE_CHECKLIST.md)
+- [تصمیم‌های MVP](docs/MVP_DECISIONS.md) · [مرزهای امنیتی](docs/SECURITY_BOUNDARIES.md)
+- [مجوز مستندات](LICENSE.md) · [اطلاعیهٔ حق نشر](COPYRIGHT.md) · [فرادادهٔ استناد](CITATION.cff)
+- [رکورد مفهومی Zenodo](https://doi.org/10.5281/zenodo.24244881)
+- [گزارش مشکل](https://github.com/mohammadmahdialmasi/TheraSim/issues)
 
-Original project documentation, specifications, rubrics, and scenarios are
-licensed under CC BY 4.0 as described in [LICENSE.md](LICENSE.md). That file
-does not license executable source code. Source code remains under the
-copyright holder's exclusive rights unless separately licensed; third-party
-materials retain their own terms. See [COPYRIGHT.md](COPYRIGHT.md) for the
-repository's mixed-license scope and future Zenodo deposit guidance, and
-[CITATION.cff](CITATION.cff) for citation metadata.
+[English](#english) | [فارسی](#persian)

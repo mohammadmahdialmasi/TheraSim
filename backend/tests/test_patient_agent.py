@@ -17,6 +17,9 @@ from app.llm.patient_agent_prompt import (
     PATIENT_AGENT_PROMPT_VERSION,
     PATIENT_AGENT_SYSTEM_PROMPT,
 )
+from app.llm.patient_context_serializer import (
+    PATIENT_AGENT_CONTEXT_SCHEMA_VERSION,
+)
 from app.services.patient_context import (
     FrozenJSONObject,
     PatientContext,
@@ -145,7 +148,7 @@ def test_patient_agent_records_prompt_and_schema_versions():
     assert result.prompt_version == PATIENT_AGENT_PROMPT_VERSION
     assert result.output_schema_id == PATIENT_AGENT_OUTPUT_SCHEMA_ID
     assert result.output_schema_version == PATIENT_AGENT_OUTPUT_SCHEMA_VERSION
-    assert result.input_schema_version == "1.1"
+    assert result.input_schema_version == PATIENT_AGENT_CONTEXT_SCHEMA_VERSION
 
 
 def test_patient_agent_sends_system_prompt_and_structured_context():
@@ -163,7 +166,10 @@ def test_patient_agent_sends_system_prompt_and_structured_context():
     user_payload = json.loads(messages[1]["content"])
 
     assert set(user_payload) == {"patient_context"}
-    assert user_payload["patient_context"]["case_id"] == "case-001"
+    assert "case_id" not in user_payload["patient_context"]
+    assert user_payload["patient_context"]["context_schema_version"] == (
+        PATIENT_AGENT_CONTEXT_SCHEMA_VERSION
+    )
     assert user_payload["patient_context"]["therapist_message"]["content"] == (
         "سلام، امروز چه احساسی دارید؟"
     )

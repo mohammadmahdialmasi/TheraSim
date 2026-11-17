@@ -29,6 +29,13 @@ proposals, consolidation, retrieval, and review are present, with deterministic
 and model-assisted components bounded by available evidence. These components
 do not establish psychological realism or validated memory behavior.
 
+The Patient Agent model request uses a least-privilege projection of its
+internal context: public identity, initially authorized or confirmed
+disclosures, explicit-disclosure memories, and transcript text. Hidden
+formulation, pending facts, generated summaries, and internal state are not
+serialized to the model. Output schema validation does not establish semantic
+disclosure safety.
+
 Versioned treatment plans support human-supervised revisions and review.
 Guidance is limited to available evidence sources; autonomous clinical
 treatment adaptation is not implemented or claimed.
@@ -62,12 +69,12 @@ runner is currently configured, frontend automated component tests are
 incomplete, and populated chart states lack dedicated automated component
 tests.
 
-The latest reported verification checkpoint identified for this status was
-**445 Backend tests passed**, with Frontend lint, the Frontend production
-build, and `git diff --check` reported as passing. These are historical
-reported results, not tests rerun for this documentation update. Passing
-software tests does not establish clinical validity or constitute an
-independent security audit.
+The 2026-11-17 release-preparation verification run passed **449 Backend
+tests**, Frontend lint, TypeScript compilation and the Frontend production
+build, and `git diff --check`. pip-audit reported no known vulnerabilities in
+either backend dependency file, and npm audit reported none in the frontend
+lockfile. Passing software tests does not establish clinical validity or
+constitute an independent security audit.
 
 Use synthetic data only. TheraSim is not production-ready or clinically
 validated.
@@ -136,7 +143,13 @@ The Evaluator Agent must never receive a restricted database connection.
 
 ## 6. Agent Boundaries
 
-Patient Agent receives only an explicitly constructed PatientContext.
+The Patient Context service builds an internal typed DTO. A separate
+versioned serializer projects only public identity, authorized initial or
+confirmed contextual disclosures, explicit-disclosure memories, and transcript
+text into the Patient Agent model request. Hidden formulation, pending facts,
+generated summaries, internal state, and identifiers are omitted. The model
+response is schema-validated but is not semantically screened for disclosure
+safety.
 
 Evaluator Agent receives only:
 - Finalized transcript data.

@@ -540,14 +540,14 @@ def test_longitudinal_evaluator_uses_multiple_sessions_and_detects_staleness(
         run_id="run-longitudinal",
         session_id="session-longitudinal-1",
         patient_message_id="patient-longitudinal-1",
-        therapist_message_id="therapist-longitudinal-1",
+        therapist_message_id="t-long-1",
     )
     seed_completed_evaluation_session(
         manager,
         run_id="run-longitudinal",
         session_id="session-longitudinal-2",
         patient_message_id="patient-longitudinal-2",
-        therapist_message_id="therapist-longitudinal-2",
+        therapist_message_id="t-long-2",
     )
     service = EvaluationService(
         manager,
@@ -580,8 +580,8 @@ def test_longitudinal_evaluator_uses_multiple_sessions_and_detects_staleness(
         evidence.message_id
         for evidence in scored.evidence
     } == {
-        "therapist-longitudinal-1",
-        "therapist-longitudinal-2",
+        "t-long-1",
+        "t-long-2",
     }
     assert {
         evidence.session_number for evidence in scored.evidence

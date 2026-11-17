@@ -314,6 +314,10 @@ It must preserve distinctions between:
 
 It must not silently convert a hypothesis into an established fact.
 
+The unauthenticated single-user review endpoint records
+`unverified_local_caller` and rejects caller-supplied reviewer identities.
+This sentinel is an audit limitation, not authenticated attribution.
+
 ### 5.5 Orchestrator
 
 The Orchestrator coordinates system operations.
@@ -858,3 +862,25 @@ These questions must be resolved before expanding beyond the initial local resea
 ---
 
 **End of Document**
+
+<!-- CHARACTER_SECURITY_BOUNDARIES_NOTE_V0_1 -->
+## Character profile, memory, and state boundaries
+
+Personality profiles containing internal characterization, schema hypotheses,
+and restricted guidance belong in the restricted case vault.
+
+Run-specific events, memories, and dynamic state remain in the operational
+database and must be scoped to the exact run.
+
+The PatientContext serializer remains an explicit allowlist boundary.
+Adding a character field to a Python model does not authorize exposing it
+through an API, evaluator context, or frontend response.
+
+Memory retrieval must validate run identity, message provenance, chronology,
+and information class. Hypotheses and structured observations must not
+silently become patient-known facts.
+
+Two runs using the same character definition must never share evolving
+memory or dynamic state.
+
+See `CHARACTER_MODEL_SPEC.md` for the complete character data boundary.

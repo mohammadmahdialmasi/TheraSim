@@ -1,75 +1,48 @@
-# React + TypeScript + Vite
+# TheraSim Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+The TheraSim user interface is a React and TypeScript application built with
+Vite. It communicates with the local FastAPI Backend; it does not connect
+directly to SQLite or to Ollama/LM Studio.
 
-Currently, two official plugins are available:
+## Requirements
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- Node.js LTS and npm.
+- The TheraSim Backend running at `http://127.0.0.1:8000`.
 
-## React Compiler
+For the Windows-first local workflow, use `START_THERASIM.bat` from the
+repository root. It checks dependencies, offers safe setup when dependencies
+are missing, initializes the local databases, starts the Backend and Vite, and
+opens the application. Use `STOP_THERASIM.bat` to stop only its own processes.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Manual development
 
-## Expanding the ESLint configuration
+From this directory:
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-
+```powershell
+npm ci
+npm run dev -- --host 127.0.0.1
 ```
 
-You can also install [eslint-plugin-react-x](https://npmx.dev/package/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://npmx.dev/package/eslint-plugin-react-dom) for React-specific lint rules:
+The development server is available at <http://127.0.0.1:5173>. To verify the
+Frontend:
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-
+```powershell
+npm run lint
+npm run build
 ```
+
+## Current interface
+
+Implemented screens include the dashboard, local model laboratory, therapy
+approach overview, and simulation sessions with transcript and memory-review
+controls. Several navigation destinations remain roadmap/placeholder views.
+Evaluation reports, therapist analytics, evidence-linked charts, and complete
+Persian/English localization are not implemented. Persian is used in parts of
+the interface; do not assume all routes or content have complete RTL/LTR
+coverage.
+
+API calls are centralized in `src/lib/api.ts` and feature modules under
+`src/features/`. Shared English/Persian strings are in `src/i18n.ts`; the
+sessions workflow has feature-specific copy. This arrangement is not yet a
+complete localization system and currently has no automated missing-key
+check.

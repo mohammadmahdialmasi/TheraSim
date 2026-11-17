@@ -69,3 +69,7 @@ textarea:focus-visible {
 #root {
   min-height: 100vh;
 }
+/* Persian typography: local Vazirmatn variable font */
+html[lang="fa"] {
+  font-family: "Vazirmatn Variable", Inter, "Segoe UI", Tahoma, Arial, sans-serif;
+}

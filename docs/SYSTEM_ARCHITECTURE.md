@@ -251,7 +251,7 @@ The system must follow these principles:
 The first MVP will include:
 
 - One synthetic ACT case.
-- Three connected simulation sessions.
+- Incrementally created sequential simulation sessions with no universal fixed count.
 - One Patient Agent.
 - One Evaluator Agent.
 - One Clinical State Engine.
@@ -282,3 +282,29 @@ These questions must be addressed before implementation.
 ---
 
 **End of Document**
+
+<!-- CHARACTER_ARCHITECTURE_NOTE_V0_1 -->
+## Character-centered architecture
+
+The canonical design is defined in `CHARACTER_MODEL_SPEC.md`.
+
+The character model separates:
+
+1. A versioned and restricted personality profile owned by a character/case version.
+2. Generic dynamic character state owned by a simulation run.
+3. Run-specific events and source-linked longitudinal memory.
+4. The existing ACT process-state model, which remains independent.
+
+The PatientContext builder is the integration boundary. It must assemble the
+exact character profile version, restricted case information, authorized
+dynamic state, relevant memories, and chronological transcript.
+
+The existing event, memory, disclosure, and ACT-state repositories are to be
+extended and orchestrated rather than replaced by parallel implementations.
+
+Versioned character profiles, Run-scoped character runtime state, and
+PatientContext integration have backend implementations. Behavioral event
+extraction, memory consolidation, reviewed state transitions, and full
+longitudinal validation remain incomplete. The Evaluator Agent is not
+implemented; evaluation generation is explicitly unavailable rather than a
+completed architectural component.

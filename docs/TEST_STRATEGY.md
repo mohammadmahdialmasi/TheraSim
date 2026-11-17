@@ -519,7 +519,7 @@ A high average quality score must not conceal a critical security or consistency
 
 This section evaluates continuity of the simulated client's identity, disclosures, memory, and canonical state across sessions. It primarily tests the Patient Agent, Memory Service, and State Engine.
 
-This is distinct from the Evaluator Agent's longitudinal assessment of therapist performance across the three-session simulation run, which is defined in Section 10.7.
+This is distinct from the Evaluator Agent's longitudinal assessment of therapist performance across the selected completed Run segment, which is defined in Section 10.7.
 
 Longitudinal consistency is one of the central properties of TheraSim.
 
@@ -547,14 +547,8 @@ The benchmark must evaluate:
 Each longitudinal test must contain:
 
 - Initial synthetic case definition.
-- Session 1 transcript.
-- Session 1 memory snapshot.
-- Session 1 final state.
-- Session 2 transcript.
-- Session 2 memory snapshot.
-- Session 2 final state.
-- Session 3 transcript.
-- Session 3 memory snapshot.
+- A selected segment of at least two sequential sessions.
+- For each included session: transcript, validated memory snapshot, and final state.
 - Cross-session evaluation.
 
 ### 9.3 Continuity Failure Categories
@@ -659,11 +653,11 @@ The Evaluator Agent supports two distinct evaluation scopes. The selected scope 
 
 **Longitudinal run-level evaluation**
 
-- Evaluates therapist behavior across the complete three-session simulation run.
+- Evaluates therapist behavior across all completed sessions in the selected Run scope, regardless of session count.
 - Uses ACT_LONGITUDINAL_RUBRIC_V0, version 0.1.
-- Must not be generated until all three required sessions are complete and their final transcripts are available.
+- Uses only finalized transcripts included in the selected scope.
 - Must consider the chronological relationship among sessions and may cite evidence from one or more session transcripts.
-- Must identify the run, set session_id to null, and reference all three session transcripts as required by the rubric output contract.
+- Must identify the run, set session_id to null, and reference every transcript used by the evaluation.
 
 **Shared controls**
 
@@ -946,6 +940,15 @@ Does it avoid generating events that were never part of the interaction?
 - Handling of contradictory disclosures.
 - Retrieval of an unresolved topic from an earlier session.
 - Detection of irrelevant or outdated memory.
+- Successful interaction completion atomically enqueues exactly one extraction job; failed interactions enqueue none.
+- Extraction sees only the completed therapist/patient exchange and never a later message or hidden case data.
+- Provider inference runs without an open SQLite write transaction.
+- Successful, invalid-output, and provider-failed extraction attempts produce linked model-run records with exact-input hashes and terminal execution status.
+- Empty proposal output completes successfully without inventing a memory.
+- Therapist-authored quotes, nonmatching spans, cross-Run evidence, and future evidence cannot become candidates.
+- A worker restart reuses the saved validated proposal payload and does not create duplicates or re-call the model.
+- Expired leases recover safely; transient provider failures retry with backoff and eventually expose a sanitized terminal error.
+- Extraction status is Run-scoped and never returns transcript or proposal text.
 
 ### 15.4 Memory Metrics
 
@@ -1442,7 +1445,7 @@ Required:
 - Human comparison results are available for the pilot benchmark.
 
 - Session-level therapist evaluations use ACT_RUBRIC_V0 and identify the correct session and rubric version.
-- Run-level therapist evaluation is executed only after all three sessions are complete and uses ACT_LONGITUDINAL_RUBRIC_V0.
+- Run-level therapist evaluation uses ACT_LONGITUDINAL_RUBRIC_V0 and must support the completed sessions in the selected Run scope, regardless of count.
 - Evaluation scope, rubric ID and version, run/session identifiers, and transcript references satisfy the applicable output contract.
 - Session-level and longitudinal results remain separate; no unsupported aggregate score is produced.
 
@@ -1788,3 +1791,27 @@ The testing architecture is ready for implementation when:
 ---
 
 **End of Document**
+
+<!-- CHARACTER_LONGITUDINAL_TESTS_NOTE_V0_1 -->
+## Character-centered longitudinal tests
+
+The character-model test suite must cover:
+
+- Personality profile immutability and exact case-version identity.
+- Explicit support for unknown personality dimensions.
+- No unsupported inference from context-specific behavior.
+- Dynamic-state range and schema validation.
+- Separation of generic character state from ACT process state.
+- Evidence requirements for memory and event proposals.
+- Exact source-message verification before memory activation.
+- Explicit-disclosure evidence originating from a patient-authored message.
+- Run isolation when multiple runs use the same character profile.
+- Chronological retrieval and prevention of future-session leakage.
+- Idempotent memory consolidation and transition processing.
+- Contradictory information preservation.
+- Three-session identity continuity and experience-dependent behavior.
+
+The initial unit contracts are in `backend/tests/test_character_model.py`.
+They do not yet demonstrate end-to-end longitudinal behavior.
+
+See `CHARACTER_MODEL_SPEC.md` for acceptance criteria.

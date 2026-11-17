@@ -245,6 +245,11 @@ Represents one longitudinal execution of a synthetic case.
 | language | TEXT | Not Null |
 | status | TEXT | Not Null |
 | configuration_version | TEXT | Not Null |
+| protocol_id | TEXT | Not Null |
+| protocol_version | TEXT | Not Null |
+| session_planning_policy | TEXT | Not Null |
+| evaluation_rubric_id | TEXT | Not Null |
+| evaluation_rubric_version | TEXT | Not Null |
 | started_at | TEXT | Optional |
 | completed_at | TEXT | Optional |
 | created_at | TEXT | Not Null |
@@ -258,6 +263,10 @@ Possible statuses:
 - failed
 
 Each run must reference exactly one case version.
+Run configuration fields are immutable after creation. The current supported
+configuration is the flexible ACT educational simulation protocol
+(`ACT_EDUCATIONAL_SIMULATION` 0.1) using `ACT_RUBRIC_V0` 0.2. This identifier
+records simulation configuration; it is not a complete treatment manual.
 
 ### 5.2 sessions
 
@@ -285,13 +294,11 @@ Possible statuses:
 Constraints:
 
 - Session number must be unique within a run.
-- Session number must be between 1 and 3 in the initial MVP.
+- Session number must be a positive integer; there is no universal upper bound.
 
-The application must enforce sequential session initialization.
+The application must enforce sequential session initialization without a fixed count.
 
-Session 2 must not begin before Session 1 reaches an allowed completed state.
-
-Session 3 must not begin before Session 2 reaches an allowed completed state.
+Each subsequent session must not begin before the immediately preceding session reaches an allowed completed state.
 
 The database constraints alone are not sufficient to enforce the complete workflow.
 
@@ -745,6 +752,10 @@ Stores selected information retained between sessions.
 | confidence | REAL | Optional |
 | status | TEXT | Not Null |
 | memory_version | INTEGER | Not Null |
+| memory_scope | TEXT | Not Null |
+| supersedes_memory_id | TEXT | Optional self-reference |
+| origin_interaction_request_id | TEXT | Optional Foreign Key |
+| proposal_index | INTEGER | Optional, non-negative |
 | created_at | TEXT | Not Null |
 | updated_at | TEXT | Not Null |
 
@@ -762,6 +773,7 @@ Possible statuses:
 - active
 - superseded
 - requires_review
+- rejected
 
 The confidence field represents system uncertainty, not a validated psychological probability.
 
@@ -774,6 +786,8 @@ Links memory items to original messages.
 | memory_id | TEXT | Foreign Key |
 | message_id | TEXT | Foreign Key |
 | relationship_type | TEXT | Not Null |
+| start_offset | INTEGER | Optional, Unicode code-point offset |
+| end_offset | INTEGER | Optional, Unicode code-point offset |
 
 Composite primary key:
 
@@ -783,6 +797,34 @@ Composite primary key:
 Memory updates must preserve historical versions and source references.
 
 The original transcript remains the authoritative record.
+
+### 12.3 memory_reviews
+
+Stores one immutable acceptance or rejection decision for a candidate, including the reviewer identifier, rationale, and review timestamp. Accepted and rejected memory records remain in `memory_items`; only `active` records may be retrieved as patient memory.
+
+### 12.4 memory_extraction_jobs
+
+Durable post-interaction outbox for optional model-assisted memory proposal generation.
+
+| Field | Type | Constraints |
+|---|---|---|
+| job_id | TEXT | Primary Key |
+| run_id | TEXT | Foreign Key |
+| session_id | TEXT | Foreign Key scoped to Run |
+| interaction_request_id | TEXT | Unique Foreign Key |
+| status | TEXT | `pending`, `processing`, `completed`, or `failed` |
+| attempt_count | INTEGER | Non-negative |
+| candidate_count | INTEGER | Non-negative |
+| available_at | TEXT | Not Null; retry scheduling |
+| lease_owner | TEXT | Required only while processing |
+| lease_expires_at | TEXT | Required only while processing |
+| proposal_payload | TEXT | Optional validated, versioned output for replay |
+| output_hash | TEXT | Optional SHA-256 of proposal payload |
+| last_error_code | TEXT | Optional sanitized error code |
+| created_at / updated_at | TEXT | Not Null |
+| completed_at | TEXT | Required only when completed |
+
+The outbox row is created in the same transaction that completes an interaction and records its deterministic events. Model execution occurs after that transaction. Leases recover abandoned work, retries are bounded, and saved structured output makes candidate persistence safely replayable without calling the model again.
 
 ---
 
@@ -867,11 +909,11 @@ The application must verify that all transcript references belong to the same ru
 **Longitudinal evaluation:**
 
 - References the entire simulation run.
-- Uses all three completed session transcripts.
+- Uses the completed session transcripts in its explicitly selected scope.
 - Preserves chronological order.
 - Evaluates therapeutic continuity and adaptation across sessions.
 
-The longitudinal evaluation must be generated only after all three sessions have been completed.
+Longitudinal evaluation must support any number of completed sessions and may be requested for an interim or final Run segment. It must not be inferred from a fixed session count.
 
 ### 14.3 evaluation_items
 
@@ -953,17 +995,14 @@ Stores metadata for every language-model execution.
 | started_at | TEXT | Not Null |
 | completed_at | TEXT | Optional |
 
-Initial components:
+Supported components:
 
 - patient_agent
 - evaluator_agent
+- memory_extraction_agent (optional secondary execution)
 
-Optional future components:
-
-- event_extractor
-- memory_processor
-
-The initial MVP does not require independently running models for event extraction or memory generation.
+Deterministic event processing and memory validation do not create model-run
+records; only the optional MemoryExtractionAgent execution does.
 
 ---
 
@@ -1280,13 +1319,15 @@ Required tables:
 15. transition_evidence
 16. memory_items
 17. memory_evidence
-18. rubric_versions
-19. evaluations
-20. evaluation_items
-21. evaluation_evidence
-22. model_runs
-23. audit_events
-24. schema_migrations
+18. memory_reviews
+19. rubric_versions
+20. evaluations
+21. evaluation_items
+22. evaluation_evidence
+23. model_runs
+24. audit_events
+25. memory_extraction_jobs
+26. schema_migrations
 
 ### Restricted Database: case_vault.db
 
@@ -1335,3 +1376,34 @@ These decisions must be resolved during implementation without changing the esta
 ---
 
 **End of Document**
+
+<!-- CHARACTER_DATABASE_SCHEMA_NOTE_V0_1 -->
+## Character-centered persistence extension
+
+See `CHARACTER_MODEL_SPEC.md` for the canonical schema design.
+
+### Restricted database
+
+The planned `character_personality_profiles` table stores one immutable,
+versioned personality definition for an exact case version. It belongs in
+the restricted database because it may contain private hypotheses and
+internal character guidance.
+
+### Operational database
+
+The existing `events`, `event_evidence`, `memory_items`, `memory_evidence`,
+and ACT state tables remain the foundation for run-specific history.
+
+The planned generic character-state persistence consists of:
+
+- `character_state_snapshots`
+- `character_state_snapshot_values`
+- `character_state_transitions`
+- `character_state_transition_evidence`
+
+These structures must remain distinct from the existing ACT process-state
+tables.
+
+No character-model migration has been applied by this documentation change.
+The proposed schema must be introduced using the existing checksum-verified
+migration mechanism.

@@ -30,7 +30,8 @@ The initial MVP will provide an educational psychotherapy simulation environment
 The initial target includes:
 
 1. One fully fictional client: AVA-001.
-2. Three connected psychotherapy sessions.
+2. Sequential psychotherapy sessions with no universal fixed count; AVA-001's
+   three-session scenario is an example, not a required run length.
 3. A Patient Agent for client simulation.
 4. An Evaluator Agent for therapist feedback.
 5. A structured Clinical State Engine.
@@ -190,47 +191,42 @@ It must not directly modify canonical clinical state.
 
 Memory processing will initially be handled by an internal backend service.
 
-It will not require an additional independent LLM agent.
+The MemoryExtractionAgent is an optional secondary model-assisted component,
+not a primary conversational agent or a separate service process. It uses the
+configured local provider only when available; the service remains the
+authority for evidence validation, persistence, and review.
 
-The initial implementation will prioritize structured memory records and transcript references.
+The initial implementation prioritizes structured memory records and transcript references. Model-generated proposals must remain inactive until evidence validation and explicit review; they must never be treated as authoritative summaries.
 
-Model-generated memory summaries may be introduced later as optional, validated outputs.
+The MemoryExtractionAgent processes each successfully completed therapist/patient exchange through a durable, leased outbox. Its strict versioned output is saved for safe replay, and each proposal is validated against exact patient-authored transcript evidence before MemoryService stores it as `requires_review`. Empty output is valid. Explicit acceptance or rejection is required before a proposal can become active or terminally rejected. Revisions preserve lineage and supersede the prior active item only when the replacement is accepted. The sessions interface provides review controls; reviewer identity remains `unverified_local_caller` because this single-user API has no authentication.
 
 ---
 
 ## 5. Simulation Lifecycle
 
-**Decision: One simulation run contains exactly three sequential sessions for AVA-001 in the initial MVP.**
+**Decision: A simulation run has no universal fixed session count. Sessions are created sequentially as needed and the user may complete the Run after the created sessions are complete.**
 
 The lifecycle is:
 
 1. Create simulation run.
 2. Load the selected case version.
 3. Create the initial state snapshot.
-4. Initialize Session 1.
+4. Create the first session.
 5. Process therapist-patient interactions.
 6. Record messages and interaction events.
 7. Validate eligible state transitions.
-8. Complete Session 1.
-9. Generate Session 1 evaluation.
-10. Prepare longitudinal memory.
-11. Initialize Session 2 using validated historical context.
-12. Repeat the interaction and evaluation workflow.
-13. Initialize Session 3.
-14. Complete the final interaction.
-15. Generate Session 3 evaluation.
-16. Generate the final longitudinal evaluation.
-17. Mark the simulation run completed.
+8. Complete the session and finalize its transcript.
+9. Generate a session evaluation when requested and supported.
+10. Prepare validated longitudinal memory.
+11. Add a subsequent session only after the previous session is complete.
+12. Repeat the session workflow for as many sessions as the Run requires.
+13. Complete the Run after at least one session exists and every created session is complete.
 
-### 5.1 Session Ordering
+### 5.1 Session Ordering and Planning
 
-Sessions must be sequential.
+Sessions are created incrementally and numbered sequentially from 1. There is no system-wide maximum; a specific versioned protocol may recommend or define its own planning policy.
 
-Session 2 cannot begin before Session 1 reaches an allowed completed state.
-
-Session 3 cannot begin before Session 2 reaches an allowed completed state.
-
-The initial MVP will not support arbitrary session insertion or session-number changes.
+The next session cannot begin before the prior session reaches an allowed completed state. The API does not permit callers to assign or change a session number.
 
 ### 5.2 Session Completion
 
@@ -290,7 +286,9 @@ No validated overall competency score will be calculated.
 
 ### 6.2 Longitudinal Evaluation
 
-After the third session, the Evaluator Agent will receive the authorized transcripts from all three completed sessions.
+For a longitudinal evaluation, the Evaluator Agent receives the authorized finalized transcripts in the selected completed Run scope. The session count is not fixed.
+
+`ACT_LONGITUDINAL_RUBRIC_V0` version 0.2 is count-agnostic; version 0.1 is retained as a historical three-session example. Both remain experimental. The Evaluator Agent is not implemented, so longitudinal evaluation is unavailable.
 
 It will evaluate:
 
@@ -909,18 +907,36 @@ Existing historical specifications must not be silently overwritten without vers
 
 ## 21. Final MVP Definition
 
-The initial TheraSim MVP is:
+The current TheraSim implementation is a local-first educational simulation
+prototype for one fictional ACT case, with sequential sessions and optional
+local-model patient interactions. It includes versioned persistence, transcript
+integrity, disclosure and memory services, and memory-review controls.
 
-An open-source, local-first educational psychotherapy simulation prototype using one synthetic ACT client across three connected sessions.
-
-It uses a Patient Agent to simulate the client and an Evaluator Agent to provide session-level and longitudinal evidence-based formative feedback.
-
-A deterministic backend manages structured state, event records, disclosure tracking, and longitudinal memory.
-
-The system uses local language-model execution through Ollama and preserves model, prompt, case, rubric, and schema versions for reproducibility.
-
-The initial MVP is not a validated clinical competency instrument, a diagnostic system, or a replacement for human supervision.
+The Evaluator Agent and actual session/longitudinal assessment are not
+implemented. Evaluation-generation requests are unavailable rather than
+returning fabricated completed reports. Event extraction, state transitions,
+complete localization, analytics, and multi-modality execution remain
+incomplete. The implementation is not a validated clinical competency
+instrument, diagnostic system, treatment service, or replacement for human
+supervision.
 
 ---
 
 **End of Document**
+
+<!-- CHARACTER_MVP_DECISION_NOTE_V0_1 -->
+## Character-centered simulation priority
+
+The MVP character model must demonstrate stable identity and independent
+longitudinal trajectories before expanding the number of therapeutic
+approaches or synthetic cases.
+
+The initial implementation priority is one carefully authored character
+profile with explicit uncertainty, run-isolated state, and evidence-linked
+memory. AVA-001 is the initial authoring example, not a validated
+representation of a psychological population.
+
+A reusable character architecture takes priority over hard-coding
+characteristics into Patient Agent prompts.
+
+See `CHARACTER_MODEL_SPEC.md` and ADR-0004.

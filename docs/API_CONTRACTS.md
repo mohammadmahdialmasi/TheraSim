@@ -1,8 +1,8 @@
 # TheraSim — API Contracts
 
-**Document Version:** 0.2
+**Document Version:** 0.4
 **Project Status:** Research Prototype / Pre-MVP
-**Last Updated:** 2026-11-14
+**Last Updated:** 2026-11-17
 **Architecture Reference:** MVP_DECISIONS.md
 **Data Contract Reference:** DATA_CONTRACTS.md
 **Database Reference:** DATABASE_SCHEMA.md
@@ -45,6 +45,14 @@ The MVP uses a modular monolithic backend.
 Internal service contracts do not automatically require independent HTTP endpoints.
 
 MVP architectural decisions take precedence over earlier provisional specifications.
+
+**Implementation status:** These sections describe intended contracts and must
+not be read as proof that an Evaluator Agent exists. Evaluation persistence,
+rubrics, and read routes are present, but evaluation generation currently
+returns HTTP 503 with `evaluator_unavailable_experimental` and creates no
+report. Historical records with no Evaluator Agent model-run identifier are
+returned with `status: experimental`; stored placeholder items and evidence
+are withheld. The current count-agnostic longitudinal rubric is version 0.2.
 
 ---
 
@@ -371,7 +379,12 @@ Request:
   "case_id": "uuid",
   "case_version_id": "uuid",
   "modality": "ACT",
-  "language": "fa"
+  "language": "fa",
+  "protocol_id": "ACT_EDUCATIONAL_SIMULATION",
+  "protocol_version": "0.1",
+  "session_planning_policy": "flexible",
+  "evaluation_rubric_id": "ACT_RUBRIC_V0",
+  "evaluation_rubric_version": "0.2"
 }
 ```
 
@@ -380,8 +393,12 @@ Required fields:
 - case_id
 - modality
 - language
+- session_planning_policy
 
 The case_version_id may be omitted when the backend can identify the approved active version.
+Protocol and rubric fields default to the currently supported ACT configuration.
+Supported planning policies are `flexible`, `goal_based`, `milestone_based`,
+and `open_ended`; none sets a universal session count.
 
 The backend must verify:
 
@@ -390,6 +407,8 @@ The backend must verify:
 - Case version compatibility.
 - Supported therapeutic modality.
 - Supported language.
+- Supported protocol and rubric versions.
+- Planning policy compatibility with the selected protocol.
 
 Response:
 
@@ -402,6 +421,11 @@ Response:
     "modality": "ACT",
     "language": "fa",
     "status": "initialized",
+    "protocol_id": "ACT_EDUCATIONAL_SIMULATION",
+    "protocol_version": "0.1",
+    "session_planning_policy": "flexible",
+    "evaluation_rubric_id": "ACT_RUBRIC_V0",
+    "evaluation_rubric_version": "0.2",
     "created_at": "2026-11-14T12:30:00Z"
   }
 }
@@ -428,13 +452,78 @@ Response fields:
 - language
 - status
 - session_count
+- protocol_id
+- protocol_version
+- session_planning_policy
+- evaluation_rubric_id
+- evaluation_rubric_version
 - started_at
 - completed_at
 - created_at
 
 Restricted patient state and hidden case information must not be exposed.
 
-### 7.3 List Simulation Sessions
+### 7.3 List Simulation Runs
+
+**Endpoint:**
+
+`GET /api/v1/simulation-runs`
+
+Purpose:
+
+List persisted simulation runs so the local workspace can restore
+an existing run after navigation or browser refresh.
+
+Query parameters:
+
+- `limit`: optional, default 20, range 1 to 100.
+- `offset`: optional, default 0, minimum 0.
+- `status`: optional run status filter.
+
+The response contains the standard authorized run metadata for each
+result. Restricted case information and hidden patient state must
+not be included.
+
+### 7.4 Simulation Run Lifecycle
+
+The following endpoints expose the supported run lifecycle actions.
+Each endpoint returns the standard run response defined in Section 7.2.
+
+**Start a run**
+
+`POST /api/v1/simulation-runs/{run_id}/start`
+
+Allowed transition: `initialized` to `active`.
+
+**Interrupt a run**
+
+`POST /api/v1/simulation-runs/{run_id}/interrupt`
+
+Allowed transition: `active` to `interrupted`.
+
+**Resume a run**
+
+`POST /api/v1/simulation-runs/{run_id}/resume`
+
+Allowed transition: `interrupted` to `active`.
+
+**Complete a run**
+
+`POST /api/v1/simulation-runs/{run_id}/complete`
+
+Allowed transition: `active` to `completed`.
+
+The backend must verify that at least one session exists, session numbers
+are sequential, and all created sessions have status `completed` before
+completing the run. Otherwise, the endpoint returns HTTP 409.
+
+All lifecycle actions return HTTP 404 when the run does not exist and
+HTTP 409 when the requested transition is not permitted.
+
+Run failure is system-managed. The application service operation
+`fail_run` is not exposed as a therapist-facing endpoint.
+
+### 7.5 List Simulation Sessions
 
 **Endpoint:**
 
@@ -486,18 +575,16 @@ The backend must verify:
 
 - The simulation run exists.
 - The run is not completed or failed.
-- Fewer than three sessions have been created.
+- The previous session, if any, has been completed.
 - Previous sessions have reached an allowed completed state.
 - The requested case version remains available.
 - Required longitudinal context can be constructed.
 
 Session numbering must be assigned by the backend:
 
-1. Session 1
-2. Session 2
-3. Session 3
+Session numbering begins at 1 and increments by one without a universal upper limit.
 
-The MVP does not support arbitrary session insertion or session-number modification.
+The API does not support arbitrary session insertion or session-number modification.
 
 ### 8.3 Response
 
@@ -516,8 +603,6 @@ The MVP does not support arbitrary session insertion or session-number modificat
 ### 8.4 Conflict Handling
 
 A request to create Session 2 before Session 1 is completed must be rejected.
-
-A request to create more than three sessions must be rejected.
 
 An existing active session must not be duplicated.
 
@@ -657,13 +742,11 @@ The backend must validate:
 10. Invoke Patient Agent.
 11. Validate the PatientResponse.
 12. Persist the patient response.
-13. Record deterministic application events.
+13. Record factual, evidence-linked application events for the therapist message and patient response.
 14. Complete the InteractionRequest.
 15. Return the interaction result.
 
-Candidate behavioral event extraction is a separate internal process.
-
-Failure of optional event extraction must not invalidate a successfully completed therapist-patient interaction.
+The messages, their factual application events, event evidence, and completed request status are committed atomically. These events record only that the messages occurred; they are not clinical interpretations or validated psychological changes. Behavioral event extraction is a separate future processing step and must not rewrite or invalidate the persisted interaction.
 
 ### 11.3 Successful Response
 
@@ -768,6 +851,16 @@ Response:
 ```
 
 This endpoint must return operational metadata only.
+
+The public processing states are `in_progress`, `completed`, and `failed`.
+
+The response must not expose idempotency keys, request hashes, attempt tokens,
+lease timestamps, or internal model-run identifiers.
+
+A client may poll this endpoint while an operation is `in_progress`.
+When an operation is `failed`, recovery must replay the original POST using
+the same idempotency key and identical therapist message content. A new key
+would represent a new therapist turn and must not be used for recovery.
 
 It must not expose:
 
@@ -985,7 +1078,7 @@ The API may return multiple records when historical revisions are supported in f
 
 Purpose:
 
-Generate a final evaluation of the therapist's work across all three connected simulation sessions.
+Generate a longitudinal evaluation across the explicitly selected completed session scope.
 
 This is a required capability of the initial MVP.
 
@@ -994,7 +1087,7 @@ This is a required capability of the initial MVP.
 ```json
 {
   "rubric_id": "ACT_LONGITUDINAL_RUBRIC_V0",
-  "rubric_version": "0.1"
+  "rubric_version": "0.2"
 }
 ```
 
@@ -1011,10 +1104,10 @@ The backend must verify:
 
 1. The simulation run exists.
 2. The run uses the expected case version.
-3. Exactly three sessions have been completed.
-4. All three transcripts are finalized.
+3. At least one session exists and every created session is completed.
+4. Every included transcript is finalized.
 5. Session ordering is valid.
-6. No required transcript is missing.
+6. No transcript included in the requested evaluation scope is missing.
 7. The requested longitudinal rubric exists.
 8. The rubric is compatible with the simulation modality.
 
@@ -1031,7 +1124,7 @@ It contains:
 - modality
 - language
 - rubric identifier and version
-- all three finalized session transcripts
+- the finalized transcripts included in the selected evaluation scope
 - transcript versions
 - transcript hashes
 - therapist-visible context by session
@@ -1081,7 +1174,7 @@ HTTP status: `201 Created`
     "status": "completed",
     "evaluated_sessions": 3,
     "rubric_id": "ACT_LONGITUDINAL_RUBRIC_V0",
-    "rubric_version": "0.1",
+    "rubric_version": "0.2",
     "created_at": "2026-11-14T14:00:00Z"
   }
 }
@@ -1457,7 +1550,6 @@ Initial API error codes:
 | INVALID_CASE_VERSION | Case version is invalid |
 | SESSION_NOT_ACTIVE | Session does not accept messages |
 | SESSION_ORDER_INVALID | Previous session is incomplete |
-| SESSION_LIMIT_REACHED | Three-session limit reached |
 | RUN_NOT_COMPLETE | Run is not eligible for longitudinal evaluation |
 | DUPLICATE_REQUEST | Duplicate operation detected |
 | IDEMPOTENCY_CONFLICT | Same key used with a different payload |
@@ -1540,23 +1632,21 @@ The initial test suite must verify:
 3. Simulation run creation works.
 4. Case version references remain consistent.
 5. Sessions are created in sequential order.
-6. Session 2 cannot start before Session 1 completes.
-7. Session 3 cannot start before Session 2 completes.
-8. A fourth session cannot be created.
-9. Therapist messages are stored correctly.
-10. Duplicate interaction requests do not create duplicate persisted messages.
-11. Reusing an idempotency key with a different payload is rejected.
-12. Failed patient generation does not invalidate the therapist message.
-13. Interaction status can be retrieved.
-14. Completed sessions reject new therapist messages.
-15. Completed sessions can be evaluated.
-16. Longitudinal evaluation requires all three completed sessions.
-17. Longitudinal evaluation uses all three transcript versions.
-18. Evaluator input excludes restricted case information.
-19. Evaluation evidence references valid messages.
-20. Invalid rating values are rejected.
-21. Invalid evidence references are rejected.
-22. Unauthorized API requests are rejected.
+6. A later session cannot start before its predecessor completes.
+7. Session numbering remains sequential for any number of sessions.
+8. Therapist messages are stored correctly.
+9. Duplicate interaction requests do not create duplicate persisted messages.
+10. Reusing an idempotency key with a different payload is rejected.
+11. Failed patient generation does not invalidate the therapist message.
+12. Interaction status can be retrieved.
+13. Completed sessions reject new therapist messages.
+14. Completed sessions can be evaluated.
+15. Longitudinal evaluation only uses completed, finalized transcripts in its selected scope.
+16. Longitudinal evaluation supports variable session counts and uses every transcript version in scope.
+17. Evaluator input excludes restricted case information.
+18. Evaluation evidence references valid messages.
+19. Invalid rating values are rejected.
+20. Invalid evidence references are rejected.
 23. Standard error responses are preserved.
 24. Database and application failures do not create partially accepted state transitions.
 
@@ -1600,6 +1690,11 @@ Documentation must not claim functionality that has not been implemented.
 | GET | `/api/v1/cases/{case_id}` | Retrieve authorized case profile |
 | POST | `/api/v1/simulation-runs` | Create simulation run |
 | GET | `/api/v1/simulation-runs/{run_id}` | Retrieve run |
+| GET | `/api/v1/simulation-runs` | List persisted simulation runs |
+| POST | `/api/v1/simulation-runs/{run_id}/start` | Start run |
+| POST | `/api/v1/simulation-runs/{run_id}/interrupt` | Interrupt active run |
+| POST | `/api/v1/simulation-runs/{run_id}/resume` | Resume interrupted run |
+| POST | `/api/v1/simulation-runs/{run_id}/complete` | Complete eligible run |
 | GET | `/api/v1/simulation-runs/{run_id}/sessions` | List sessions |
 | POST | `/api/v1/simulation-runs/{run_id}/sessions` | Create next sequential session |
 | GET | `/api/v1/sessions/{session_id}` | Retrieve session |
@@ -1612,8 +1707,11 @@ Documentation must not claim functionality that has not been implemented.
 | POST | `/api/v1/simulation-runs/{run_id}/evaluations` | Generate longitudinal evaluation |
 | GET | `/api/v1/simulation-runs/{run_id}/evaluations` | List run evaluations |
 | GET | `/api/v1/evaluations/{evaluation_id}` | Retrieve evaluation report |
+| GET | `/api/v1/simulation-runs/{run_id}/memories` | List Run memory and evidence |
+| POST | `/api/v1/simulation-runs/{run_id}/memories/candidates` | Create evidence-validated review candidate |
+| POST | `/api/v1/simulation-runs/{run_id}/memories/{memory_id}/review` | Accept or reject a memory candidate |
 
-Disclosure management, hidden memory, state transitions, and restricted case access are intentionally excluded from the public Therapist Interface API.
+Disclosure management, hidden patient state, direct access to internal clinical state, and restricted case access remain outside the public Therapist Interface API. The explicit run and session lifecycle operations documented here are the supported public state-transition controls.
 
 ---
 
@@ -1625,7 +1723,9 @@ The first API implementation must support:
 - Case listing.
 - Authorized case metadata retrieval.
 - Simulation run creation.
-- Three sequential sessions.
+- Simulation run listing and workspace recovery.
+- Explicit run lifecycle controls (start, interrupt, resume, complete).
+- Sequential sessions with no universal fixed count.
 - Session retrieval.
 - Message submission.
 - Patient Agent response delivery.
@@ -1660,5 +1760,41 @@ The following issues remain for the implementation phase:
 These decisions must be resolved through implementation and testing.
 
 ---
+
+---
+
+# PART X — LONGITUDINAL MEMORY API
+
+## 36. List Run Memory
+
+`GET /api/v1/simulation-runs/{run_id}/memories`
+
+The optional `status` filter accepts `active`, `superseded`, `requires_review`, or `rejected`. Each result includes its information class, scope, version and supersession link, plus cited message identifiers and validated excerpts when available.
+
+Only active memory is eligible for PatientContext retrieval. Rejected, superseded, and review-pending items remain available for authorized audit and learning workflows.
+
+## 37. Create Memory Candidate
+
+`POST /api/v1/simulation-runs/{run_id}/memories/candidates`
+
+The request identifies the source session, a completed interaction request, a backend-scoped proposal index, memory scope, a structured proposal and exact quoted message evidence. The backend verifies Run ownership, chronology, patient-authored evidence for client-fact classes, and exact excerpt offsets. The proposal's identifier is not used as a database identity.
+
+Candidates are always stored as `requires_review`, regardless of the proposal's suggested status. Candidate creation is idempotent for a completed interaction request and proposal index; a changed payload at that identity returns a conflict.
+
+## 38. Review Memory Candidate
+
+`POST /api/v1/simulation-runs/{run_id}/memories/{memory_id}/review`
+
+The request contains `decision` (`accepted` or `rejected`) and a non-empty rationale. The client cannot supply a reviewer identity. In the unauthenticated, single-user API, the backend records the explicit sentinel `unverified_local_caller`; it does not claim that a person was authenticated. The decision and rationale are persisted as an immutable review record. Acceptance makes the candidate active; rejection makes it inactive and terminal. Accepting a revision atomically supersedes its active predecessor. Conflicting review decisions return `409 Conflict`.
+
+Authenticated multi-user review requires an authenticated identity dependency before replacing this sentinel with a person-specific identifier.
+
+## 39. Get Memory Extraction Status
+
+`GET /api/v1/simulation-runs/{run_id}/memories/processing/{interaction_request_id}`
+
+Returns the sanitized status, attempt count, candidate count, and last error code for the Run-owned extraction job. The request creates one pending job atomically with a successfully completed interaction. A local worker processes only the current therapist/patient exchange, outside the interaction transaction. Generated proposals are schema-validated and transcript-evidence-checked, stored as `requires_review`, and never activated automatically. If the local model is not configured, pending work remains durable and visible through this endpoint.
+
+Retries use leases and exponential backoff, with a five-attempt limit. Validated proposal output is saved before candidate persistence so a worker crash can replay the same proposals idempotently. Terminal failures expose a sanitized error code; model output and transcript text are not returned by this status endpoint.
 
 **End of Document**

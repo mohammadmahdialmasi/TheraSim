@@ -6,7 +6,7 @@ import type {
   ProviderName,
 } from '../types'
 
-async function request<T>(
+export async function request<T>(
   url: string,
   options: RequestInit = {},
   timeoutMs = 20000,

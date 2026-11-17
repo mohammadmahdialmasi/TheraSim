@@ -299,6 +299,11 @@ Fields:
 - language
 - status
 - configuration_version
+- protocol_id
+- protocol_version
+- session_planning_policy
+- evaluation_rubric_id
+- evaluation_rubric_version
 - started_at
 - completed_at
 - created_at
@@ -311,13 +316,18 @@ Possible statuses:
 - interrupted
 - failed
 
-### 9.1 MVP Session Structure
+### 9.1 Session Structure
 
-The initial MVP contains exactly three sequential sessions per simulation run.
+Sessions are created sequentially as the simulation progresses. No universal session count is specified; a versioned treatment protocol may supply its own planning policy.
 
 A run must reference one specific case version.
 
 Historical records must not be silently transferred to a different case version.
+Run protocol, planning, and rubric identifiers are stored at creation and are
+immutable. The currently registered configuration is ACT educational
+simulation 0.1 with flexible planning and ACT session rubric 0.2; this is a
+simulation association, not a claim that TheraSim implements a complete ACT
+treatment protocol. Other modalities remain unsupported until configured.
 
 ---
 
@@ -350,10 +360,9 @@ Possible statuses:
 
 ### 10.1 Session Ordering
 
-The initial MVP requires:
+The system requires:
 
-- Session 1 before Session 2.
-- Session 2 before Session 3.
+- Session 1 before Session 2, and each later session after its predecessor.
 - No simultaneous active interaction generation within the same session.
 
 A later session must use the validated historical context from previous completed sessions.
@@ -758,8 +767,13 @@ Fields:
 - confidence
 - status
 - memory_version
+- memory_scope
+- supersedes_memory_id
+- origin_interaction_request_id and proposal_index, when derived from an interaction
 - created_at
 - updated_at
+
+Memory candidate evidence records the exact source message and Unicode code-point offsets of the quoted excerpt. Evidence may span earlier sessions in the same Run, but must have been available by the completed interaction that produced the candidate.
 
 ### 20.1 Initial Memory Categories
 
@@ -795,8 +809,13 @@ A therapist hypothesis must never be silently converted into a confirmed client 
 4. Updated memory must preserve historical versions.
 5. Irrelevant information must not be included automatically in PatientContext.
 6. Memory generation must not directly modify canonical clinical state.
+7. New candidates start in `requires_review`; they must never enter PatientContext before explicit acceptance.
+8. Rejection is retained as `rejected` and is excluded from active context.
+9. A revision creates a new memory version linked by `supersedes_memory_id`; accepting it atomically marks the prior active item `superseded`.
+10. Acceptance and rejection decisions are immutable, evidence-audited review records.
+11. Candidate creation is idempotent per completed interaction request and backend-assigned proposal index.
 
-The initial implementation prioritizes structured memory records and deterministic selection.
+The MemoryExtractionAgent receives only the completed interaction's therapist/patient exchange, not hidden case data or future messages. Its proposals are stored in a durable outbox, schema-validated, and checked by MemoryService for Run ownership, chronology, exact quotes, and patient-authored evidence before persistence. Output is saved before candidate creation so retries reuse the same proposal payload. Candidates remain inactive pending review. The sessions interface provides review controls; reviewer identity is unverified in the unauthenticated local API.
 
 ---
 
@@ -938,10 +957,10 @@ Scope-specific requirements:
 - Its session_id must match the report session_id.
 
 **Longitudinal report**
-- Must contain exactly three transcript references.
+- Must contain the transcript references included in the selected evaluation scope, which may contain any positive number of sessions.
 - References must belong to the same run_id as the report.
-- session_number must be 1, 2, and 3, in chronological order.
-- All three transcripts must be finalized.
+- Session numbers must be sequential and references chronological.
+- Every included transcript must be finalized.
 - The report session_id must be null.
 
 Transcript references must be sufficient to resolve the exact source transcripts used for evaluation.
@@ -1032,8 +1051,9 @@ Possible components:
 
 - patient_agent
 - evaluator_agent
+- memory_extraction_agent
 
-Event Processing Service and Memory Service are internal deterministic-first application services in the MVP. They are not model-execution components and do not create ModelExecutionMetadata records.
+Event Processing Service and Memory Service remain deterministic-first application services. The optional MemoryExtractionAgent is a separate model execution; each attempt is recorded in model_runs with its prompt and schema versions, generation parameters, exact-input hash, output hash when valid, and execution/validation status.
 The metadata must record model information available from the local runtime.
 
 The system must not claim exact reproducibility when the model runtime cannot guarantee deterministic execution.
@@ -1208,7 +1228,7 @@ The following rules apply to all data objects:
 2. Every session must reference one specific case version.
 3. Every evaluation must reference one specific rubric version.
 4. Session-level evaluations must reference one finalized transcript version.
-5. Longitudinal evaluations must reference all three finalized session transcript versions.
+5. Longitudinal evaluations must reference every finalized session transcript version in their selected scope.
 6. Model and prompt versions must be recorded.
 7. State changes must be auditable.
 8. Disclosure changes must reference supporting messages.
@@ -1269,7 +1289,7 @@ Migrations must preserve historical case, rubric, transcript, and model referenc
 The first implementation will support:
 
 1. One synthetic ACT case.
-2. One simulation run with three sequential sessions.
+2. One simulation run with a variable sequence of sessions; three-session runs are examples, not an architectural limit.
 3. Two primary LLM agents.
 4. A PatientContext service.
 5. An internal Event Processing Service.
@@ -1304,3 +1324,28 @@ These questions must be resolved through implementation and testing.
 ---
 
 **End of Document**
+
+<!-- CHARACTER_DATA_CONTRACTS_NOTE_V0_1 -->
+## Character personality and dynamics contracts
+
+The canonical domain contract is `CHARACTER_MODEL_SPEC.md`.
+
+The initial Python contracts are in `backend/app/services/character_model.py`.
+
+The data model distinguishes:
+
+- `CharacterPersonalityProfile`: immutable authored profile for one exact case version.
+- `CharacterStateSnapshot`: run-specific generic affective/interpersonal state.
+- `CharacterStateTransitionProposal`: an untrusted, evidence-bearing proposal.
+- `MemoryProposal`: a candidate memory with exact source-message quotations.
+- `CharacterEventProposal`: a candidate event with source evidence.
+
+The Big Five, attachment, and interpersonal dimensions use authored estimates
+with an explicit `unknown` option. These estimates are not psychometric scores.
+
+A schema theme or value may not be labeled character-endorsed without source
+references. Memory proposals require evidence. The backend must verify each
+quotation against the persisted message before accepting any proposal.
+
+These Python models are initial domain contracts, not yet persistence or
+authorization services.

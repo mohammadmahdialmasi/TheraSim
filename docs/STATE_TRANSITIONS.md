@@ -461,3 +461,24 @@ The following questions require further design and testing:
 ---
 
 **End of Document**
+
+<!-- CHARACTER_STATE_TRANSITIONS_NOTE_V0_1 -->
+## Generic character-state transitions
+
+The generic character-state model is separate from the existing ACT
+process-state model.
+
+Its initial dimensions are affective valence, arousal, perceived safety,
+social-evaluative threat, engagement, and interpersonal withdrawal.
+
+A character-state transition must retain the previous value, proposed value,
+source evidence, rationale, confidence, and validation status.
+
+The Patient Agent or a future extraction operation may propose a change.
+It must not approve or persist that change directly.
+
+Stable personality traits are not state-transition variables. A change in
+one interaction's affective state must not automatically modify the character's
+Big Five, attachment, or other stable profile dimensions.
+
+See `CHARACTER_MODEL_SPEC.md` for scales and invariants.

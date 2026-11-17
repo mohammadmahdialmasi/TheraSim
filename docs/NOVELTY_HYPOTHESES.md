@@ -1,4 +1,4 @@
-﻿# TheraSim - Novelty Hypotheses
+# TheraSim - Novelty Hypotheses
 
 ## 1. Core Research Direction
 
@@ -97,7 +97,7 @@ quality while protecting user data?
 
 - One fictional client.
 - ACT as the initial modality.
-- Three connected sessions.
+- Sequential sessions with no universal fixed count; AVA-001 remains a three-session example scenario.
 - Persian-first interaction.
 - English localization prepared.
 - Local LLM execution.

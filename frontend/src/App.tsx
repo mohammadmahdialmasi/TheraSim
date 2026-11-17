@@ -1,3 +1,4 @@
+import brandLogo from './assets/brand-logo.svg'
 import {
   useEffect,
   useRef,
@@ -37,6 +38,7 @@ import type { LucideIcon } from 'lucide-react'
 
 import { translations, type Language, type Translation } from './i18n'
 import { therapyModules, plannedTherapyCategories } from './data/therapyModules'
+import { SessionsPage } from './features/sessions/SessionsPage'
 
 import {
   getHealth,
@@ -573,7 +575,11 @@ function App() {
       <aside className="sidebar">
         <div className="brand">
           <div className="brand-mark">
-            <BrainCircuit size={25} strokeWidth={1.7} />
+            <img
+              src={brandLogo}
+              alt="TheraSim"
+              className="brand-logo-image"
+            />
           </div>
           <div className="brand-text">
             <strong>TheraSim</strong>
@@ -715,11 +721,7 @@ function App() {
           )}
 
           {view === 'sessions' && (
-            <ComingSoonPage
-              t={t}
-              icon={BrainCircuit}
-              title={t.sessions}
-            />
+            <SessionsPage language={language} />
           )}
 
           {view === 'scenarios' && (
@@ -750,7 +752,7 @@ function App() {
         </main>
 
         <footer className="app-footer">
-          <span>TheraSim · Local-first framework</span>
+          <span>{`TheraSim · ${t.localFirstFramework}`}</span>
           <span>
             <ShieldCheck size={14} />
             {t.localPrivacy}
@@ -860,7 +862,7 @@ function Dashboard({
       <div className="metrics-grid">
         <MetricCard
           icon={Activity}
-          label="BACKEND"
+          label={t.metricBackendLabel}
           value={
             backendStatus === 'online'
               ? t.connected
@@ -875,7 +877,7 @@ function Dashboard({
 
         <MetricCard
           icon={Cpu}
-          label="PROVIDERS"
+          label={t.metricProvidersLabel}
           value={`${connectedProviderCount} / ${providers.length || 2}`}
           description={t.providerDescription}
           t={t}
@@ -883,7 +885,7 @@ function Dashboard({
 
         <MetricCard
           icon={Database}
-          label="CHAT MODELS"
+          label={t.metricChatModelsLabel}
           value={String(availableModelCount)}
           description={t.modelsDescription}
           t={t}
@@ -1108,7 +1110,7 @@ function Studio({
         <div>
           <div className="eyebrow">
             <FlaskConical size={15} />
-            LOCAL MODEL WORKSPACE
+            {t.localModelWorkspace}
           </div>
           <h1>{t.studioTitle}</h1>
           <p>{t.studioDescription}</p>
@@ -1258,7 +1260,7 @@ function Studio({
 
               <div className="message-bubble">
                 <div className="message-author">
-                  {message.role === 'assistant' ? 'TheraSim' : 'You'}
+                  {message.role === 'assistant' ? t.assistantLabel : t.userLabel}
                 </div>
                 <div className="message-content" dir="auto">
                   {message.content}
@@ -1504,7 +1506,7 @@ function TherapiesPage({
         <div>
           <div className="eyebrow">
             <BookOpen size={15} />
-            MODULAR THERAPY ARCHITECTURE
+            {t.modularTherapyArchitecture}
           </div>
           <h1>{t.therapiesTitle}</h1>
           <p>{t.therapiesDescription}</p>
@@ -1624,7 +1626,7 @@ function SettingsPage({
         <div>
           <div className="eyebrow">
             <Settings2 size={15} />
-            SYSTEM CONFIGURATION
+            {t.systemConfiguration}
           </div>
           <h1>{t.settings}</h1>
           <p>{t.currentConfiguration}</p>

@@ -12,7 +12,7 @@ MVP_DECISIONS.md is the authoritative product and implementation scope document.
 
 - One fully fictional case: AVA-001.
 - Acceptance and Commitment Therapy (ACT).
-- Exactly three sequential sessions per simulation run.
+- A variable number of sequential sessions per simulation run; there is no universal session-count cap.
 - Persian-first end-to-end workflow.
 - Local single-user execution.
 - Educational simulation only.
@@ -34,7 +34,9 @@ Internal deterministic-first services:
 - Memory Service.
 - Evaluation Service.
 
-Event Processing and Memory are not independent mandatory LLM agents.
+The leased MemoryExtractionAgent worker is an optional secondary model
+execution. Its runs use the shared model-execution ledger; deterministic
+evidence validation and review remain authoritative.
 
 ## 4. Technology Baseline
 
@@ -78,8 +80,8 @@ No LLM may directly modify canonical clinical state.
 
 ## 7. Session and Transcript Rules
 
-- Session 1, 2, and 3 must be sequential.
-- Later sessions require earlier sessions to be completed.
+- Session numbers start at 1 and increase sequentially without a universal upper limit.
+- A later session requires the immediately preceding session to be completed.
 - Transcript versions are positive integers beginning at 1.
 - Completed transcript versions are immutable.
 - Corrections require a new version.
@@ -95,7 +97,7 @@ Session-level rubric:
 
 Longitudinal rubric:
 - ID: ACT_LONGITUDINAL_RUBRIC_V0
-- Version: 0.1
+- Version: 0.2 (count-agnostic; version 0.1 is historical)
 
 The two evaluation scopes remain separate. No unsupported combined score is permitted.
 
@@ -127,17 +129,21 @@ Ambiguous disclosures remain candidate_disclosed or requires_review.
 
 ## 11. Longitudinal Memory
 
-Initial memory is structured and deterministic-first.
+The Memory Service accepts structured proposals only after a persisted,
+completed interaction. It validates Run ownership, chronology, patient-authored
+evidence for client-fact classes, and exact quoted transcript spans. Candidates
+remain `requires_review` until an explicit decision; accepted revisions
+atomically supersede their active predecessor, and review records are immutable.
 
-Every memory item must preserve:
-- Information class.
-- Source message references.
-- Originating session.
-- Version and status.
-
-Therapist hypotheses must not be converted into confirmed client facts.
-
-Free-form LLM memory summaries are deferred from the first implementation.
+Successful interactions atomically enqueue a durable memory-extraction job.
+The background MemoryExtractionAgent sees only that completed therapist/patient
+exchange; validated output is saved for safe replay, and evidence-checked
+candidates remain inactive until review. The local worker uses leases, bounded
+retries, backoff, and sanitized status reporting. Front-end review controls are integrated. Since the single-user API has no authentication, it rejects
+client-supplied reviewer identifiers and records `unverified_local_caller`;
+this is explicitly not a verified human identity. Therapist hypotheses must
+not be converted into confirmed client facts, and active accepted memory is
+the only memory eligible for PatientContext retrieval.
 
 ## 12. Local Model Execution
 
@@ -167,6 +173,10 @@ Critical information leakage, invalid state mutation, invalid evidence reference
 
 Passing software tests does not establish clinical validity or educational effectiveness.
 
+Historical checkpoint: 368 Backend tests passed before the evaluator
+availability correction in this revision. See the latest verification record
+at the end of this document.
+
 ## 14. Deferred Features
 
 - English localization.
@@ -178,6 +188,19 @@ Passing software tests does not establish clinical validity or educational effec
 - Real-client data.
 - Automatic semantic disclosure confirmation.
 - Learned state transition policies.
+
+## Verified implementation checkpoint — 2026-11-17
+
+The shared session lifecycle supports any positive sequential session number. Runs can be completed after one or more sessions when every created session is completed; numbering gaps and incomplete sessions remain invalid. Migration `006_unbounded_session_numbers` removes the legacy SQLite ceiling without rewriting applied migration history and preserves existing session references and transcript-integrity triggers. Successfully persisted interactions atomically record factual therapist-message and generated-patient-response events linked to their source messages and enqueue one memory-extraction job. Migration `007_memory_review_lifecycle` adds quote-span provenance, immutable reviews, rejection state, and explicit supersession lineage. Migration `008_memory_extraction_outbox` adds durable leased jobs and replayable validated output. Migration `009_memory_extraction_model_component` records memory-extraction attempts in the shared model-run ledger. Migration `010_versioned_run_protocols` persists immutable protocol, planning-policy, and session-rubric identifiers per Run.
+
+Historical verification at this checkpoint: 368 Backend tests passed,
+Frontend type-check/build and ESLint passed, and browser QA exercised the
+bilingual memory review panel at 1920, 1440, 1280, 1024, 768, and 390 CSS
+pixels. These results predate the current evaluator and launcher changes.
+
+The internal MemoryService validates candidates against completed interactions, source-Run ownership, chronology, patient-authored evidence for automatic extraction, and exact quoted excerpts. Candidates remain inactive until accepted; rejection is retained, and accepted revisions supersede prior active versions atomically. The API exposes candidate creation, evidence retrieval, review decisions, and sanitized extraction-job status. The sessions workspace now includes Run-scoped candidate review with source quotations, rationale, accept/reject actions, and a clear warning that the local reviewer identity is unverified.
+
+The Run stores protocol `ACT_EDUCATIONAL_SIMULATION` 0.1, the selected planning policy, and session rubric `ACT_RUBRIC_V0` 0.2. This is a versioned educational simulation configuration, not a complete treatment protocol. `ACT_LONGITUDINAL_RUBRIC_V0` 0.2 is count-agnostic; version 0.1 remains the historical three-session example. The Evaluator Agent, full localization, and analytics remain outstanding.
 - Automated clinical competency scoring.
 
 These require separate decisions and validation before implementation.
@@ -251,4 +274,34 @@ This section supersedes the earlier Ollama-only runtime decision.
 - Persian UTF-8 response verified through the backend.
 - Both local providers returned non-empty responses through TheraSim.
 
+## Verified architectural gaps — 2026-11-17
+
+- Run records preserve case version, modality, language, application configuration version, protocol, planning policy, and session rubric versions. Planning policies are recorded configuration, not an executing treatment-planning engine.
+- Interaction persistence records factual message events and durable memory-extraction jobs atomically. Behavioral event extraction remains unimplemented.
+- MemoryExtractionAgent and MemoryService generate and validate review-pending candidates with bounded retries and safe output replay. The sessions UI includes review controls, but reviewer identity is unauthenticated.
+- Evaluation persistence, rubric documents, service reads, and API routes exist. The Evaluator Agent is not implemented; generation requests now fail explicitly, and historical deterministic placeholder reports are exposed as experimental without their scores or evidence.
+- The dedicated frontend feature modules currently cover sessions only; evaluation, analytics, complete bilingual/RTL support, and responsive screen verification remain outstanding.
+- Fresh setup is supported by `python -m app.persistence.cli`, which initializes both databases and idempotently seeds AVA-001; tests cover repeat seeding and conflicting content. API startup initializes databases but does not itself seed the case.
+- The requested `THERASIM_PROJECT_BRIEF_FOR_COPILOT_20261117.md` and `THERASIM_AUDIT_REPORT_20261117.md` files are absent from the workspace.
+
 These results establish technical integration only. They do not establish clinical validity, therapeutic effectiveness, or professional competency measurement validity.
+
+## Current implementation checkpoint — 2026-11-17
+
+- The session lifecycle supports any positive sequential number. Planning-policy identifiers are persisted, but there is no treatment-planning engine or approval workflow.
+- ACT is the only supported modality. Other modalities have no runtime implementations or registry.
+- The memory-review UI and durable extraction worker are present. Reviewer identity remains unauthenticated; autobiographical-memory consolidation and behavioral event extraction are incomplete.
+- Evaluation generation is disabled because no Evaluator Agent exists. The endpoints return `503 evaluator_unavailable_experimental` without persisting an evaluation. Historical records without an Evaluator Agent model-run identifier are returned as experimental with their placeholder items and evidence withheld.
+- The longitudinal rubric version 0.2 is count-agnostic; version 0.1 remains a historical three-session rubric. No longitudinal evaluation, revisions, analytics, or evidence-linked charts are implemented.
+- `START_THERASIM.bat`, `STOP_THERASIM.bat`, and `CHECK_THERASIM.bat` run the development Backend and Frontend, use safe migrations, and track process identity. They have not yet been validated through a clean-machine installation.
+
+Verification for this checkpoint: **377 Backend tests passed**; Frontend
+`npm run lint` and `npm run build` passed. The launcher passed its prerequisite
+check and an isolated startup/shutdown exercise: it migrated and seeded
+temporary databases, served Backend health and the Vite page, stopped its
+tracked processes, and left the workspace databases untouched. PowerShell
+syntax parsing and `git diff --check` passed. Dependency installation on a
+clean machine, model-driven UI interaction, and desktop packaging were not
+tested. Initial test commands from the repository root failed due to incorrect
+working directories/tool PATH; the corrected Backend and Frontend commands
+passed.

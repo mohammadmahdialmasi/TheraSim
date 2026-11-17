@@ -1,4 +1,4 @@
-﻿# TheraSim - Clinical Simulation Specification
+# TheraSim - Clinical Simulation Specification
 
 Version: 0.1
 Status: Draft
@@ -271,3 +271,22 @@ This specification is an initial design document.
 
 It must be reviewed by qualified ACT practitioners
 before use in a clinical education study.
+
+<!-- CHARACTER_CLINICAL_SIMULATION_NOTE_V0_1 -->
+## Character definition versus therapeutic process
+
+A synthetic client must have a stable character definition that is distinct
+from the therapeutic goals and ACT process variables used in a scenario.
+
+The character definition describes relatively stable tendencies, personal
+history, communication characteristics, and authored hypotheses.
+
+The therapeutic process describes what happens during the simulation:
+interaction, disclosure, alliance, willingness, values exploration,
+interventions, and reported outcomes.
+
+The simulation must not assume that an ACT intervention changes personality.
+It may influence the character's momentary state, interpretation, behavior,
+or later learning when supported by the actual interaction history.
+
+See `CHARACTER_MODEL_SPEC.md`.

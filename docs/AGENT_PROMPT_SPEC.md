@@ -10,11 +10,12 @@
 
 This document defines the prompt architecture, behavioral requirements, input contracts, output contracts, and execution boundaries for the language-model agents used in TheraSim.
 
-The initial system includes three model-assisted components:
+The initial system specifies these model-assisted components:
 
 1. Patient Agent
 2. Evaluator Agent
-3. Event Processing Service
+3. Memory Extraction Agent
+4. Event Processing Service
 
 These components have different responsibilities and must operate under separate instructions and information-access boundaries.
 
@@ -42,6 +43,7 @@ This specification defines the intended behavior of the agents. Actual complianc
 |---|---|---|
 | Patient Agent | Simulate the fictional client | No |
 | Evaluator Agent | Evaluate therapist performance | No |
+| Memory Extraction Agent | Propose evidence-linked longitudinal memory | No |
 | Event Processing Service | Identify candidate interaction events | No |
 | Clinical State Engine | Validate state transitions | Yes, through deterministic rules |
 
@@ -124,11 +126,17 @@ The following prompt groups must remain independent:
 | Evaluation rubric instructions | Evaluator Agent |
 | Event processing rules/configuration | Event Processing Service |
 | State transition rules | Clinical State Engine |
-| Memory processing instructions | Memory Service |
+| Memory proposal instructions | Memory Extraction Agent |
+| Memory review and persistence | Memory Service |
 
 The Evaluator Agent must never receive the Patient Agent's prompt or restricted case context.
 
 The Patient Agent must not receive the Evaluator Agent's internal instructions.
+
+The Memory Extraction Agent receives only the current completed therapist/patient
+exchange. It must not receive case-vault data, Patient Agent prompts, hidden
+state, or future messages. Its output is a proposal, never authoritative
+memory; every candidate requires evidence validation and explicit review.
 
 ### 3.4 Prompt Template Versioning
 
@@ -674,10 +682,10 @@ The Evaluator Agent must receive an explicit `evaluation_scope`. The only permit
 - Uses `ACT_LONGITUDINAL_RUBRIC_V0`, version 0.1.
 - Requires a valid `run_id`.
 - Sets the top-level `session_id` to null.
-- Receives a `session_transcripts` collection containing exactly three finalized session transcript records.
+- Receives a `session_transcripts` collection containing the finalized transcripts for the explicitly selected longitudinal scope.
 - Each record must identify `session_number`, `session_id`, `transcript_id`, `transcript_version`, and, when available, `transcript_hash`.
-- The records must be ordered chronologically from session 1 through session 3.
-- Evaluation is prohibited until all three sessions are completed.
+- The records must be ordered chronologically and may contain any number of completed sessions.
+- An interim evaluation may use a completed subset; final evaluation must use the completed Run scope. Neither requires an exact session count.
 
 **Shared routing requirements**
 
@@ -845,7 +853,7 @@ Every Evaluator report must include `evaluation_scope`, `rubric_id`, `rubric_ver
 - `evaluation_scope` must be `longitudinal`.
 - `run_id` must identify the evaluated simulation run.
 - `session_id` must be null.
-- `transcript_refs` must identify all three finalized session transcripts in chronological order.
+- `transcript_refs` must identify every finalized transcript in the selected completed evaluation scope, in chronological order.
 - Evidence references must identify both `session_id` and `message_id`, so evidence remains traceable to its source session.
 - `rubric_id` and `rubric_version` must identify `ACT_LONGITUDINAL_RUBRIC_V0`, version 0.1.
 
@@ -1423,3 +1431,27 @@ The Agent architecture is ready for initial implementation when:
 ---
 
 **End of Document**
+
+<!-- CHARACTER_AGENT_PROMPT_NOTE_V0_1 -->
+## Character-conditioned Patient Agent behavior
+
+The Patient Agent must portray the same versioned fictional individual
+throughout a run.
+
+Its authorized context is intended to include the authored personality
+profile, dynamic character state, relevant case facts and disclosure status,
+source-linked memory, and recent chronological transcript.
+
+The prompt must distinguish stable traits from temporary states and
+autobiographical facts from hypotheses. It must not turn the character profile
+into a list of deterministic response rules.
+
+The Patient Agent must not automatically agree, disclose hidden information,
+invent memories, or improve merely because a therapeutic technique was used.
+
+Structured memory and state proposals are untrusted data. Backend services
+must validate them separately from conversational response validation.
+
+See `CHARACTER_MODEL_SPEC.md`. The current Patient Agent output contract
+remains conversational-content-only until a separately versioned proposal
+contract is implemented.

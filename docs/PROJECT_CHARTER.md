@@ -1,4 +1,4 @@
-﻿# TheraSim
+# TheraSim
 Psychotherapy Simulation & Training Platform
 
 ## Project Status
@@ -26,7 +26,7 @@ This software is an educational simulation tool. It is not intended to diagnose,
 ## Initial MVP Scope
 - Therapeutic approach: ACT
 - One fully fictional simulated client
-- Three connected psychotherapy sessions
+- Sequential sessions created incrementally, with no universal fixed count
 - Persian-first interaction
 - Architecture prepared for English localization
 - Local language model execution

@@ -1,4 +1,4 @@
-﻿# Secrets
+# Secrets
 .env
 .env.*
 !.env.example
@@ -8,13 +8,33 @@
 __pycache__/
 *.py[cod]
 .pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.hypothesis/
+.coverage
+htmlcov/
 
 # Node
 node_modules/
 dist/
 build/
+playwright-report/
+test-results/
 
 # Local data
 *.db
 *.sqlite3
+*.sqlite
 *.log
+
+# TheraSim local databases and SQLite sidecar files
+/data/
+*.db-shm
+*.db-wal
+*.sqlite-shm
+*.sqlite-wal
+
+# Local editor and operating-system files
+.idea/
+.DS_Store
+Thumbs.db

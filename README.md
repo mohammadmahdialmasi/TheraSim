@@ -15,7 +15,7 @@ TheraSim is an experimental application for rehearsing therapist-client conversa
 
 The project explores whether fictional conversations, explicit information boundaries, longitudinal records, and transcript-linked formative feedback can support skills practice and software research. The current implementation is a prototype; it does not demonstrate improved clinical outcomes.
 
-The application supports a fictional ACT workflow. **Acceptance and Commitment Therapy (ACT) is the only runnable modality.** Other approaches shown in the interface are roadmap categories, not executable therapy modules. GitHub Release v0.2.0 is published and immutable; its Windows ZIP accidentally includes an ignored migration backup. The v0.2.1 patch is intended to include only the required `.sql` migrations. Check the [GitHub Releases page](https://github.com/mohammadmahdialmasi/TheraSim/releases) for publication status and use the corrected package only after its tagged workflow and checksum have been verified.
+The application supports a fictional ACT workflow. **Acceptance and Commitment Therapy (ACT) is the only runnable modality.** Other approaches shown in the interface are roadmap categories, not executable therapy modules. The published GitHub Release v0.2.0 is immutable and its Windows ZIP contains an unintended migration backup. The current Windows x64 package target is `TheraSim-v0.3.0-windows-x64.zip`; v0.3.0 is a local candidate, not a public release. Check the [GitHub Releases page](https://github.com/mohammadmahdialmasi/TheraSim/releases) and use only a published asset with its matching `.sha256` file after the release workflow has passed. A local build, even with a matching checksum, is not a published release.
 
 ### Implemented capabilities
 
@@ -70,7 +70,7 @@ The backend uses Python, FastAPI, Pydantic, SQLite, and versioned migrations. Th
 
 **Windows development launcher:** install Python 3.11+ and Node.js LTS, then run `START_THERASIM.bat` from the repository root. The launcher offers setup for missing dependencies, initializes local databases without resetting existing data, and opens `http://127.0.0.1:5173`. On first use, create the single local reviewer account with a password of at least 12 characters. Use `STOP_THERASIM.bat` to stop only processes owned by the launcher.
 
-Windows executable users should follow [INSTALL_WINDOWS.md](INSTALL_WINDOWS.md). The distributable is a non-admin, one-folder portable ZIP, not an installer. It binds to loopback, keeps SQLite data and logs under `%LOCALAPPDATA%\TheraSim`, and does not bundle model weights. The package must be verified from the current GitHub Release; a local build is not itself a published release.
+Windows executable users should follow [INSTALL_WINDOWS.md](INSTALL_WINDOWS.md). The distributable is a non-admin, one-folder Windows x64 portable ZIP named `TheraSim-v0.3.0-windows-x64.zip`, not an installer. It binds to loopback, keeps SQLite data and logs under `%LOCALAPPDATA%\TheraSim`, and does not bundle model weights. v0.3.0 remains a local candidate; download only a published asset and its matching checksum from GitHub Releases after its workflow verification. The installation guide also explains the in-app support preview and export.
 
 Initial dependency installation, package downloads, or optional model downloads may require internet access; this project does not claim a fully air-gapped installation.
 
@@ -131,7 +131,7 @@ The current roadmap remains ACT-first. Additional therapy categories shown in th
 
 `LICENSE.md` applies CC BY 4.0 to the original documentation and research materials identified there; **it does not license executable source code**. Unless a separate software license is introduced, source code remains under the copyright holder's exclusive rights. Third-party dependencies and materials retain their own licenses.
 
-Cite the project using [`CITATION.cff`](CITATION.cff). The published Zenodo `v0.1.0` record is a documentation-only archive ([version DOI: 10.5281/zenodo.24244882](https://doi.org/10.5281/zenodo.24244882); [concept DOI: 10.5281/zenodo.24244881](https://doi.org/10.5281/zenodo.24244881)). It is not an executable source release. GitHub Release v0.2.0 is published; its Windows ZIP contains the unintended migration backup noted above. The v0.2.1 patch is the corrective release target, and no Zenodo v0.2.0 deposit has been made.
+Cite the project using [`CITATION.cff`](CITATION.cff). The published Zenodo `v0.1.0` record is a documentation-only archive ([version DOI: 10.5281/zenodo.24244882](https://doi.org/10.5281/zenodo.24244882); [concept DOI: 10.5281/zenodo.24244881](https://doi.org/10.5281/zenodo.24244881)). It is not an executable source release. GitHub Release v0.2.0 is published; its Windows ZIP contains the unintended migration backup noted above. The v0.3.0 Windows x64 ZIP is a local candidate, not a public release. No Zenodo v0.2.0 deposit has been made.
 
 ### Project links
 
@@ -158,7 +158,7 @@ TheraSim نرم‌افزاری آزمایشی برای تمرین گفت‌وگ�
 
 این پروژه بررسی می‌کند که آیا گفت‌وگوهای داستانی، مرزبندی روشن اطلاعات، ثبت پیوستگی میان جلسات و بازخورد تکوینیِ متصل به رونوشت می‌توانند به تمرین مهارت‌ها و پژوهش نرم‌افزاری کمک کنند یا نه. پیاده‌سازی فعلی نمونهٔ اولیه است و بهبود پیامدهای بالینی را نشان نمی‌دهد.
 
-برنامه از یک جریان کاری داستانی مبتنی بر درمان مبتنی بر پذیرش و تعهد پشتیبانی می‌کند. **ACT تنها رویکرد درمانیِ قابل اجرا در نسخهٔ فعلی است.** رویکردهای دیگری که در رابط دیده می‌شوند دسته‌های احتمالیِ آینده‌اند، نه ماژول‌های درمانیِ اجرایی. انتشار GitHub نسخهٔ ۰٫۲٫۰ منتشر و تغییرناپذیر است؛ فایل ZIP ویندوز آن سهواً یک نسخهٔ پشتیبان مهاجرتِ محلی را در بر دارد. نسخهٔ ۰٫۲٫۱ برای بسته‌بندی فقط مهاجرت‌های ضروری `.sql` در نظر گرفته شده است. وضعیت انتشار را در [صفحهٔ GitHub Releases](https://github.com/mohammadmahdialmasi/TheraSim/releases) بررسی کنید و فقط پس از موفقیت گردش‌کار برچسب و تأیید checksum از بستهٔ اصلاح‌شده استفاده کنید.
+برنامه از یک جریان کاری داستانی مبتنی بر درمان مبتنی بر پذیرش و تعهد پشتیبانی می‌کند. **ACT تنها رویکرد درمانیِ قابل اجرا در نسخهٔ فعلی است.** رویکردهای دیگری که در رابط دیده می‌شوند دسته‌های احتمالیِ آینده‌اند، نه ماژول‌های درمانیِ اجرایی. انتشار GitHub نسخهٔ ۰٫۲٫۰ منتشر و تغییرناپذیر است و ZIP ویندوز آن سهواً یک نسخهٔ پشتیبان مهاجرت را در بر دارد. هدف فعلی بستهٔ ویندوز x64 با نام `TheraSim-v0.3.0-windows-x64.zip` است؛ نسخهٔ ۰٫۳٫۰ نامزد محلی است، نه انتشار عمومی. [صفحهٔ GitHub Releases](https://github.com/mohammadmahdialmasi/TheraSim/releases) را بررسی کنید و فقط بستهٔ منتشرشده را همراه فایل `.sha256` متناظر، پس از موفقیت گردش‌کار انتشار دریافت کنید. حتی ساخت محلی با checksum مطابق نیز انتشار عمومی نیست.
 
 ### قابلیت‌های پیاده‌سازی‌شده
 
@@ -213,7 +213,7 @@ SQLite عملیاتی       SQLite جداگانه برای پرونده‌های
 
 **راه‌انداز توسعه در ویندوز:** Python نسخهٔ 3.11 یا جدیدتر و Node.js LTS را نصب کنید و از ریشهٔ مخزن `START_THERASIM.bat` را اجرا کنید. راه‌انداز برای وابستگی‌های نصب‌نشده گزینهٔ آماده‌سازی ارائه می‌دهد، پایگاه‌دادهٔ محلی را بدون بازنشانی دادهٔ موجود مقداردهی می‌کند و نشانی `http://127.0.0.1:5173` را باز می‌کند. در نخستین اجرا، حساب تک‌کاربرهٔ محلی را با گذرواژه‌ای حداقل ۱۲ نویسه‌ای بسازید. برای توقف فقط فرایندهای متعلق به راه‌انداز، `STOP_THERASIM.bat` را اجرا کنید.
 
-برای اجرای نسخهٔ اجرایی ویندوز، [راهنمای نصب](INSTALL_WINDOWS.md) را ببینید. بستهٔ قابل دریافت، ZIP قابل‌حملِ پوشه‌ای و بدون نیاز به دسترسی مدیر است، نه نصب‌کننده. برنامه فقط به loopback متصل می‌شود و پایگاه‌داده و گزارش‌ها را در `%LOCALAPPDATA%\TheraSim` نگه می‌دارد؛ هیچ وزنی از مدل زبانی همراه آن نیست. برای دانلود نسخهٔ منتشرشده، صفحهٔ GitHub Releases را بررسی کنید؛ ساخت محلی به‌تنهایی انتشار رسمی نیست.
+برای اجرای نسخهٔ اجرایی ویندوز، [راهنمای نصب](INSTALL_WINDOWS.md) را ببینید. قالب بسته، ZIP قابل‌حمل پوشه‌ای و x64 با نام `TheraSim-v0.3.0-windows-x64.zip` است؛ نصب‌کننده نیست و به دسترسی مدیر نیاز ندارد. برنامه فقط به loopback متصل می‌شود، پایگاه‌داده و گزارش‌ها را در `%LOCALAPPDATA%\TheraSim` نگه می‌دارد و وزن مدل زبانی همراه آن نیست. نسخهٔ ۰٫۳٫۰ هنوز نامزد محلی است؛ فقط فایل منتشرشده و checksum متناظر را از GitHub Releases دریافت کنید، آن هم پس از تأیید گردش‌کار انتشار. راهنمای نصب، پیش‌نمایش و خروجی پشتیبانی درون‌برنامه‌ای را نیز توضیح می‌دهد.
 
 نصب اولیهٔ وابستگی‌ها، دریافت بسته‌ها یا دریافت مدل اختیاری ممکن است به اینترنت نیاز داشته باشد؛ پروژه ادعای نصب کاملاً بدون اینترنت ندارد.
 
@@ -274,7 +274,7 @@ $env:OLLAMA_MODEL = "your-installed-model"
 
 مجوز `LICENSE.md`، مجوز CC BY 4.0 را فقط برای مستندات و مواد پژوهشیِ اصیلِ مشخص‌شده در آن اعمال می‌کند؛ **این مجوز کد اجرایی را پوشش نمی‌دهد**. تا زمانی که مجوز نرم‌افزاری جداگانه‌ای معرفی نشود، حقوق کد منبع برای دارندهٔ حق نشر محفوظ است. وابستگی‌ها و مواد اشخاص ثالث تابع مجوزهای خود هستند.
 
-برای استناد از [`CITATION.cff`](CITATION.cff) استفاده کنید. رکورد منتشرشدهٔ Zenodo با نسخهٔ `v0.1.0` فقط آرشیوی از مستندات است ([DOI نسخه: 10.5281/zenodo.24244882](https://doi.org/10.5281/zenodo.24244882)، [DOI مفهومی: 10.5281/zenodo.24244881](https://doi.org/10.5281/zenodo.24244881)) و انتشار اجراییِ کد منبع نیست. انتشار GitHub نسخهٔ `v0.2.0` منتشر شده و فایل ZIP ویندوز آن نسخهٔ پشتیبان مهاجرتِ ناخواسته‌ای دارد که در بالا توضیح داده شد. نسخهٔ `v0.2.1` هدف اصلاح بسته‌بندی است؛ نسخهٔ `v0.2.0` در Zenodo سپرده نشده است.
+برای استناد از [`CITATION.cff`](CITATION.cff) استفاده کنید. رکورد منتشرشدهٔ Zenodo با نسخهٔ `v0.1.0` فقط آرشیوی از مستندات است ([DOI نسخه: 10.5281/zenodo.24244882](https://doi.org/10.5281/zenodo.24244882)، [DOI مفهومی: 10.5281/zenodo.24244881](https://doi.org/10.5281/zenodo.24244881)) و انتشار اجراییِ کد منبع نیست. انتشار GitHub نسخهٔ `v0.2.0` منتشر شده و فایل ZIP ویندوز آن نسخهٔ پشتیبان مهاجرتِ ناخواسته‌ای دارد که در بالا توضیح داده شد. بستهٔ ویندوز x64 نسخهٔ `v0.3.0` نامزد محلی است، نه انتشار عمومی. نسخهٔ `v0.2.0` در Zenodo سپرده نشده است.
 
 ### پیوندهای پروژه
 

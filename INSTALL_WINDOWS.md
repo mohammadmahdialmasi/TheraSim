@@ -2,18 +2,23 @@
 
 ## Download and verify
 
-Download the Windows x64 ZIP and its `.sha256` file from the GitHub Release.
-Before extracting, verify the hash in PowerShell:
+The current Windows x64 package target is
+`TheraSim-v0.3.0-windows-x64.zip`, with a matching `.sha256` sidecar. v0.3.0
+is currently a local candidate, not a public release. Download the ZIP and
+sidecar only from an official GitHub Release after its Windows workflow has
+passed; if that asset is not listed there, do not treat a local `dist/` copy
+as a release download. Before extracting a published asset, verify its hash
+in PowerShell:
 
 ```powershell
-$expected = (Get-Content .\TheraSim-v0.2.1-windows-x64.zip.sha256).Split()[0]
-$actual = (Get-FileHash .\TheraSim-v0.2.1-windows-x64.zip -Algorithm SHA256).Hash.ToLowerInvariant()
+$expected = (Get-Content .\TheraSim-v0.3.0-windows-x64.zip.sha256).Split()[0]
+$actual = (Get-FileHash .\TheraSim-v0.3.0-windows-x64.zip -Algorithm SHA256).Hash.ToLowerInvariant()
 if ($actual -ne $expected) { throw "SHA-256 verification failed." }
 ```
 
-The v0.2.0 Windows ZIP contains an unintended migration backup. Use the
-corrective v0.2.1 package only after its tagged Windows workflow has passed
-and its release checksum has been verified.
+The published v0.2.0 Windows ZIP contains an unintended migration backup; do
+not use it. A matching checksum confirms the downloaded bytes match the
+sidecar, not that an unpublished local build is an official release.
 
 Extract the ZIP to a folder you can write to, such as a folder under your
 profile. No administrator access or installer is required. Start
@@ -58,6 +63,27 @@ The default local web port is 8765. If another application already uses it,
 set `THERASIM_PORT` to an available port between 1024 and 65535 before
 launching. The service remains bound to loopback.
 
+## Support diagnostics
+
+After signing in, open **Settings** and find **Privacy-safe support export**.
+The page loads a preview for the selected interface language and displays a summary of
+included and excluded categories, plus the current application version and
+report language. This is a summary; the ZIP's `diagnostics.json` contains the
+actual allow-listed metadata, including application version, operating-system
+family/release, architecture, Python version, service and database-schema
+status, active provider type, and sanitized connection-test status/time.
+Provider URLs are omitted and no model identifier value is exported.
+
+Review the preview, then select its confirmation checkbox and choose **Create
+support ZIP**. The English filename is
+`TheraSim-support-diagnostics.zip`; the Persian filename is
+`TheraSim-support-diagnostics-fa.zip`. Each archive contains only
+`diagnostics.json` and a language-matched `README.txt`. It excludes user
+records, transcripts, case content, application logs, database files,
+credentials, API keys, cookies, and personal information. TheraSim does not
+upload or email the archive. Open and review it yourself, and attach it
+manually to a support message only if you choose to share it.
+
 ## Safe use and limitations
 
 Use synthetic, fictional data only. Do not enter real client, patient, or
@@ -90,6 +116,12 @@ folder does not remove user-local data or logs.
   with normal user write access. Do not run the app as administrator as a
   workaround.
 
+- **The support preview has no current version or export fails:** confirm the
+  app is still running, reload the page, and try again. Do not substitute raw
+  logs or database files for the support ZIP. Only share a downloaded archive
+  after reviewing its contents; the email action opens a draft but does not
+  send or attach anything.
+
 See [`BUILD_WINDOWS.md`](BUILD_WINDOWS.md) to build the package yourself.
 
 ---
@@ -98,15 +130,17 @@ See [`BUILD_WINDOWS.md`](BUILD_WINDOWS.md) to build the package yourself.
 
 ### دریافت و تأیید
 
-فایل ZIP ویندوز و فایل `.sha256` نسخهٔ v0.2.1 را از
-[GitHub Releases](https://github.com/mohammadmahdialmasi/TheraSim/releases)
-دریافت کنید. ZIP نسخهٔ v0.2.0 یک فایل پشتیبان مهاجرتِ ناخواسته دارد؛ از بستهٔ
-اصلاح‌شدهٔ v0.2.1 فقط پس از موفقیت گردش‌کار ویندوز و تأیید checksum انتشار
-استفاده کنید. پیش از استخراج، در PowerShell هش را بررسی کنید:
+هدف فعلی بستهٔ ویندوز x64، فایل
+`TheraSim-v0.3.0-windows-x64.zip` و فایل `.sha256` متناظر آن است. نسخهٔ ۰٫۳٫۰
+فعلاً نامزد محلی است، نه انتشار عمومی. ZIP و فایل checksum را فقط پس از موفقیت
+گردش‌کار ویندوز از [صفحهٔ GitHub Releases](https://github.com/mohammadmahdialmasi/TheraSim/releases)
+دریافت کنید؛ اگر فایل در آن صفحه فهرست نشده، نسخهٔ محلی پوشهٔ `dist/` را بستهٔ
+منتشرشده تلقی نکنید. پیش از استخراج نسخهٔ منتشرشده، در PowerShell هش را
+بررسی کنید:
 
 ```powershell
-$expected = (Get-Content .\TheraSim-v0.2.1-windows-x64.zip.sha256).Split()[0]
-$actual = (Get-FileHash .\TheraSim-v0.2.1-windows-x64.zip -Algorithm SHA256).Hash.ToLowerInvariant()
+$expected = (Get-Content .\TheraSim-v0.3.0-windows-x64.zip.sha256).Split()[0]
+$actual = (Get-FileHash .\TheraSim-v0.3.0-windows-x64.zip -Algorithm SHA256).Hash.ToLowerInvariant()
 if ($actual -ne $expected) { throw "SHA-256 verification failed." }
 ```
 
@@ -132,6 +166,25 @@ ZIP را در پوشه‌ای قابل‌نوشتن، مانند پوشه‌ای
 متن بررسی کنید؛ محلی‌محور بودن تضمین نمی‌کند که همهٔ نصب‌ها یا جریان‌های کاری
 کاملاً بدون اینترنت باشند.
 
+### اطلاعات عیب‌یابی برای پشتیبانی
+
+پس از ورود، در **تنظیمات** بخش **خروجی پشتیبانی با رعایت حریم خصوصی** را باز
+کنید. صفحه پیش‌نمایش را با زبان رابط انتخاب‌شده بارگذاری می‌کند و خلاصهٔ دسته‌های شامل و
+حذف‌شده، نسخهٔ فعلی برنامه و زبان گزارش را نشان می‌دهد. این صفحه خلاصه است؛
+فایل `diagnostics.json` در ZIP فرادادهٔ واقعیِ مجاز را دارد: از جمله نسخهٔ
+برنامه، خانواده و نسخهٔ سیستم‌عامل، معماری، نسخهٔ Python، وضعیت سرویس و طرح
+پایگاه‌داده، نوع ارائه‌دهندهٔ فعال و وضعیت/زمانِ پالوده‌شدهٔ آزمایش اتصال.
+نشانی ارائه‌دهنده در خروجی نیست و مقدار شناسهٔ مدل نیز صادر نمی‌شود.
+
+پیش‌نمایش را بررسی کنید، کادر تأیید را انتخاب کنید و **ایجاد بستهٔ پشتیبانی**
+را بزنید. نام فایل انگلیسی
+`TheraSim-support-diagnostics.zip` و نام فایل فارسی
+`TheraSim-support-diagnostics-fa.zip` است. هر بسته فقط `diagnostics.json` و
+`README.txt` هم‌زبان را دارد. رکوردهای کاربر، رونوشت، محتوای پرونده، گزارش
+برنامه، فایل پایگاه‌داده، اطلاعات ورود، کلید API، کوکی و اطلاعات شخصی در آن
+نیست. TheraSim بسته را بارگذاری یا ایمیل نمی‌کند. خودتان فایل را بازبینی کنید
+و فقط در صورت تمایل، دستی به پیام پشتیبانی پیوست کنید.
+
 ### استفادهٔ ایمن و محدودیت‌ها
 
 فقط از داده‌های داستانی و ساختگی استفاده کنید. TheraSim نمونهٔ اولیه‌ای پژوهشی
@@ -143,3 +196,24 @@ ZIP را در پوشه‌ای قابل‌نوشتن، مانند پوشه‌ای
 پیش از جابه‌جایی یا حذف داده‌های محلی، برنامه را متوقف و نسخهٔ پشتیبان تهیه
 کنید؛ راهنمای [پشتیبان‌گیری و بازیابی](docs/BACKUP_RESTORE.md) را ببینید.
 حذف پوشهٔ برنامه داده‌ها و گزارش‌های محلی کاربر را حذف نمی‌کند.
+
+### عیب‌یابی
+
+- **برنامه اجرا نمی‌شود یا درگاه اشغال است:** برنامهٔ دیگرِ استفاده‌کننده از
+  درگاه محلی را ببندید یا مقدار دیگری برای `THERASIM_PORT` تنظیم کنید.
+  TheraSim برای آزادکردن درگاه، فرایند دیگری را متوقف نمی‌کند.
+- **مرورگر باز نشد:** تا وقتی کنسول TheraSim باز است، نشانی نمایش‌داده‌شدهٔ
+  `http://127.0.0.1:<port>/` را دستی در مرورگر وارد کنید.
+- **ارائه‌دهندهٔ مدل در دسترس نیست:** مطمئن شوید سرویس محلی اجراست، نشانی پایه
+  و نام مدل درست‌اند و TheraSim را دوباره راه‌اندازی کنید. نبود مدل مانع
+  اجرای خود برنامه نمی‌شود.
+- **برنامه هنگام شروع خطا می‌دهد:** پیام کنسول و فایل گزارش چرخشی بالا را
+  بررسی کنید. گذرواژه، توکن دسترسی، گزارش دارای اطلاعات خصوصی یا دادهٔ واقعی
+  مراجع را در گزارش عمومی ارسال نکنید.
+- **پوشهٔ داده قابل نوشتن نیست:** پوشه‌ای در نمایهٔ ویندوز انتخاب کنید که
+  دسترسی نوشتن معمولی دارد؛ برای رفع مشکل برنامه را با دسترسی مدیر اجرا نکنید.
+- **نسخه در پیش‌نمایش پشتیبانی دیده نمی‌شود یا خروجی خطا می‌دهد:** مطمئن شوید
+  برنامه هنوز اجراست، صفحه را دوباره بارگذاری و دوباره امتحان کنید. گزارش خام
+  یا فایل پایگاه‌داده را جایگزین ZIP پشتیبانی نکنید. فقط پس از بازبینی، فایل
+  دانلودشده را به اشتراک بگذارید؛ گزینهٔ ایمیل فقط پیش‌نویس باز می‌کند و چیزی
+  نمی‌فرستد یا پیوست نمی‌کند.

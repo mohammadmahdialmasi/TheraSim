@@ -23,6 +23,7 @@ import {
   Languages,
   LayoutDashboard,
   LoaderCircle,
+  LogOut,
   MessageSquareText,
   Play,
   RefreshCw,
@@ -39,6 +40,20 @@ import type { LucideIcon } from 'lucide-react'
 import { translations, type Language, type Translation } from './i18n'
 import { therapyModules, plannedTherapyCategories } from './data/therapyModules'
 import { SessionsPage } from './features/sessions/SessionsPage'
+import { AuthPage } from './features/auth/AuthPage'
+import {
+  getAuthStatus,
+  getCurrentUser,
+  initializeLocalAccount,
+  loginLocalAccount,
+  logoutLocalAccount,
+  type AuthenticatedUser,
+} from './features/auth/api'
+import {
+  clearAuthToken,
+  getAuthToken,
+  setAuthToken,
+} from './lib/authSession'
 
 import {
   getHealth,
@@ -151,6 +166,10 @@ function getInitialLanguage(): Language {
   }
 }
 
+function errorMessage(error: unknown, fallback: string): string {
+  return error instanceof Error ? error.message : fallback
+}
+
 function statusText(
   status: ConnectionState,
   t: Translation,
@@ -173,6 +192,13 @@ function App() {
   const [language, setLanguage] = useState<Language>(getInitialLanguage)
   const t = translations[language]
   const direction = language === 'fa' ? 'rtl' : 'ltr'
+  const [authMode, setAuthMode] = useState<
+    'checking' | 'initialize' | 'login' | 'authenticated' | 'unavailable'
+  >('checking')
+  const [authError, setAuthError] = useState('')
+  const [authRetryKey, setAuthRetryKey] = useState(0)
+  const [authenticatedUser, setAuthenticatedUser] =
+    useState<AuthenticatedUser | null>(null)
 
   const [view, setView] = useState<ViewKey>('dashboard')
   const [backendStatus, setBackendStatus] =
@@ -219,8 +245,79 @@ function App() {
     }
   }, [language, direction])
 
+  useEffect(() => {
+    let active = true
+
+    async function checkAuthentication() {
+      try {
+        const status = await getAuthStatus()
+        if (!active) return
+
+        if (!status.data.initialized) {
+          clearAuthToken()
+          setAuthMode('initialize')
+          return
+        }
+
+        const token = getAuthToken()
+        if (!token) {
+          setAuthMode('login')
+          return
+        }
+
+        try {
+          const currentUser = await getCurrentUser()
+          if (!active) return
+          setAuthenticatedUser(currentUser.data)
+          setAuthMode('authenticated')
+        } catch (requestError) {
+          if (!active) return
+          if (
+            requestError instanceof Error &&
+            requestError.message === 'authentication_required'
+          ) {
+            clearAuthToken()
+            setAuthMode('login')
+          } else {
+            setAuthError(
+              errorMessage(requestError, t.noStartupConnection),
+            )
+            setAuthMode('unavailable')
+          }
+        }
+      } catch (requestError) {
+        if (!active) return
+        setAuthError(errorMessage(requestError, t.noStartupConnection))
+        setAuthMode('unavailable')
+      }
+    }
+
+    void checkAuthentication()
+
+    return () => {
+      active = false
+    }
+  }, [authRetryKey, t.noStartupConnection])
+
+  useEffect(() => {
+    function handleAuthExpired() {
+      setAuthenticatedUser(null)
+      setAuthError(
+        language === 'fa'
+          ? 'نشست ورود منقضی شد؛ دوباره وارد شو.'
+          : 'Your sign-in session expired. Please sign in again.',
+      )
+      setAuthMode('login')
+    }
+
+    window.addEventListener('therasim:auth-expired', handleAuthExpired)
+    return () =>
+      window.removeEventListener('therasim:auth-expired', handleAuthExpired)
+  }, [language])
+
   // Load backend and both local providers once at startup.
   useEffect(() => {
+    if (authMode !== 'authenticated') return
     let active = true
 
     async function initialize() {
@@ -306,7 +403,49 @@ function App() {
     return () => {
       active = false
     }
-  }, [t.noStartupConnection])
+  }, [authMode, t.noStartupConnection])
+
+  async function handleAuthenticate(
+    reviewerName: string,
+    password: string,
+  ) {
+    setAuthError('')
+    try {
+      const response = authMode === 'initialize'
+        ? await initializeLocalAccount(reviewerName, password)
+        : await loginLocalAccount(password)
+      setAuthToken(response.data.access_token)
+      setAuthenticatedUser(response.data.user)
+      setAuthMode('authenticated')
+    } catch (requestError) {
+      const message = errorMessage(requestError, t.noStartupConnection)
+      setAuthError(
+        message === 'invalid_credentials'
+          ? (language === 'fa'
+            ? 'گذرواژه نامعتبر است.'
+            : 'The password is incorrect.')
+          : message,
+      )
+    }
+  }
+
+  function retryAuthentication() {
+    setAuthError('')
+    setAuthMode('checking')
+    setAuthRetryKey((current) => current + 1)
+  }
+
+  async function handleLogout() {
+    try {
+      await logoutLocalAccount()
+    } catch (requestError) {
+      setAuthError(errorMessage(requestError, t.noStartupConnection))
+    } finally {
+      clearAuthToken()
+      setAuthenticatedUser(null)
+      setAuthMode('login')
+    }
+  }
 
   function changeProvider(nextProvider: ProviderName) {
     setProvider(nextProvider)
@@ -570,6 +709,21 @@ function App() {
 
   const pageTitle = t[pageTitleKeys[view]]
 
+  if (authMode !== 'authenticated') {
+    return (
+      <AuthPage
+        language={language}
+        mode={authMode}
+        error={authError}
+        onAuthenticate={handleAuthenticate}
+        onRetry={retryAuthentication}
+        onToggleLanguage={() =>
+          setLanguage((current) => current === 'fa' ? 'en' : 'fa')
+        }
+      />
+    )
+  }
+
   return (
     <div className="app-shell" dir={direction}>
       <aside className="sidebar">
@@ -643,6 +797,23 @@ function App() {
           </div>
 
           <div className="topbar-tools">
+            {authenticatedUser && (
+              <>
+                <span className="auth-reviewer-name">
+                  {authenticatedUser.reviewer_name}
+                </span>
+                <button
+                  type="button"
+                  className="language-switch"
+                  onClick={() => void handleLogout()}
+                  aria-label={language === 'fa' ? 'خروج' : 'Sign out'}
+                >
+                  <LogOut size={17} />
+                  <span>{language === 'fa' ? 'خروج' : 'Sign out'}</span>
+                </button>
+                <div className="topbar-separator" />
+              </>
+            )}
             <div className={`backend-chip ${backendStatus}`}>
               <StatusDot status={backendStatus} />
               {backendStatus === 'online'

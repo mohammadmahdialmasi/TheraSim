@@ -3,6 +3,7 @@
 import sqlite3
 
 from app.persistence.repositories.base import ConnectionBoundRepository
+from app.persistence.repositories.character_runtime import RunCharacterRepository
 
 
 class MemoryExtractionJobRepository(ConnectionBoundRepository):
@@ -57,14 +58,20 @@ class MemoryExtractionJobRepository(ConnectionBoundRepository):
                 "An interaction request is already linked to another job."
             )
 
+        character_state_snapshot = (
+            RunCharacterRepository(self._connection)
+            .get_current_state_snapshot(run_id)
+        )
+
         self._connection.execute(
             """
             INSERT INTO memory_extraction_jobs (
                 job_id, run_id, session_id, interaction_request_id,
                 status, attempt_count, candidate_count, available_at,
+                character_state_snapshot_id,
                 created_at, updated_at
             )
-            VALUES (?, ?, ?, ?, 'pending', 0, 0, ?, ?, ?)
+            VALUES (?, ?, ?, ?, 'pending', 0, 0, ?, ?, ?, ?)
             """,
             (
                 job_id,
@@ -72,6 +79,11 @@ class MemoryExtractionJobRepository(ConnectionBoundRepository):
                 session_id,
                 interaction_request_id,
                 created_at,
+                (
+                    character_state_snapshot["snapshot_id"]
+                    if character_state_snapshot is not None
+                    else None
+                ),
                 created_at,
                 created_at,
             ),

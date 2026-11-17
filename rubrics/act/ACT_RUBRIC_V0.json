@@ -1,0 +1,33 @@
+{
+  "rubric_id": "ACT_RUBRIC_V0",
+  "version": "0.2",
+  "modality": "ACT",
+  "scope": "session",
+  "status": "experimental_not_validated",
+  "source_document": "ACT_RUBRIC_V0.md",
+  "rating_codes": ["0", "1", "2", "3", "NE"],
+  "competency_ids": [
+    "therapeutic_relationship",
+    "functional_assessment",
+    "psychological_workability",
+    "acceptance_willingness",
+    "cognitive_defusion",
+    "present_moment_awareness",
+    "values_clarification",
+    "committed_action",
+    "clinical_responsiveness",
+    "safety_professional_boundaries"
+  ],
+  "rating_anchors": {
+    "0": "Absent or potentially counterproductive, only when supported by observable evidence.",
+    "1": "Emerging, partially demonstrated or poorly timed.",
+    "2": "Adequate, relevant and reasonably context-sensitive.",
+    "3": "Strong, flexible, collaborative and context-sensitive.",
+    "NE": "Not enough evidence; must not be converted to zero."
+  },
+  "limitations": [
+    "Experimental educational feedback; not clinically or psychometrically validated.",
+    "No aggregate competency score, pass/fail decision, or trainee ranking.",
+    "Patient response alone does not establish therapist competency."
+  ]
+}

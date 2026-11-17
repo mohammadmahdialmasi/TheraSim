@@ -5,6 +5,7 @@ import type {
   ProviderCatalog,
   ProviderName,
 } from '../types'
+import { clearAuthToken, getAuthToken } from './authSession'
 
 export async function request<T>(
   url: string,
@@ -15,11 +16,13 @@ export async function request<T>(
   const timer = window.setTimeout(() => controller.abort(), timeoutMs)
 
   try {
+    const token = getAuthToken()
     const response = await fetch(url, {
       ...options,
       signal: controller.signal,
       headers: {
         Accept: 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...(options.body
           ? { 'Content-Type': 'application/json' }
           : {}),
@@ -30,6 +33,14 @@ export async function request<T>(
     const payload: unknown = await response.json().catch(() => null)
 
     if (!response.ok) {
+      if (
+        response.status === 401 &&
+        !url.includes('/api/v1/auth/login') &&
+        !url.includes('/api/v1/auth/initialize')
+      ) {
+        clearAuthToken()
+        window.dispatchEvent(new Event('therasim:auth-expired'))
+      }
       let message = `Request failed (${response.status})`
 
       if (

@@ -4,6 +4,7 @@ from app.main import app
 from app.services.cases import CaseService
 from app.services.runs import RunService
 from app.services.memory import MemoryService
+from app.services.local_auth import LocalAuthService
 from app.services.sessions import SessionService
 
 
@@ -18,6 +19,7 @@ def test_application_startup_initializes_both_databases(
         async with app.router.lifespan_context(app):
             manager = app.state.database_manager
 
+            assert isinstance(app.state.local_auth_service, LocalAuthService)
             assert isinstance(app.state.case_service, CaseService)
             assert isinstance(app.state.run_service, RunService)
             assert isinstance(app.state.session_service, SessionService)
@@ -27,7 +29,7 @@ def test_application_startup_initializes_both_databases(
             assert manager.path_for("restricted").is_file()
 
             assert app.state.database_migrations == {
-                "operational": ["001_initial_core", "002_domain_persistence", "003_interaction_recovery", "004_session_transcript_integrity", "005_character_runtime", "006_unbounded_session_numbers", "007_memory_review_lifecycle", "008_memory_extraction_outbox", "009_memory_extraction_model_component", "010_versioned_run_protocols"],
+                "operational": ["001_initial_core", "002_domain_persistence", "003_interaction_recovery", "004_session_transcript_integrity", "005_character_runtime", "006_unbounded_session_numbers", "007_memory_review_lifecycle", "008_memory_extraction_outbox", "009_memory_extraction_model_component", "010_versioned_run_protocols", "011_memory_extraction_state_context", "012_event_review_history", "013_versioned_treatment_plans", "014_local_authentication", "015_memory_consolidation_provenance", "016_local_login_throttling", "017_evaluation_reviews"],
                 "restricted": ["001_initial_case_vault", "002_character_personality_profiles"],
             }
 
@@ -74,7 +76,7 @@ def test_application_startup_preserves_existing_database_data(
             manager = app.state.database_manager
 
             assert app.state.database_migrations == {
-                "operational": ["001_initial_core", "002_domain_persistence", "003_interaction_recovery", "004_session_transcript_integrity", "005_character_runtime", "006_unbounded_session_numbers", "007_memory_review_lifecycle", "008_memory_extraction_outbox", "009_memory_extraction_model_component", "010_versioned_run_protocols"],
+                "operational": ["001_initial_core", "002_domain_persistence", "003_interaction_recovery", "004_session_transcript_integrity", "005_character_runtime", "006_unbounded_session_numbers", "007_memory_review_lifecycle", "008_memory_extraction_outbox", "009_memory_extraction_model_component", "010_versioned_run_protocols", "011_memory_extraction_state_context", "012_event_review_history", "013_versioned_treatment_plans", "014_local_authentication", "015_memory_consolidation_provenance", "016_local_login_throttling", "017_evaluation_reviews"],
                 "restricted": ["001_initial_case_vault", "002_character_personality_profiles"],
             }
 
@@ -92,7 +94,7 @@ def test_application_startup_preserves_existing_database_data(
                 ).fetchone()[0]
 
             assert count == 1
-            assert migration_count == 10
+            assert migration_count == 17
 
     asyncio.run(first_start())
     asyncio.run(second_start())
@@ -161,3 +163,4 @@ def test_application_startup_wires_patient_agent_when_model_is_configured(
 
     asyncio.run(exercise_lifespan())
     assert app.state.memory_extraction_worker is None
+    assert app.state.local_auth_service is None

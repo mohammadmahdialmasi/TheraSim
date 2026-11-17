@@ -575,7 +575,8 @@ New responsibilities are expected to include:
 - Evidence-aware state-transition validation.
 - Memory proposal validation and controlled activation.
 - Event proposal validation.
-- Memory consolidation and contradiction handling.
+- Deterministic memory relationship suggestions and evidence-preserving
+  consolidation proposals that remain inactive pending authorized review.
 - Assembly of the exact character version into PatientContext.
 
 The LLM does not own persistence or canonical state. Orchestration services

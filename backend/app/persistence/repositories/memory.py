@@ -365,3 +365,74 @@ class MemoryRepository(ConnectionBoundRepository):
                 (memory_id,),
             ).fetchall()
         )
+
+    def list_active_for_consolidation(self, run_id: str) -> list[sqlite3.Row]:
+        self.require_text(run_id, "run_id")
+        return list(
+            self._connection.execute(
+                """
+                SELECT memory_items.*, sessions.session_number
+                FROM memory_items
+                JOIN sessions
+                  ON sessions.session_id = memory_items.source_session_id
+                 AND sessions.run_id = memory_items.run_id
+                WHERE memory_items.run_id = ?
+                  AND memory_items.status = 'active'
+                  AND memory_items.source_session_id IS NOT NULL
+                ORDER BY sessions.session_number, memory_items.created_at,
+                         memory_items.memory_id
+                """,
+                (run_id,),
+            ).fetchall()
+        )
+
+    def create_consolidation_source(
+        self,
+        *,
+        consolidated_memory_id: str,
+        source_memory_id: str,
+        source_memory_version: int,
+        source_session_id: str,
+        source_content: str,
+        relationship_type: str,
+        created_at: str,
+    ) -> None:
+        self._connection.execute(
+            """
+            INSERT INTO memory_consolidation_sources(
+                consolidated_memory_id, source_memory_id,
+                source_memory_version, source_session_id, source_content,
+                relationship_type, created_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                consolidated_memory_id,
+                source_memory_id,
+                source_memory_version,
+                source_session_id,
+                source_content,
+                relationship_type,
+                created_at,
+            ),
+        )
+
+    def list_consolidation_sources(
+        self,
+        consolidated_memory_id: str,
+    ) -> list[sqlite3.Row]:
+        self.require_text(consolidated_memory_id, "memory_id")
+        return list(
+            self._connection.execute(
+                """
+                SELECT sources.source_memory_id, sources.source_memory_version,
+                       sources.relationship_type,
+                       sources.source_content AS content,
+                       sources.source_session_id
+                FROM memory_consolidation_sources AS sources
+                WHERE sources.consolidated_memory_id = ?
+                ORDER BY sources.source_memory_id
+                """,
+                (consolidated_memory_id,),
+            ).fetchall()
+        )

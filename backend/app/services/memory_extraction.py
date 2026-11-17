@@ -29,6 +29,11 @@ from app.persistence.database import DatabaseManager
 from app.persistence.repositories.memory_extraction_jobs import (
     MemoryExtractionJobRepository,
 )
+from app.persistence.repositories.events import EventRepository
+from app.persistence.repositories.character_runtime import (
+    CHARACTER_STATE_BOUNDS,
+    RunCharacterRepository,
+)
 from app.persistence.repositories.operations import (
     AuditRepository,
     ModelRunRepository,
@@ -41,10 +46,23 @@ from app.services.memory import (
     MemoryReviewConflictError,
     MemoryService,
 )
+from app.services.character_model import CharacterStateTransitionProposal
+from app.services.character_state_transitions import (
+    CharacterStateTransitionService,
+)
 
 
 LOGGER = logging.getLogger(__name__)
 MAX_ATTEMPTS = 5
+CHARACTER_EVENT_EXTRACTOR_VERSION = "character-dynamics-extraction-v0.2"
+
+
+class CharacterDynamicsEvidenceError(RuntimeError):
+    """A proposed event or transition cites invalid interaction evidence."""
+
+
+class CharacterDynamicsStateUnavailableError(RuntimeError):
+    """A state proposal cannot be grounded in a current snapshot."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -306,11 +324,184 @@ class MemoryExtractionWorker:
                 for row in rows
             ]
 
+    def _load_character_state_snapshot(
+        self,
+        run_id: str,
+        snapshot_id: str | None,
+    ) -> dict[str, int] | None:
+        if snapshot_id is None:
+            return None
+        with self._database_manager.connection("operational") as connection:
+            repository = RunCharacterRepository(connection)
+            snapshot = repository.get_state_snapshot(snapshot_id)
+            if snapshot is None or snapshot["run_id"] != run_id:
+                raise RuntimeError(
+                    "The extraction job's character-state snapshot is invalid."
+                )
+            values = repository.get_state_snapshot_values(
+                snapshot["snapshot_id"]
+            )
+            if not values or set(values) != set(CHARACTER_STATE_BOUNDS):
+                raise RuntimeError(
+                    "The current character-state snapshot is incomplete."
+                )
+            return values
+
+    @staticmethod
+    def _validate_patient_evidence(
+        proposal,
+        messages_by_id: dict[str, dict[str, str]],
+    ) -> None:
+        for evidence in proposal.evidence:
+            message = messages_by_id.get(evidence.message_id)
+            if (
+                message is None
+                or message["role"] != "patient"
+                or evidence.exact_quote not in message["content"]
+            ):
+                raise CharacterDynamicsEvidenceError(
+                    "Character-dynamics evidence must be an exact quote from "
+                    "a patient message in the source interaction."
+                )
+
+    def _persist_events(
+        self,
+        job: sqlite3.Row,
+        output: MemoryExtractionOutput,
+        messages: list[dict[str, str]],
+        *,
+        created_at: str,
+    ) -> None:
+        if not output.events:
+            return
+
+        messages_by_id = {
+            message["message_id"]: message
+            for message in messages
+        }
+        with self._database_manager.transaction("operational") as connection:
+            repository = EventRepository(connection)
+            next_sequence = repository.next_sequence_number(job["run_id"])
+            for index, proposal in enumerate(output.events):
+                self._validate_patient_evidence(proposal, messages_by_id)
+                idempotency_key = (
+                    f"character-dynamics:{job['interaction_request_id']}:"
+                    f"event:{index}"
+                )
+                event_id = repository.create_event(
+                    event_id=f"character-event-{uuid.uuid4().hex}",
+                    run_id=job["run_id"],
+                    session_id=job["session_id"],
+                    sequence_number=next_sequence + index,
+                    event_type=proposal.event_type,
+                    actor="patient",
+                    payload={
+                        "summary": proposal.summary,
+                        "observed_fact": proposal.observed_fact,
+                        "interpretation": proposal.interpretation,
+                        "psychological_dimensions": list(
+                            proposal.psychological_dimensions
+                        ),
+                        "confidence": proposal.confidence,
+                        "proposal_id": proposal.proposal_id,
+                    },
+                    extraction_method="model_assisted",
+                    extractor_version=CHARACTER_EVENT_EXTRACTOR_VERSION,
+                    event_status="requires_review",
+                    idempotency_key=idempotency_key,
+                    created_at=created_at,
+                )
+                for evidence in proposal.evidence:
+                    message = messages_by_id[evidence.message_id]
+                    start_offset = message["content"].find(
+                        evidence.exact_quote
+                    )
+                    repository.add_evidence(
+                        event_id=event_id,
+                        message_id=evidence.message_id,
+                        evidence_type="patient_report",
+                        start_offset=start_offset,
+                        end_offset=start_offset + len(evidence.exact_quote),
+                        annotation=proposal.interpretation,
+                    )
+
+    def _persist_state_transitions(
+        self,
+        job: sqlite3.Row,
+        output: MemoryExtractionOutput,
+        messages: list[dict[str, str]],
+        *,
+        created_at: str,
+    ) -> None:
+        if not output.state_transitions:
+            return
+
+        if self._load_character_state_snapshot(
+            job["run_id"],
+            job["character_state_snapshot_id"],
+        ) is None:
+            raise CharacterDynamicsStateUnavailableError(
+                "State transitions require a current character-state snapshot."
+            )
+
+        messages_by_id = {
+            message["message_id"]: message
+            for message in messages
+        }
+        service = CharacterStateTransitionService(self._database_manager)
+        for index, proposal in enumerate(output.state_transitions):
+            self._validate_patient_evidence(proposal, messages_by_id)
+            if (
+                proposal.run_id != job["run_id"]
+                or proposal.session_id != job["session_id"]
+            ):
+                raise CharacterDynamicsEvidenceError(
+                    "State-transition proposals must match their source Run "
+                    "and session."
+                )
+            data = proposal.model_dump()
+            data["proposal_id"] = (
+                f"character-dynamics:{job['interaction_request_id']}:"
+                f"state:{index}"
+            )
+            data["status"] = "requires_review"
+            service.submit_proposal(
+                CharacterStateTransitionProposal.model_validate(data),
+                created_at=created_at,
+            )
+
+    @staticmethod
+    def _parse_saved_output(payload: str) -> MemoryExtractionOutput:
+        try:
+            data = json.loads(payload)
+        except json.JSONDecodeError:
+            raise MemoryExtractionAgentError(
+                "Saved extraction proposals are not valid JSON."
+            ) from None
+        if not isinstance(data, dict):
+            raise MemoryExtractionAgentError(
+                "Saved extraction proposals have an invalid shape."
+            )
+        if data.get("schema_version") == "0.1":
+            data["schema_version"] = MEMORY_EXTRACTION_SCHEMA_VERSION
+            data.setdefault("events", [])
+            data.setdefault("state_transitions", [])
+        try:
+            return MemoryExtractionOutput.model_validate_json(
+                json.dumps(data, ensure_ascii=False)
+            )
+        except ValidationError:
+            raise MemoryExtractionAgentError(
+                "Saved extraction proposals failed schema validation."
+            ) from None
+
     def _complete(
         self,
         job: sqlite3.Row,
         *,
         candidate_count: int,
+        event_count: int,
+        state_transition_count: int,
         output_hash: str,
         model_identifier: str,
         model_run_id: str | None,
@@ -337,6 +528,8 @@ class MemoryExtractionWorker:
                 metadata={
                     "attempt_count": job["attempt_count"],
                     "candidate_count": candidate_count,
+                    "event_count": event_count,
+                    "state_transition_count": state_transition_count,
                     "interaction_request_id": job["interaction_request_id"],
                     "model_identifier": model_identifier,
                     "model_run_id": model_run_id,
@@ -409,6 +602,10 @@ class MemoryExtractionWorker:
             return "provider_error"
         if isinstance(error, MemoryExtractionAgentError):
             return "invalid_memory_extraction_output"
+        if isinstance(error, CharacterDynamicsEvidenceError):
+            return "invalid_character_dynamics_evidence"
+        if isinstance(error, CharacterDynamicsStateUnavailableError):
+            return "character_state_unavailable"
         if isinstance(error, MemoryRequestNotFoundError):
             return "source_interaction_not_found"
         if isinstance(error, MemoryRequestNotCompletedError):
@@ -431,6 +628,8 @@ class MemoryExtractionWorker:
                 MemoryRequestNotFoundError,
                 MemoryRequestNotCompletedError,
                 MemoryEvidenceValidationError,
+                CharacterDynamicsEvidenceError,
+                CharacterDynamicsStateUnavailableError,
                 MemoryIdempotencyConflictError,
                 MemoryReviewConflictError,
             ),
@@ -444,25 +643,31 @@ class MemoryExtractionWorker:
             return False
         model_run_id = job["model_run_id"]
         model_run_active = False
+        messages: list[dict[str, str]] = []
         try:
             if job["proposal_payload"] is not None:
-                try:
-                    output = MemoryExtractionOutput.model_validate_json(
-                        job["proposal_payload"]
-                    )
-                except ValidationError:
-                    raise MemoryExtractionAgentError(
-                        "Saved memory proposals failed schema validation."
-                    ) from None
+                output = self._parse_saved_output(job["proposal_payload"])
                 output_hash = job["output_hash"]
             else:
                 messages = self._load_transcript(
                     interaction_request_id=job["interaction_request_id"],
                     session_id=job["session_id"],
                 )
+                current_character_state = (
+                    self._load_character_state_snapshot(
+                        job["run_id"],
+                        job["character_state_snapshot_id"],
+                    )
+                )
                 input_messages = self._agent.prepare_messages(
                     interaction_request_id=job["interaction_request_id"],
                     messages=messages,
+                    run_id=job["run_id"],
+                    session_id=job["session_id"],
+                    current_character_state=current_character_state,
+                    character_state_snapshot_id=(
+                        job["character_state_snapshot_id"]
+                    ),
                 )
                 model_run_id = self._start_model_run(
                     job,
@@ -501,6 +706,23 @@ class MemoryExtractionWorker:
                         )
                 model_run_active = False
             created_at = self._format_utc(self._now())
+            if not messages:
+                messages = self._load_transcript(
+                    interaction_request_id=job["interaction_request_id"],
+                    session_id=job["session_id"],
+                )
+            self._persist_events(
+                job,
+                output,
+                messages,
+                created_at=created_at,
+            )
+            self._persist_state_transitions(
+                job,
+                output,
+                messages,
+                created_at=created_at,
+            )
             for proposal_index, item in enumerate(output.proposals):
                 self._memory_service.create_candidate(
                     run_id=job["run_id"],
@@ -515,6 +737,8 @@ class MemoryExtractionWorker:
             self._complete(
                 job,
                 candidate_count=len(output.proposals),
+                event_count=len(output.events),
+                state_transition_count=len(output.state_transitions),
                 output_hash=output_hash,
                 model_identifier=self._agent.model,
                 model_run_id=model_run_id,

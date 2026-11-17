@@ -630,7 +630,9 @@ The implementation must enforce:
 - Implement memory proposal and evidence validation.
 - Implement safe memory activation and supersession.
 - Implement state-transition validation.
-- Add consolidation and contradiction handling.
+- Provide deterministic related/repeated/possible-contradiction suggestions
+  and evidence-preserving, reviewer-approved consolidation proposals. The
+  heuristic does not verify clinical meaning or resolve contradictions.
 
 ### Phase E — Patient Agent integration
 

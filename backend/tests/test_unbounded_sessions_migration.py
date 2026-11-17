@@ -156,10 +156,17 @@ def test_upgrade_preserves_existing_sessions_and_references(
     )
     applied = migrations.apply_migrations(manager, "operational")
 
-    assert applied[-3:] == [
+    assert applied[-10:] == [
         "008_memory_extraction_outbox",
         "009_memory_extraction_model_component",
         "010_versioned_run_protocols",
+        "011_memory_extraction_state_context",
+        "012_event_review_history",
+        "013_versioned_treatment_plans",
+        "014_local_authentication",
+        "015_memory_consolidation_provenance",
+        "016_local_login_throttling",
+        "017_evaluation_reviews",
     ]
 
     with manager.connection("operational") as connection:

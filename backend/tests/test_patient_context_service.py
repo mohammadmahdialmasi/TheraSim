@@ -165,7 +165,10 @@ def system(tmp_path):
             session_id="session-1",
             sequence_number=1,
             role="patient",
-            content="I feel tense when I speak in meetings.",
+            content=(
+                "I feel tense when I speak in meetings, and I enjoy gardening "
+                "on weekends."
+            ),
             created_at=NOW,
         )
 
@@ -174,7 +177,7 @@ def system(tmp_path):
             session_id="session-1",
             sequence_number=2,
             role="therapist",
-            content="What do you notice in that moment?",
+            content="Can we return to your anxiety in meetings?",
             created_at=NOW,
         )
 
@@ -315,7 +318,7 @@ def test_builds_complete_authorized_patient_context(system):
 
     assert context.therapist_message.message_id == "therapist-1"
     assert context.therapist_message.content == (
-        "What do you notice in that moment?"
+        "Can we return to your anxiety in meetings?"
     )
 
 
@@ -330,6 +333,65 @@ def test_excludes_therapist_hypotheses_and_structured_observations(system):
     assert memory_ids == {"memory-allowed"}
     assert "memory-hypothesis" not in memory_ids
     assert "memory-observation" not in memory_ids
+
+
+def test_memory_retrieval_prioritizes_relevant_content_and_omits_irrelevant_episodes(
+    system,
+):
+    with system["manager"].transaction("operational") as connection:
+        memory = MemoryRepository(connection)
+        memory.create_memory(
+            memory_id="memory-irrelevant",
+            run_id="run-1",
+            source_session_id="session-1",
+            memory_type="disclosed_experience",
+            information_class="explicit_disclosure",
+            content="The client enjoys gardening on weekends.",
+            confidence=0.99,
+            memory_version=1,
+            memory_scope="episodic",
+            created_at=NOW,
+            updated_at=NOW,
+        )
+        memory.add_evidence("memory-irrelevant", "patient-1", "supports")
+
+    context = PatientContextService(
+        system["manager"],
+        max_memory_items=1,
+    ).build_patient_context(
+        "run-1",
+        "session-1",
+        "therapist-1",
+    )
+
+    assert [item.memory_id for item in context.longitudinal_memory] == [
+        "memory-allowed"
+    ]
+
+
+def test_irrelevant_episodic_memory_is_not_included_in_context(system):
+    with system["manager"].transaction("operational") as connection:
+        memory = MemoryRepository(connection)
+        memory.create_memory(
+            memory_id="memory-irrelevant",
+            run_id="run-1",
+            source_session_id="session-1",
+            memory_type="disclosed_experience",
+            information_class="explicit_disclosure",
+            content="The client enjoys gardening on weekends.",
+            confidence=0.9,
+            memory_version=1,
+            memory_scope="episodic",
+            created_at=NOW,
+            updated_at=NOW,
+        )
+        memory.add_evidence("memory-irrelevant", "patient-1", "supports")
+
+    context = build(system)
+
+    assert "memory-irrelevant" not in {
+        item.memory_id for item in context.longitudinal_memory
+    }
 
 
 def test_requires_exact_disclosure_record_for_every_case_fact(system):
@@ -887,7 +949,7 @@ def test_loads_run_pinned_personality_and_serializes_memory_scope(system):
             session_id=session_id,
             sequence_number=2,
             role="therapist",
-            content="What do you notice in that moment?",
+            content="Can we return to anxiety in meetings?",
             created_at=NOW,
         )
 

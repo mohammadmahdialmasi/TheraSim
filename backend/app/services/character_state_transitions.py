@@ -145,15 +145,24 @@ class CharacterStateTransitionService:
         )
 
         existing_evidence = {
-            row["message_id"]
+            row["message_id"]: row["relevance_note"]
             for row in repository.get_state_transition_evidence(
                 existing["transition_id"]
             )
         }
-
-        return same_fields and existing_evidence == set(
-            proposal.evidence_message_ids
+        expected_evidence = (
+            {
+                item.message_id: item.exact_quote
+                for item in proposal.evidence
+            }
+            if proposal.evidence
+            else {
+                message_id: proposal.rationale
+                for message_id in proposal.evidence_message_ids
+            }
         )
+
+        return same_fields and existing_evidence == expected_evidence
 
     def submit_proposal(
         self,
@@ -223,11 +232,18 @@ class CharacterStateTransitionService:
             )
 
             for item in evidence:
+                quote_by_message_id = {
+                    quote.message_id: quote.exact_quote
+                    for quote in proposal.evidence
+                }
                 repository.add_state_transition_evidence(
                     transition_id,
                     item["message_id"],
                     "supports",
-                    proposal.rationale,
+                    quote_by_message_id.get(
+                        item["message_id"],
+                        proposal.rationale,
+                    ),
                 )
 
             stored = repository.get_state_transition(transition_id)

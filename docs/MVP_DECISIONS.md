@@ -198,7 +198,7 @@ authority for evidence validation, persistence, and review.
 
 The initial implementation prioritizes structured memory records and transcript references. Model-generated proposals must remain inactive until evidence validation and explicit review; they must never be treated as authoritative summaries.
 
-The MemoryExtractionAgent processes each successfully completed therapist/patient exchange through a durable, leased outbox. Its strict versioned output is saved for safe replay, and each proposal is validated against exact patient-authored transcript evidence before MemoryService stores it as `requires_review`. Empty output is valid. Explicit acceptance or rejection is required before a proposal can become active or terminally rejected. Revisions preserve lineage and supersede the prior active item only when the replacement is accepted. The sessions interface provides review controls; reviewer identity remains `unverified_local_caller` because this single-user API has no authentication.
+The MemoryExtractionAgent processes each successfully completed therapist/patient exchange through a durable, leased outbox. Its strict versioned output is saved for safe replay, and each proposal is validated against exact patient-authored transcript evidence before MemoryService stores it as `requires_review`. Empty output is valid. Explicit acceptance or rejection is required before a proposal can become active or terminally rejected. Revisions preserve lineage and supersede the prior active item only when the replacement is accepted. The sessions interface provides review controls; decisions are attributed to the authenticated single local reviewer account, which is not a multi-user authorization system.
 
 ---
 

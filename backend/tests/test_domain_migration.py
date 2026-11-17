@@ -164,6 +164,12 @@ def test_operational_table_inventory_and_database_separation(tmp_path):
         "case_fact_disclosure_history",
         "events",
         "event_evidence",
+        "event_reviews",
+        "treatment_plan_revisions",
+        "treatment_plan_reviews",
+        "local_auth_users",
+        "local_auth_sessions",
+        "local_auth_login_attempts",
         "state_snapshots",
         "state_snapshot_values",
         "state_transitions",
@@ -171,9 +177,11 @@ def test_operational_table_inventory_and_database_separation(tmp_path):
         "memory_items",
         "memory_evidence",
         "memory_reviews",
+        "memory_consolidation_sources",
         "memory_extraction_jobs",
         "rubric_versions",
         "evaluations",
+        "evaluation_reviews",
         "evaluation_items",
         "evaluation_evidence",
         "model_runs",
@@ -226,6 +234,13 @@ def test_domain_migration_is_idempotent_and_versioned(tmp_path):
         "008_memory_extraction_outbox",
         "009_memory_extraction_model_component",
         "010_versioned_run_protocols",
+        "011_memory_extraction_state_context",
+        "012_event_review_history",
+        "013_versioned_treatment_plans",
+        "014_local_authentication",
+        "015_memory_consolidation_provenance",
+        "016_local_login_throttling",
+        "017_evaluation_reviews",
     ]
 
     with manager.connection("operational") as connection:
@@ -244,6 +259,13 @@ def test_domain_migration_is_idempotent_and_versioned(tmp_path):
         (8, "008_memory_extraction_outbox"),
         (9, "009_memory_extraction_model_component"),
         (10, "010_versioned_run_protocols"),
+        (11, "011_memory_extraction_state_context"),
+        (12, "012_event_review_history"),
+        (13, "013_versioned_treatment_plans"),
+        (14, "014_local_authentication"),
+        (15, "015_memory_consolidation_provenance"),
+        (16, "016_local_login_throttling"),
+        (17, "017_evaluation_reviews"),
     ]
 
 

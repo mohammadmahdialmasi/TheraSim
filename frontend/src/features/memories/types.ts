@@ -19,8 +19,24 @@ export interface MemoryRecord {
   memory_scope: string
   supersedes_memory_id: string | null
   evidence: MemoryEvidence[]
+  consolidation_sources: MemoryConsolidationSource[]
   created_at: string
   updated_at: string
+}
+
+export interface MemoryConsolidationSource {
+  source_memory_id: string
+  source_memory_version: number
+  relationship_type: string
+  content: string
+  source_session_id: string
+}
+
+export interface MemoryConsolidationSuggestion {
+  source_memory_ids: string[]
+  relationship_type: string
+  similarity: number
+  sources: MemoryConsolidationSource[]
 }
 
 export interface ApiEnvelope<T> {
@@ -37,4 +53,8 @@ export interface MemoryReviewResponse {
     rationale: string
     reviewed_at: string
   }
+}
+
+export interface MemoryConsolidationResponse {
+  data: MemoryRecord
 }

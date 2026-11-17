@@ -22,19 +22,40 @@ keeps operational records separate from restricted case material.
 Important limitations:
 
 - ACT is the only supported modality. Other approaches are not executable.
-- Run planning policies are recorded configuration; a treatment-planning
-  engine that recommends or approves plan changes is not implemented.
+- Session-planning policies are recorded configuration. Versioned treatment
+  plans and evidence-linked, review-gated revisions are available, but an
+  engine that automatically adapts plans from longitudinal progress is not
+  implemented.
 - The ACT rubrics are experimental and have not been clinically or
   psychometrically validated.
-- The Evaluator Agent is **not implemented**. Evaluation-generation requests
-  report an experimental/unavailable status instead of saving placeholder
-  scores. Older placeholder reports are preserved in the database but are
-  labeled experimental and their ratings are withheld by the API.
-- Behavioral event extraction, treatment-state transitions, and autobiographical
-  memory consolidation are incomplete.
+- A separate local-model-backed ACT session Evaluator Agent provides
+  experimental formative feedback when a model is configured. It validates
+  competency coverage and exact therapist-message quote references, saves
+  immutable `requires_review` revisions, and does not claim semantic evidence
+  validity or clinical/psychometric validity. Without a configured model,
+  evaluation generation is unavailable; invalid model output is not saved.
+  A separate experimental longitudinal evaluator analyzes every completed
+  session in a Run (minimum two), requires scored competencies to cite evidence
+  from at least two sessions, and preserves transcript and run-session
+  provenance. Reports become stale when the Run's session snapshot changes.
+  Older placeholder reports are preserved but their ratings are withheld by
+  the API. Authenticated reviewers can append acceptance or revision-request
+  feedback; review history does not mutate the generated report.
+- Interaction-scoped model-assisted event and character-state proposals are
+  extracted with exact patient-message evidence. Events and state transitions
+  remain review-pending until explicitly reviewed. Event review is available
+  through the sessions workspace and backend API. Deterministic cross-session
+  memory consolidation suggestions preserve source snapshots and transcript
+  references and remain pending human review; they do not overwrite source
+  memories.
 - Persian and English are available in parts of the interface, but complete
-  localization, RTL/LTR validation, analytics, evidence-linked charts, and
-  evaluation reports are not complete.
+  localization and RTL/LTR validation are incomplete. A session evaluation
+  panel displays reports and transcript evidence, and the run workspace
+  displays longitudinal reports, cross-session evidence, provenance, and stale
+  status. A standalone evaluation dashboard is not implemented. The Sessions
+  workspace includes persisted Run analytics, compatible rubric-scoped raw
+  rating-code comparisons, an evidence-linked chart, and a research-oriented
+  JSON export.
 - The Windows launcher runs development servers; there is no desktop installer
   or production distribution bundle yet.
 
@@ -79,7 +100,8 @@ optional local inference provider
   OpenAI-compatible client. A provider and model are optional for startup, but
   required to generate simulated patient responses.
 - **Agents:** The Patient Agent runs with an explicitly constructed context.
-  The Evaluator Agent is a future component and is not currently available.
+  A separate Evaluator Agent assesses completed ACT session transcripts when
+  configured; both agents use the local model provider.
 
 See [docs/SYSTEM_ARCHITECTURE.md](docs/SYSTEM_ARCHITECTURE.md),
 [docs/SECURITY_BOUNDARIES.md](docs/SECURITY_BOUNDARIES.md), and
@@ -87,36 +109,90 @@ See [docs/SYSTEM_ARCHITECTURE.md](docs/SYSTEM_ARCHITECTURE.md),
 controls as well as implementation; check the baseline before assuming a
 specified feature exists.
 
+Paired SQLite backup and restore instructions are in
+[docs/BACKUP_RESTORE.md](docs/BACKUP_RESTORE.md).
+
 ## Sessions, planning, and modalities
 
 Sessions are created in sequence and may continue without a global maximum.
 An earlier session must be completed before the next is created. Runs can be
 interrupted and resumed. The API stores a planning-policy identifier such as
 flexible, goal-based, milestone-based, or open-ended, but does not yet execute
-a treatment-planning engine or automatically change a plan. Fixed-length
-protocols, approvals, and explicit plan revisions remain future work.
+a treatment-planning engine that autonomously rewrites a plan. Versioned
+initial plans and evidence-linked, human-proposed revisions are supported; a
+revision must be approved before becoming active. A limited deterministic
+assessment now flags newly accepted setbacks, contradictions, or
+progress-related events for human review. It does not infer outcomes, choose
+clinical interventions, or change a plan automatically.
 
 The initial case and protocol use ACT. The data model records modality and
-protocol versions, but there is no implemented multi-modality registry. CBT,
-DBT, CFT, MBCT, MBSR, Schema Therapy, Psychodynamic Therapy, EFT, and MCT are
-not available simulation modules and must not be selected as if implemented.
+protocol versions, and a backend registry contract now describes modality
+protocol and rubric references. ACT is the only runnable modality and remains
+partial. Registering another approach does not make it runnable; CBT, DBT,
+CFT, MBCT, MBSR, Schema Therapy, Psychodynamic Therapy, EFT, and MCT remain
+unavailable.
 
 ## Memory and evaluation
 
 Persisted therapist/patient exchanges enqueue durable memory-extraction jobs.
 When a local model is configured, a worker processes proposals with leases and
 bounded retries. Evidence validation and explicit review gate whether a
-proposal becomes active. The sessions interface includes memory review and
-shows that reviewer identity is unverified in this single-user, unauthenticated
-prototype. This is not a multi-user authorization system.
+proposal becomes active. The sessions interface includes memory review.
+The review workspace also proposes related memories across sessions using
+deterministic text overlap and a conservative negation hint. A reviewer must
+write and approve every consolidation proposal; source memories and transcript
+evidence remain preserved. These hints are not verified clinical conclusions.
+Reviews are attributed to the authenticated local reviewer account; the
+single-user account is not a multi-user authorization system.
+Patient context retrieval now ranks active memories deterministically by
+current-turn token relevance, evidence support, recency, confidence, and
+memory scope; unrelated episodic entries without topical overlap are omitted.
+This does not provide semantic embeddings or automatic contradiction
+resolution.
+
+The optional post-interaction extractor proposes behavioral/emotional events
+and character-state transitions from only the completed exchange. Exact patient
+quotes are checked against the source transcript, and proposals are stored as
+`requires_review`; they do not automatically change approved character state.
+Each extraction job pins the character-state snapshot that existed when the
+interaction was saved, preventing later state from leaking into delayed work.
+Migration `011_memory_extraction_state_context` adds this nullable reference;
+legacy jobs without a pinned snapshot remain processable but cannot produce a
+state transition proposal. Event reviews are append-only and preserve the
+authenticated reviewer ID; the initial implementation supports one local
+reviewer account and does not provide password reset.
+The sessions workspace presents proposed events, observed reports, model
+interpretations, source excerpts, and rationale-based accept/reject actions.
+It also supports a versioned Run plan, goal display, and evidence-linked plan
+revision proposals with approval/rejection history. These capabilities are
+review-gated workflows. Deterministic adaptation guidance is based only on
+newly accepted events; it is not clinically validated or an autonomous planner.
 
 The versioned ACT session rubric is `ACT_RUBRIC_V0` 0.2. The current,
 count-agnostic longitudinal rubric is `ACT_LONGITUDINAL_RUBRIC_V0` 0.2;
 version 0.1 is retained as a historical three-session example. Neither rubric
-is validated. Since there is no Evaluator Agent, generation endpoints return
-`503 evaluator_unavailable_experimental` and create no report. Charts,
-comparisons, trends, response timelines, and report recommendations are not
-implemented.
+is validated. Session evaluation reports are experimental, transcript-linked
+and require human review; no semantic evidence judgment is guaranteed.
+Without a configured Evaluator Agent, generation returns
+`503 evaluator_unavailable_experimental`; invalid output returns `502` and is
+not persisted as a report. Longitudinal evaluation is also experimental:
+therapist-message references and excerpts are checked against the exact
+transcripts, but semantic support for a rating is not established. Reports are
+immutable, review-required revisions over all completed sessions in the Run
+(at least two), with transcript hashes and a snapshot of all Run sessions.
+Subsequent session creation, status changes, or transcript changes mark a
+report stale. The Run workspace displays these reports and their referenced
+source messages. Persisted Run analytics and JSON export include source
+identifiers, event/memory/state counts, treatment-plan status, and evaluation
+staleness. The workspace also lists raw session-level competency observations,
+grouped by rubric version with confidence, missing-session reasons, evaluation
+IDs, and evidence-message IDs. It does not calculate averages or claim
+ratings are not averaged across rubric versions or represented as clinical
+outcomes. The workspace provides a session-range-filtered chart only within an
+exact rubric version and content hash; numeric codes are plotted as raw
+observations, while NE and missing data are omitted and separately counted.
+This descriptive comparison is not a validated competency trend. Exports omit
+transcript and case text but still contain sensitive operational identifiers.
 
 ## Windows quick start
 
@@ -137,9 +213,12 @@ implemented.
    AVA-001. It does not reset or delete existing databases.
 5. The browser opens at <http://127.0.0.1:5173>. Backend API documentation is
    at <http://127.0.0.1:8000/docs>.
-6. Create a simulation run, start it, add sessions as needed, and submit
+6. On first browser access, create the single local reviewer account with a
+   password of at least 12 characters. Later access requires signing in again
+   after the browser session closes or the eight-hour token expires.
+7. Create a simulation run, start it, add sessions as needed, and submit
    therapist messages. A local model must be configured for patient replies.
-7. Double-click `STOP_THERASIM.bat` to stop only the Backend and Frontend
+8. Double-click `STOP_THERASIM.bat` to stop only the Backend and Frontend
    processes started by this launcher. `CHECK_THERASIM.bat` checks local
    prerequisites and project dependencies.
 
@@ -190,7 +269,9 @@ $env:THERASIM_LLM_TIMEOUT = "120"
 For LM Studio use `THERASIM_LLM_PROVIDER=lm_studio`, set
 `LM_STUDIO_BASE_URL` (default `http://127.0.0.1:1234/v1`) and
 `LM_STUDIO_MODEL`. Provider credentials are optional local configuration and
-must not be committed. `THERASIM_DATA_DIR` can select a different local data
+must not be committed or embedded in a URL. Provider URLs must use HTTP(S) and
+cannot contain user-info, query strings, or fragments; the provider catalog
+shows only the origin. `THERASIM_DATA_DIR` can select a different local data
 directory; otherwise the repository's ignored `data/` directory is used.
 The launcher does not overwrite configuration files or install model runtimes.
 
@@ -225,17 +306,18 @@ Set-Location backend
 ```
 
 Before manually copying a database for backup, stop TheraSim. Copy both
-`data\therasim.db` and `data\case_vault.db` together to a dated backup folder;
-do not remove either database to troubleshoot startup. Migrations should be
-tested against a copy before upgrading an important local dataset.
-
-Example from the repository root after stopping the application:
+databases using the backup command, which validates and bundles them without
+overwriting an existing backup:
 
 ```powershell
-$backup = Join-Path $PWD ("backups\" + (Get-Date -Format "yyyyMMdd-HHmmss"))
-New-Item -ItemType Directory -Path $backup | Out-Null
-Copy-Item .\data\therasim.db, .\data\case_vault.db -Destination $backup
+Set-Location backend
+..\.venv\Scripts\python.exe -m app.persistence.backup_cli backup
 ```
+
+For restore instructions and limitations, see
+[docs/BACKUP_RESTORE.md](docs/BACKUP_RESTORE.md). Do not remove either
+database to troubleshoot startup. Migrations should be tested against isolated
+temporary databases before upgrading an important local dataset.
 
 ## Troubleshooting
 
@@ -256,26 +338,29 @@ Copy-Item .\data\therasim.db, .\data\case_vault.db -Destination $backup
 ## Security, privacy, and limitations
 
 The application binds its development servers to loopback. SQLite separation
-is logical, not operating-system access control. The local API has no
-multi-user authentication, the memory reviewer is not authenticated, and
-local-model requests/transcripts should be treated as sensitive even though
-this prototype is designed for synthetic data. Do not enter real client
-information. Review [docs/SECURITY_BOUNDARIES.md](docs/SECURITY_BOUNDARIES.md)
-before deployment; this repository is not production-ready.
+is logical, not operating-system access control. A single local reviewer
+account protects the API, but multi-user authorization, password reset, and
+database encryption at rest are not implemented. Encrypted backups are
+available as an explicit passphrase-protected option; ordinary backups remain
+unencrypted. Login attempts are throttled per
+hashed client address after five attempts in a 15-minute window. Local-model
+requests/transcripts should be treated as sensitive even though this prototype
+is designed for synthetic data. Do not enter real client information. Review
+[docs/SECURITY_BOUNDARIES.md](docs/SECURITY_BOUNDARIES.md) before deployment;
+this repository is not production-ready.
 
-Known gaps include the Evaluator Agent, longitudinal evaluation revisions and
-scope selection, evidence-linked analytics, complete event processing,
-memory consolidation, authenticated review, complete localization, automated
-backup/recovery, and desktop packaging.
+Known gaps include semantic evaluation validity, interpretation of raw analytic
+comparisons, complete event processing, complete localization, encrypted
+database storage, automated retention, and desktop packaging.
 
 ## Release status and roadmap
 
-The intended near-term work is evaluator implementation and validation,
-longitudinal evaluation, memory/event lifecycle completion, bilingual
-accessibility, analytics, and integration testing. A Windows installer is only
-a proposed architecture; a reproducible installer has not been built or
-tested. Current release preparation is source-based, and no release has been
-published.
+The intended near-term work is independent evaluator validation and review,
+compatible longitudinal evaluation interpretation, further memory/event
+lifecycle completion, bilingual accessibility, and integration testing. A Windows
+installer is only a proposed architecture; a reproducible installer has not
+been built or tested. Current release preparation is source-based, and no
+release has been published.
 
 See [CHANGELOG.md](CHANGELOG.md) and
 [docs/RELEASE_CHECKLIST.md](docs/RELEASE_CHECKLIST.md).

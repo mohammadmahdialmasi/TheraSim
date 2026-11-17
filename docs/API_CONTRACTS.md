@@ -46,13 +46,22 @@ Internal service contracts do not automatically require independent HTTP endpoin
 
 MVP architectural decisions take precedence over earlier provisional specifications.
 
-**Implementation status:** These sections describe intended contracts and must
-not be read as proof that an Evaluator Agent exists. Evaluation persistence,
-rubrics, and read routes are present, but evaluation generation currently
-returns HTTP 503 with `evaluator_unavailable_experimental` and creates no
-report. Historical records with no Evaluator Agent model-run identifier are
+**Implementation status:** Session-level evaluation generation is implemented
+as experimental formative feedback when a local model is configured. The
+backend validates the structured report, competency set, exact therapist
+message references, and quote spans before persisting a `requires_review`
+revision with transcript and rubric hashes. It does not claim semantic
+evidence validity or clinical/psychometric validity. Without a configured
+Evaluator Agent, generation returns HTTP 503; invalid model output returns
+HTTP 502 and is not saved as an evaluation. Run-level longitudinal evaluation
+is also implemented experimentally for ACT Runs with at least two completed
+sessions. It requires each scored competency to cite exact therapist evidence
+from at least two sessions, stores immutable `requires_review` revisions with
+transcript and Run-session snapshots, and reports staleness when that snapshot
+changes. These checks do not establish semantic support for a rating.
+Historical records without an Evaluator Agent model-run identifier are
 returned with `status: experimental`; stored placeholder items and evidence
-are withheld. The current count-agnostic longitudinal rubric is version 0.2.
+are withheld. The count-agnostic longitudinal rubric is version 0.2.
 
 ---
 
@@ -90,7 +99,13 @@ The normal interaction workflow is:
 10. Deterministic interaction events are recorded.
 11. API returns the validated interaction result.
 
-Behavioral event extraction and state transition validation may run as subsequent internal processing operations.
+Behavioral event and character-state extraction may run as subsequent
+internal processing operations. The model's outputs are proposals: patient
+quotes must match the source interaction, events remain `requires_review`,
+and state changes require an explicit accepted transition. Extraction uses
+the state snapshot captured when the interaction was persisted so delayed
+processing cannot see a later state. Saved schema `0.1` outbox payloads are
+upgraded in memory with empty event/transition lists for safe replay.
 
 A failed optional event extraction operation must not invalidate a successfully persisted therapist-patient interaction.
 
@@ -958,17 +973,9 @@ Generate a formative evaluation report for one completed session.
 
 ### 14.1 Request
 
-```json
-{
-  "rubric_id": "ACT_RUBRIC_V0",
-  "rubric_version": "0.2"
-}
-```
+The rubric is selected using query parameters:
 
-Required fields:
-
-- rubric_id
-- rubric_version
+`?rubric_id=ACT_RUBRIC_V0&rubric_version=0.2`
 
 ### 14.2 Preconditions
 
@@ -989,8 +996,6 @@ The Evaluation Service constructs an explicit EvaluationInput object.
 The Evaluator Agent receives:
 
 - Finalized session transcript.
-- Exact transcript version.
-- Authorized therapist-visible context.
 - Applicable rubric.
 - Evaluation instructions.
 
@@ -1003,6 +1008,13 @@ It must not receive:
 - Private simulation state.
 - Future planned responses.
 
+The evaluator output is schema-validated. Every competency must occur exactly
+once. Scored competencies require evidence references to therapist messages;
+each message ID and excerpt is checked against the exact evaluated transcript.
+`NE` assessments must identify missing evidence. These checks do not prove
+that a quote semantically supports its competency. Reports are persisted as
+`requires_review` and explicitly remain unvalidated educational feedback.
+
 ### 14.4 Response
 
 HTTP status: `201 Created`
@@ -1014,26 +1026,42 @@ HTTP status: `201 Created`
     "evaluation_scope": "session",
     "session_id": "uuid",
     "run_id": "uuid",
-    "status": "completed",
+    "status": "requires_review",
     "rubric_id": "ACT_RUBRIC_V0",
     "rubric_version": "0.2",
+    "evaluation_revision": 1,
     "created_at": "2026-11-14T13:05:00Z"
   }
 }
 ```
 
-### 14.5 Duplicate Evaluation Handling
+The response also includes the report summary, competency assessments,
+confidence, limitations, evaluator model and prompt version, and rubric hash.
+Every report is marked experimental and requires human review.
 
-The initial MVP should maintain one canonical completed evaluation for each:
+### 14.7 Authenticated Human Review
 
-- Session.
-- Transcript version.
-- Rubric version.
-- Evaluation scope.
+`POST /api/v1/evaluations/{evaluation_id}/reviews`
 
-A repeated request using the same evaluation configuration must return the existing report instead of generating an unintended duplicate.
+The request contains `decision` (`accepted` or `revision_requested`) and
+required feedback of 1–4000 characters. The endpoint requires an authenticated
+local reviewer. It appends a numbered, immutable review record attributed to
+that reviewer; it never changes the generated evaluation or its rating items.
+Stale longitudinal reports, historical records without evaluator provenance,
+and pending or failed evaluations return `409 evaluation_review_unavailable`.
+Evaluation responses include the append-only review history and derive the
+current review status from its latest entry. Acceptance records a review
+decision only; the report remains experimental and the decision does not
+establish clinical or psychometric validity.
 
-Explicit evaluation revision management is deferred.
+### 14.5 Evaluation Revisions
+
+Each successful POST generates a new immutable evaluation revision for the
+same session and rubric. The response exposes `evaluation_revision`; clients
+should retain the evaluation ID and revision when comparing reports.
+
+The evaluation records the finalized transcript manifest and hash. A later
+transcript change cannot silently alter an existing report.
 
 ### 14.6 Failure Handling
 
@@ -1041,9 +1069,13 @@ If evaluation generation fails:
 
 - Preserve the completed transcript.
 - Record the failed model execution.
-- Mark the evaluation operation as failed.
-- Do not return an incomplete report as completed.
+- Do not persist a report from invalid or incomplete model output.
+- Return an explicit failure response.
 - Allow a controlled retry.
+
+With no configured evaluator, the API returns `503
+evaluator_unavailable_experimental`. A model response that fails validation
+returns `502 evaluation_generation_failed`.
 
 ---
 
@@ -1100,18 +1132,12 @@ The longitudinal rubric may share competency definitions with the session-level 
 
 ### 16.2 Preconditions
 
-The backend must verify:
-
-1. The simulation run exists.
-2. The run uses the expected case version.
-3. At least one session exists and every created session is completed.
-4. Every included transcript is finalized.
-5. Session ordering is valid.
-6. No transcript included in the requested evaluation scope is missing.
-7. The requested longitudinal rubric exists.
-8. The rubric is compatible with the simulation modality.
-
-Longitudinal evaluation must not run on incomplete simulations.
+The implemented backend verifies that the Run exists, uses ACT, and has at
+least two completed sessions. All completed sessions are included in
+chronological order; each must have a finalized transcript with therapist
+messages. Other in-progress sessions are excluded from the evaluated transcript
+scope but are captured in the Run-session snapshot. The implementation does
+not accept a client-selected subset of sessions.
 
 ### 16.3 Evaluator Input
 
@@ -1129,6 +1155,10 @@ It contains:
 - transcript hashes
 - therapist-visible context by session
 - longitudinal evaluation instructions
+
+The Evaluator Agent receives completed transcripts only. Scored competencies
+must cite exact therapist messages and quote spans from at least two distinct
+included sessions. Competencies without sufficient evidence must use `NE`.
 
 Transcripts must be presented in chronological order.
 
@@ -1171,20 +1201,43 @@ HTTP status: `201 Created`
     "evaluation_id": "uuid",
     "evaluation_scope": "longitudinal",
     "run_id": "uuid",
-    "status": "completed",
-    "evaluated_sessions": 3,
+    "status": "requires_review",
+    "stale": false,
     "rubric_id": "ACT_LONGITUDINAL_RUBRIC_V0",
     "rubric_version": "0.2",
+    "evaluation_revision": 1,
+    "session_scope": [
+      {
+        "session_id": "session-1",
+        "session_number": 1,
+        "transcript_sha256": "..."
+      },
+      {
+        "session_id": "session-2",
+        "session_number": 2,
+        "transcript_sha256": "..."
+      }
+    ],
     "created_at": "2026-11-14T14:00:00Z"
   }
 }
 ```
 
-### 16.6 Duplicate Handling
+The full response also contains competency results, exact evidence excerpts,
+source message IDs, source session IDs/numbers, and the original source message
+content for inspection. It includes evaluator model/prompt provenance, rubric
+content hash, and experimental limitations.
 
-A repeated request with the same run, completed session set, transcript manifest, and rubric version must return the existing canonical report.
+### 16.6 Revisions and Staleness
 
-The initial MVP does not support arbitrary re-evaluation revisions.
+Each successful POST creates a new immutable longitudinal evaluation revision;
+the endpoint does not deduplicate repeated requests. The report captures every
+completed transcript hash and a snapshot of all Run sessions, including
+in-progress sessions. A later session addition, session status change, or
+transcript change makes the report stale. Historical longitudinal records
+without a complete Run-session snapshot are returned as stale.
+
+Generating a new evaluation does not modify or replace previous revisions.
 
 ---
 
@@ -1213,6 +1266,9 @@ Each result should include:
 - rubric_version
 - status
 - created_at
+- evaluation_revision
+- stale
+- session_scope for longitudinal reports
 
 ---
 
@@ -1686,6 +1742,11 @@ Documentation must not claim functionality that has not been implemented.
 | Method | Endpoint | Purpose |
 |---|---|---|
 | GET | `/health` | Backend health |
+| GET | `/api/v1/auth/status` | Check whether first-run local account setup is complete |
+| POST | `/api/v1/auth/initialize` | Create the single local reviewer account from loopback |
+| POST | `/api/v1/auth/login` | Create an expiring local bearer session |
+| GET | `/api/v1/auth/me` | Retrieve authenticated reviewer identity |
+| POST | `/api/v1/auth/logout` | Revoke the current bearer session |
 | GET | `/api/v1/cases` | List available cases |
 | GET | `/api/v1/cases/{case_id}` | Retrieve authorized case profile |
 | POST | `/api/v1/simulation-runs` | Create simulation run |
@@ -1707,11 +1768,44 @@ Documentation must not claim functionality that has not been implemented.
 | POST | `/api/v1/simulation-runs/{run_id}/evaluations` | Generate longitudinal evaluation |
 | GET | `/api/v1/simulation-runs/{run_id}/evaluations` | List run evaluations |
 | GET | `/api/v1/evaluations/{evaluation_id}` | Retrieve evaluation report |
+| POST | `/api/v1/evaluations/{evaluation_id}/reviews` | Append authenticated reviewer feedback |
 | GET | `/api/v1/simulation-runs/{run_id}/memories` | List Run memory and evidence |
 | POST | `/api/v1/simulation-runs/{run_id}/memories/candidates` | Create evidence-validated review candidate |
 | POST | `/api/v1/simulation-runs/{run_id}/memories/{memory_id}/review` | Accept or reject a memory candidate |
 
 Disclosure management, hidden patient state, direct access to internal clinical state, and restricted case access remain outside the public Therapist Interface API. The explicit run and session lifecycle operations documented here are the supported public state-transition controls.
+
+## 34. Local Authentication
+
+The first-run setup creates exactly one local reviewer account. Account
+initialization is accepted only from a loopback client and is serialized with
+an immediate SQLite transaction. Passwords must contain 12–1024 characters
+and are stored as scrypt hashes (`N=32768`, `r=8`, `p=1`, random 16-byte salt).
+The API never returns or logs the password.
+
+Successful initialization or login returns an opaque bearer token once. Only
+its SHA-256 hash is stored in the operational database. Tokens expire after
+eight hours and can be revoked with logout. The frontend keeps the token in
+browser `sessionStorage` and attaches it as an Authorization header; closing
+the browser session requires signing in again.
+
+All case, run, session, transcript, LLM, memory, event, treatment-plan, and
+evaluation APIs require a valid bearer session. `/health` and the authentication
+status, initialization, and login endpoints are public; initialization is
+loopback-only. Authenticated review operations persist `local-reviewer` rather
+than the previous unauthenticated sentinel.
+
+Authentication currently supports a single reviewer and does not provide
+password reset. Login requests are rate-limited to five attempts per 15-minute
+window per hashed client address; excess requests return `429` with a
+`Retry-After` header, and a successful login clears that client's attempt
+window. Local SQLite backups include the password hash and session metadata,
+and ordinary backups are unencrypted. The backup CLI offers an opt-in
+passphrase-encrypted format; live SQLite databases remain unencrypted at rest.
+Keep the data directory and exported backups private. The backend remains
+loopback-only by default; manually exposing it over an untrusted network is
+not supported and requires an independently secured transport and network
+boundary.
 
 ---
 
@@ -1785,9 +1879,25 @@ Candidates are always stored as `requires_review`, regardless of the proposal's 
 
 `POST /api/v1/simulation-runs/{run_id}/memories/{memory_id}/review`
 
-The request contains `decision` (`accepted` or `rejected`) and a non-empty rationale. The client cannot supply a reviewer identity. In the unauthenticated, single-user API, the backend records the explicit sentinel `unverified_local_caller`; it does not claim that a person was authenticated. The decision and rationale are persisted as an immutable review record. Acceptance makes the candidate active; rejection makes it inactive and terminal. Accepting a revision atomically supersedes its active predecessor. Conflicting review decisions return `409 Conflict`.
+The request contains `decision` (`accepted` or `rejected`) and a non-empty rationale. The client cannot supply a reviewer identity; the authenticated backend records the local reviewer account ID. The decision and rationale are persisted as an immutable review record. Acceptance makes the candidate active; rejection makes it inactive and terminal. Accepting a revision atomically supersedes its active predecessor. Conflicting review decisions return `409 Conflict`.
 
-Authenticated multi-user review requires an authenticated identity dependency before replacing this sentinel with a person-specific identifier.
+The single-account identity does not provide multi-user authorization or person-specific reviewer roles.
+
+## Memory Consolidation Suggestions and Proposals
+
+`GET /api/v1/simulation-runs/{run_id}/memories/consolidation-suggestions`
+returns deterministic cross-session pairs based on token overlap and a
+conservative negation heuristic. These are review aids, not verified
+contradictions or clinical conclusions.
+
+`POST /api/v1/simulation-runs/{run_id}/memories/consolidations` accepts two to
+five distinct active memory IDs and reviewer-authored proposed text. The
+backend verifies that sources belong to the Run, span at least two sessions,
+are related by the same deterministic rule, and have transcript evidence. It
+creates an inactive `requires_review` memory with immutable links to every
+source and references to their original transcript evidence. Acceptance or
+rejection uses the existing authenticated review endpoint. Consolidation
+never modifies or deletes the original memories.
 
 ## 39. Get Memory Extraction Status
 
@@ -1796,5 +1906,116 @@ Authenticated multi-user review requires an authenticated identity dependency be
 Returns the sanitized status, attempt count, candidate count, and last error code for the Run-owned extraction job. The request creates one pending job atomically with a successfully completed interaction. A local worker processes only the current therapist/patient exchange, outside the interaction transaction. Generated proposals are schema-validated and transcript-evidence-checked, stored as `requires_review`, and never activated automatically. If the local model is not configured, pending work remains durable and visible through this endpoint.
 
 Retries use leases and exponential backoff, with a five-attempt limit. Validated proposal output is saved before candidate persistence so a worker crash can replay the same proposals idempotently. Terminal failures expose a sanitized error code; model output and transcript text are not returned by this status endpoint.
+
+---
+
+# PART XI — BEHAVIORAL EVENT REVIEW API
+
+## 40. List Run Events
+
+`GET /api/v1/simulation-runs/{run_id}/events`
+
+The optional `status` filter accepts `candidate`, `accepted`, `rejected`, or
+`requires_review`. Results include the structured event payload and evidence
+excerpts linked to source message identifiers. Model-generated interpretations
+remain distinct from observed-fact fields and are not clinical facts.
+
+## 41. Review an Event
+
+`POST /api/v1/simulation-runs/{run_id}/events/{event_id}/review`
+
+The request contains `decision` (`accepted` or `rejected`) and a non-empty
+rationale. Review rows are immutable, and the event status cannot change
+without a matching review record. The reviewer ID is obtained from the
+authenticated local account, not supplied by the client. This does not
+establish clinical validation. A conflicting second decision returns
+`409 Conflict`.
+
+---
+
+# PART XII — VERSIONED TREATMENT PLANNING API
+
+## 42. Get Run Treatment Plan
+
+`GET /api/v1/simulation-runs/{run_id}/treatment-plan`
+
+Returns the active revision, all historical revisions, their statuses, cited
+evidence identifiers, proposal rationales, and immutable review decisions.
+The response identifies the modality and protocol version captured in the Run.
+
+## 43. Create Initial Treatment Plan
+
+`POST /api/v1/simulation-runs/{run_id}/treatment-plan`
+
+Creates an explicitly authored initial formulation, goals, objectives,
+interventions, progress indicators, optional outcome measures, and review
+session. This initial version is active immediately because it is directly
+authored rather than model-generated.
+
+## Treatment-Plan Adaptation Guidance
+
+`GET /api/v1/simulation-runs/{run_id}/treatment-plan/adaptation-guidance`
+
+Returns an advisory based only on accepted events created since the active
+plan revision and not already cited by it. Contradictions recommend review of
+the formulation; setbacks, avoidance, interpersonal conflict, or
+value-inconsistent actions recommend review of objectives and intervention
+readiness; progress-related events recommend review of goal progress. Other
+event types are surfaced for human review without an inferred plan change.
+Completed sessions without new accepted events return an insufficient-evidence
+status. This deterministic classification does not establish clinical
+meaning, infer outcomes, or modify a plan.
+
+## 44. Propose a Treatment-Plan Revision
+
+`POST /api/v1/simulation-runs/{run_id}/treatment-plan/revisions`
+
+The request includes `expected_revision_number`, a complete replacement plan
+definition, a non-empty rationale, and one or more evidence references.
+References must belong to the same Run; events and character-state transitions
+must be accepted, and sessions must be completed. One pending proposal is
+allowed per Run. Stale proposals return `409 Conflict`.
+
+## 45. Review a Treatment-Plan Revision
+
+`POST /api/v1/simulation-runs/{run_id}/treatment-plan/revisions/{revision_id}/review`
+
+An explicit `accepted` decision creates the next active version and marks its
+predecessor superseded in the same transaction. A `rejected` decision retains
+the current active plan. Review decisions are immutable and attributed to the
+authenticated local account. This workflow does not claim
+autonomous or clinically validated treatment-plan adaptation. The frontend
+can include multiple newly accepted event references in one proposal.
+
+## 46. Run Analytics and JSON Export
+
+`GET /api/v1/simulation-runs/{run_id}/analytics`
+
+Returns a Run-scoped snapshot of persisted sessions, events, memory records,
+character-state transitions, treatment-plan revisions, and evaluations.
+Evaluation entries include rubric identity, status, and longitudinal staleness.
+Count summaries are accompanied by source record IDs, time range, scope, and
+limitations. Transcript and case text are excluded. The frontend downloads
+this exact response as a research-oriented JSON export; the export can still
+contain sensitive operational identifiers and must be handled accordingly.
+`competency_trajectories` contains raw session evaluation observations,
+grouped by rubric ID, version ID, and content hash. Each entry retains its
+session number, evaluation revision and status, rating code, confidence, and
+evidence message IDs, plus review-decision provenance when available. Missing
+completed-session observations include a reason; they are not converted to
+zero. The UI can calculate range-scoped counts, the proportion of evaluable
+observations with evidence references, confidence and review-decision
+distributions, and the difference between the first and last numeric rating
+codes. It does not average ratings, combine incompatible rubric versions,
+infer a competency score, or calculate a clinical outcome. These raw
+descriptive comparisons do not establish evaluator validity.
+
+The Sessions workspace plots numeric observations only within the selected
+rubric-version/content-hash group and completed-session range. NE and missing
+observations are omitted from the plot and separately represented in counts;
+gaps are not connected across nonconsecutive session numbers. Chart points
+link to their persisted evaluation records. The API response and downloadable
+JSON remain the underlying data source. See [ANALYTICS.md](ANALYTICS.md) for
+the calculation definitions and limitations.
 
 **End of Document**

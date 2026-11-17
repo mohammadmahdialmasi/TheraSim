@@ -327,3 +327,85 @@ class EvaluationRepository(ConnectionBoundRepository):
                 (evaluation_id,),
             ).fetchall()
         )
+
+    def next_review_number(self, evaluation_id: str) -> int:
+        self.require_text(evaluation_id, "evaluation_id")
+        row = self._connection.execute(
+            """
+            SELECT COALESCE(MAX(review_number), 0) + 1
+            FROM evaluation_reviews
+            WHERE evaluation_id = ?
+            """,
+            (evaluation_id,),
+        ).fetchone()
+        return int(row[0])
+
+    def create_review(
+        self,
+        *,
+        review_id: str,
+        evaluation_id: str,
+        review_number: int,
+        reviewer_user_id: str,
+        decision: str,
+        feedback: str,
+        created_at: str,
+    ) -> None:
+        for name, value in (
+            ("review_id", review_id),
+            ("evaluation_id", evaluation_id),
+            ("reviewer_user_id", reviewer_user_id),
+            ("decision", decision),
+            ("feedback", feedback),
+            ("created_at", created_at),
+        ):
+            require_text(value, name)
+        if isinstance(review_number, bool) or not isinstance(
+            review_number, int
+        ) or review_number < 1:
+            raise ValueError("Review number must be a positive integer.")
+        if not isinstance(decision, str) or decision not in {
+            "accepted",
+            "revision_requested",
+        }:
+            raise ValueError("Invalid evaluation review decision.")
+        if not 1 <= len(feedback.strip()) <= 4000:
+            raise ValueError("Evaluation review feedback is invalid.")
+
+        self._connection.execute(
+            """
+            INSERT INTO evaluation_reviews (
+                review_id, evaluation_id, review_number,
+                reviewer_user_id, decision, feedback, created_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                review_id,
+                evaluation_id,
+                review_number,
+                reviewer_user_id,
+                decision,
+                feedback.strip(),
+                created_at,
+            ),
+        )
+
+    def list_reviews(self, evaluation_id: str) -> list[sqlite3.Row]:
+        self.require_text(evaluation_id, "evaluation_id")
+        return list(
+            self._connection.execute(
+                """
+                SELECT reviews.review_id, reviews.evaluation_id,
+                       reviews.review_number, reviews.reviewer_user_id,
+                       users.reviewer_name, reviews.decision,
+                       reviews.feedback, reviews.created_at
+                FROM evaluation_reviews AS reviews
+                JOIN local_auth_users AS users
+                  ON users.user_id = reviews.reviewer_user_id
+                WHERE reviews.evaluation_id = ?
+                ORDER BY reviews.review_number
+                """,
+                (evaluation_id,),
+            ).fetchall()
+        )

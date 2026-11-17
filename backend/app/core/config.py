@@ -1,9 +1,59 @@
 from dataclasses import dataclass
 from os import environ
 from typing import Literal, Mapping, cast
+from urllib.parse import urlsplit, urlunsplit
 
 
 ProviderName = Literal["ollama", "lm_studio"]
+
+
+def _validated_provider_url(value: str, setting_name: str) -> str:
+    if not value or value != value.strip():
+        raise ValueError(f"{setting_name} must be a valid HTTP(S) URL.")
+
+    try:
+        parsed = urlsplit(value)
+        hostname = parsed.hostname
+        parsed.port
+    except ValueError as exc:
+        raise ValueError(f"{setting_name} must be a valid HTTP(S) URL.") from exc
+
+    if (
+        parsed.scheme.lower() not in ("http", "https")
+        or not parsed.netloc
+        or not hostname
+        or parsed.username is not None
+        or parsed.password is not None
+        or parsed.query
+        or parsed.fragment
+    ):
+        raise ValueError(
+            f"{setting_name} must use HTTP(S) without user-info, query, or fragment."
+        )
+
+    return urlunsplit(
+        (
+            parsed.scheme.lower(),
+            parsed.netloc,
+            parsed.path.rstrip("/"),
+            "",
+            "",
+        )
+    )
+
+
+def provider_url_origin_for_display(value: str) -> str:
+    """Return only a provider URL's origin, excluding path and credentials."""
+
+    parsed = urlsplit(value)
+    hostname = parsed.hostname
+    if not hostname:
+        raise ValueError("Provider URL must include a hostname.")
+
+    authority = f"[{hostname}]" if ":" in hostname else hostname
+    if parsed.port is not None:
+        authority = f"{authority}:{parsed.port}"
+    return f"{parsed.scheme.lower()}://{authority}"
 
 
 @dataclass(frozen=True)
@@ -66,17 +116,23 @@ class Settings:
             app_version="0.1.0",
             llm_provider=cast(ProviderName, provider_value),
 
-            ollama_base_url=source.get(
+            ollama_base_url=_validated_provider_url(
+                source.get(
+                    "OLLAMA_BASE_URL",
+                    "http://127.0.0.1:11434/v1",
+                ),
                 "OLLAMA_BASE_URL",
-                "http://127.0.0.1:11434/v1",
-            ).rstrip("/"),
+            ),
             ollama_model=source.get("OLLAMA_MODEL", "").strip(),
             ollama_api_key=source.get("OLLAMA_API_KEY", "ollama"),
 
-            lm_studio_base_url=source.get(
+            lm_studio_base_url=_validated_provider_url(
+                source.get(
+                    "LM_STUDIO_BASE_URL",
+                    "http://127.0.0.1:1234/v1",
+                ),
                 "LM_STUDIO_BASE_URL",
-                "http://127.0.0.1:1234/v1",
-            ).rstrip("/"),
+            ),
             lm_studio_model=source.get(
                 "LM_STUDIO_MODEL", ""
             ).strip(),

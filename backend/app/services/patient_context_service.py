@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import sqlite3
+import unicodedata
 
 from app.persistence.database import DatabaseManager
 from app.persistence.repositories.cases import CaseRepository
@@ -96,6 +98,25 @@ class PatientContextService:
     """
 
     _PAGE_SIZE = 200
+    _MEMORY_STOP_WORDS = frozenset({
+        "about",
+        "after",
+        "again",
+        "and",
+        "are",
+        "can",
+        "for",
+        "from",
+        "have",
+        "how",
+        "that",
+        "the",
+        "this",
+        "what",
+        "when",
+        "with",
+        "your",
+    })
 
     def __init__(
         self,
@@ -497,10 +518,13 @@ class PatientContextService:
         messages_by_id: dict[str, sqlite3.Row],
         max_items: int,
     ) -> tuple[PatientMemoryItem, ...]:
-        """Select only allowed, evidence-linked longitudinal memory."""
+        """Select allowed, evidence-linked memory using deterministic ranking."""
 
         memory_repository = MemoryRepository(connection)
-        items: list[tuple[str, str, PatientMemoryItem]] = []
+        query_tokens = PatientContextService._memory_tokens(
+            current_therapist_message.content
+        )
+        items: list[tuple[float, int, str, str, PatientMemoryItem]] = []
 
         rows = memory_repository.list_by_run(
             run_id,
@@ -617,19 +641,66 @@ class PatientContextService:
                     "An authorized memory item violates its data contract."
                 ) from exc
 
+            memory_tokens = PatientContextService._memory_tokens(item.content)
+            overlap = (
+                len(query_tokens & memory_tokens) / len(query_tokens)
+                if query_tokens
+                else 0.0
+            )
+            if (
+                query_tokens
+                and item.memory_scope == "episodic"
+                and overlap == 0
+            ):
+                continue
+
+            latest_evidence_session = max(
+                position[0] for position in evidence_positions
+            )
+            recency = latest_evidence_session / current_session_number
+            confidence = item.confidence if item.confidence is not None else 0.0
+            support = min(len({position[2] for position in evidence_positions}), 4)
+            scope_importance = (
+                0.1 if item.memory_scope in {"semantic", "therapeutic"} else 0.0
+            )
+            score = (
+                overlap * 4.0
+                + recency
+                + confidence
+                + support * 0.03
+                + scope_importance
+            )
             items.append(
                 (
+                    score,
+                    latest_evidence_session,
                     row["created_at"],
                     row["memory_id"],
                     item,
                 )
             )
 
-        items.sort(key=lambda item: (item[0], item[1]))
+        items.sort(
+            key=lambda item: (
+                -item[0],
+                -item[1],
+                item[2],
+                item[3],
+            )
+        )
 
         return tuple(
-            item[2]
-            for item in items[-max_items:]
+            item[4]
+            for item in items[:max_items]
+        )
+
+    @classmethod
+    def _memory_tokens(cls, text: str) -> frozenset[str]:
+        normalized = unicodedata.normalize("NFKC", text).casefold()
+        return frozenset(
+            token
+            for token in re.findall(r"[^\W_]+", normalized, flags=re.UNICODE)
+            if len(token) >= 3 and token not in cls._MEMORY_STOP_WORDS
         )
 
     def _load_operational_data(

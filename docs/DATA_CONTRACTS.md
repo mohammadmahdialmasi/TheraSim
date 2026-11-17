@@ -55,6 +55,9 @@ The initial implementation defines the following objects:
 18. EvaluationInput
 19. EvaluationReport
 20. ModelExecutionMetadata
+21. TreatmentPlanDefinition
+22. TreatmentPlanRevision
+23. PlanEvidenceReference
 
 Each object must have explicit ownership, validation requirements, and access restrictions.
 
@@ -1347,5 +1350,22 @@ A schema theme or value may not be labeled character-endorsed without source
 references. Memory proposals require evidence. The backend must verify each
 quotation against the persisted message before accepting any proposal.
 
-These Python models are initial domain contracts, not yet persistence or
-authorization services.
+Selected character, memory, event, and treatment-plan contracts have
+Run-scoped persistence and review services. Reviewer identity remains
+unauthenticated; the local sentinel does not establish a verified person.
+
+## Versioned treatment-plan contracts
+
+The initial implementation defines `TreatmentPlanDefinition`, `PlanGoal`,
+`PlanObjective`, `PlanIntervention`, and `PlanEvidenceReference` in
+`backend/app/services/treatment_plans.py`. A `TreatmentPlanRevision` captures
+the Run modality and protocol version, the complete definition, evidence
+references, rationale, status, and immutable review decision. A proposal
+records which active revision it was based on.
+
+Only explicitly accepted reviews activate a proposed revision; rejection
+preserves the current active snapshot and the rejected proposal. Evidence must
+belong to the same Run, with events and state transitions accepted and sessions
+completed. These records are educational planning artifacts, not clinical
+recommendations. The service persists explicit user-authored proposals; it
+does not infer progress or automatically adapt a plan.

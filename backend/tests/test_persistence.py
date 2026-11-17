@@ -73,7 +73,7 @@ def test_migrations_are_idempotent(manager):
             "SELECT COUNT(*) FROM schema_migrations"
         ).fetchone()[0]
 
-    assert count == 10
+    assert count == 17
 
 
 def test_foreign_keys_are_enabled_on_every_connection(manager):

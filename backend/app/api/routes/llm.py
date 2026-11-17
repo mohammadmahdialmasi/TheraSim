@@ -5,6 +5,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from app.core.config import (
     ProviderName,
+    provider_url_origin_for_display,
     settings,
 )
 from app.llm.client import (
@@ -90,7 +91,7 @@ def list_providers() -> dict:
 
         providers.append({
             "name": config.name,
-            "base_url": config.base_url,
+            "base_url": provider_url_origin_for_display(config.base_url),
             "default_model": config.model or None,
             "is_active": name == settings.llm_provider,
         })

@@ -21,6 +21,10 @@ from app.persistence.repositories.interaction_requests import (
 from app.persistence.repositories.memory_extraction_jobs import (
     MemoryExtractionJobRepository,
 )
+from app.persistence.repositories.character_runtime import (
+    DEFAULT_CHARACTER_STATE_VALUES,
+    RunCharacterRepository,
+)
 from app.persistence.repositories.operations import ModelRunRepository
 from app.persistence.repositories.messages import MessageRepository
 from app.persistence.repositories.sessions import SessionRepository
@@ -33,6 +37,10 @@ from app.services.memory_extraction import (
     MemoryExtractionStatusService,
     MemoryExtractionWorker,
 )
+from app.services.character_model import CHARACTER_STATE_SCHEMA_VERSION
+from app.services.character_state_transitions import (
+    CharacterStateTransitionService,
+)
 
 
 NOW = datetime(2026, 11, 17, 8, 0, tzinfo=timezone.utc)
@@ -41,7 +49,7 @@ NOW_TEXT = "2026-11-17T08:00:00Z"
 
 def memory_output(*, quote="I felt worried about the meeting."):
     return {
-        "schema_version": "0.1",
+        "schema_version": "0.2",
         "proposals": [
             {
                 "memory_scope": "episodic",
@@ -61,7 +69,48 @@ def memory_output(*, quote="I felt worried about the meeting."):
                 },
             }
         ],
+        "events": [],
+        "state_transitions": [],
     }
+
+
+def dynamics_event():
+    return {
+        "proposal_id": "untrusted-event-id",
+        "event_type": "emotional_reaction",
+        "actor": "patient",
+        "summary": "The client reports worry about the meeting.",
+        "observed_fact": "The client says they felt worried.",
+        "interpretation": "The meeting may be emotionally salient.",
+        "psychological_dimensions": ["arousal", "social_evaluative_threat"],
+        "evidence": [
+            {
+                "message_id": "patient-2",
+                "exact_quote": "I felt worried about the meeting.",
+            }
+        ],
+        "confidence": 0.8,
+        "status": "candidate",
+    }
+
+
+def add_character_state_snapshot(manager):
+    with manager.transaction("operational") as connection:
+        RunCharacterRepository(connection).create_state_snapshot(
+            snapshot_id="character-state-initial",
+            run_id="run-1",
+            state_schema_version=CHARACTER_STATE_SCHEMA_VERSION,
+            snapshot_reason="initial",
+            created_at=NOW_TEXT,
+            values=DEFAULT_CHARACTER_STATE_VALUES,
+        )
+        connection.execute(
+            """
+            UPDATE memory_extraction_jobs
+            SET character_state_snapshot_id = 'character-state-initial'
+            WHERE job_id = 'job-1'
+            """
+        )
 
 
 class FakeMemoryClient:
@@ -251,7 +300,12 @@ def test_agent_uses_only_provided_transcript_and_validates_output():
     agent_input = json.loads(client.calls[0]["messages"][1]["content"])
     assert "hidden_case_fact" not in agent_input["messages"][0]["content"]
     schema_properties = agent_input["expected_output_schema"]["properties"]
-    assert set(schema_properties) == {"schema_version", "proposals"}
+    assert set(schema_properties) == {
+        "schema_version",
+        "proposals",
+        "events",
+        "state_transitions",
+    }
 
     invalid_client = FakeMemoryClient(content='{"proposals": []}')
     with pytest.raises(MemoryExtractionAgentError):
@@ -325,9 +379,9 @@ def test_worker_persists_review_pending_memory_and_respects_as_of_transcript(
     assert model_run["input_hash"].startswith("sha256:")
     assert model_run["output_hash"] == extraction_job["output_hash"]
     assert model_run["prompt_id"] == "MEMORY_EXTRACTION_PROMPT_V0"
-    assert model_run["prompt_version"] == "0.1"
-    assert model_run["input_schema_version"] == "0.1"
-    assert model_run["output_schema_version"] == "0.1"
+    assert model_run["prompt_version"] == "0.2"
+    assert model_run["input_schema_version"] == "0.2"
+    assert model_run["output_schema_version"] == "0.2"
     assert json.loads(model_run["generation_parameters"]) == {
         "temperature": 0.0,
         "max_tokens": 256,
@@ -349,7 +403,12 @@ def test_worker_completes_without_forcing_a_memory_candidate(
 ):
     system = extraction_system
     system["client"].content = json.dumps(
-        {"schema_version": "0.1", "proposals": []}
+        {
+            "schema_version": "0.2",
+            "proposals": [],
+            "events": [],
+            "state_transitions": [],
+        }
     )
 
     assert system["worker"].process_one() is True
@@ -361,6 +420,193 @@ def test_worker_completes_without_forcing_a_memory_candidate(
     assert job.status == "completed"
     assert job.candidate_count == 0
     assert system["service"].list_memories("run-1") == []
+
+
+def test_worker_persists_event_as_unverified_with_exact_source_span(
+    extraction_system,
+):
+    system = extraction_system
+    payload = memory_output()
+    payload["events"] = [dynamics_event()]
+    system["client"].content = json.dumps(payload, ensure_ascii=False)
+
+    assert system["worker"].process_one() is True
+
+    with system["manager"].connection("operational") as connection:
+        event = connection.execute(
+            "SELECT * FROM events WHERE extraction_method = 'model_assisted'"
+        ).fetchone()
+        evidence = connection.execute(
+            "SELECT * FROM event_evidence WHERE event_id = ?",
+            (event["event_id"],),
+        ).fetchone()
+    assert event["event_status"] == "requires_review"
+    assert event["actor"] == "patient"
+    assert event["extractor_version"] == "character-dynamics-extraction-v0.2"
+    event_payload = json.loads(event["payload"])
+    assert event_payload["observed_fact"] == "The client says they felt worried."
+    assert event_payload["interpretation"] == (
+        "The meeting may be emotionally salient."
+    )
+    assert evidence["message_id"] == "patient-2"
+    assert evidence["start_offset"] == 0
+    assert evidence["end_offset"] == len(
+        "I felt worried about the meeting."
+    )
+
+
+def test_worker_creates_review_only_state_transition_then_applies_once(
+    extraction_system,
+):
+    system = extraction_system
+    add_character_state_snapshot(system["manager"])
+    payload = memory_output()
+    payload["state_transitions"] = [
+        {
+            "proposal_id": "untrusted-transition-id",
+            "run_id": "run-1",
+            "session_id": "session-1",
+            "variable_name": "perceived_safety",
+            "previous_value": 2,
+            "proposed_value": 1,
+            "evidence_message_ids": ["patient-2"],
+            "evidence": [
+                {
+                    "message_id": "patient-2",
+                    "exact_quote": "I felt worried about the meeting.",
+                }
+            ],
+            "rationale": "The client reports worry in this situation.",
+            "confidence": 0.6,
+            "status": "candidate",
+        }
+    ]
+    system["client"].content = json.dumps(payload, ensure_ascii=False)
+
+    assert system["worker"].process_one() is True
+    with system["manager"].connection("operational") as connection:
+        transition = connection.execute(
+            "SELECT * FROM character_state_transitions"
+        ).fetchone()
+        before_values = RunCharacterRepository(
+            connection
+        ).get_state_snapshot_values("character-state-initial")
+
+    assert transition["validation_status"] == "requires_review"
+    assert transition["idempotency_key"] == (
+        "character-dynamics:request-1:state:0"
+    )
+    assert before_values["perceived_safety"] == 2
+
+    service = CharacterStateTransitionService(system["manager"])
+    accepted = service.accept_transition(
+        transition["transition_id"],
+        validated_at=NOW_TEXT,
+    )
+    repeated = service.accept_transition(
+        transition["transition_id"],
+        validated_at=NOW_TEXT,
+    )
+    assert accepted["validation_status"] == "accepted"
+    assert repeated["accepted_value"] == 1
+    with system["manager"].connection("operational") as connection:
+        snapshots = connection.execute(
+            "SELECT COUNT(*) FROM character_state_snapshots "
+            "WHERE run_id = 'run-1'"
+        ).fetchone()[0]
+        current = RunCharacterRepository(
+            connection
+        ).get_current_state_snapshot("run-1")
+        current_values = RunCharacterRepository(
+            connection
+        ).get_state_snapshot_values(current["snapshot_id"])
+    assert snapshots == 2
+    assert current_values["perceived_safety"] == 1
+
+
+def test_extraction_uses_state_snapshot_pinned_at_interaction_time(
+    extraction_system,
+):
+    system = extraction_system
+    add_character_state_snapshot(system["manager"])
+    future_values = dict(DEFAULT_CHARACTER_STATE_VALUES)
+    future_values["perceived_safety"] = 4
+    with system["manager"].transaction("operational") as connection:
+        RunCharacterRepository(connection).create_state_snapshot(
+            snapshot_id="character-state-future",
+            run_id="run-1",
+            session_id="session-1",
+            previous_snapshot_id="character-state-initial",
+            state_schema_version=CHARACTER_STATE_SCHEMA_VERSION,
+            snapshot_reason="reviewed_transition",
+            created_at="2026-11-17T08:01:00Z",
+            values=future_values,
+        )
+
+    assert system["worker"].process_one() is True
+
+    agent_input = json.loads(
+        system["client"].calls[0]["messages"][1]["content"]
+    )
+    assert agent_input["character_state_snapshot_id"] == (
+        "character-state-initial"
+    )
+    assert agent_input["current_character_state"]["perceived_safety"] == 2
+
+
+def test_worker_replays_legacy_saved_memory_output(extraction_system):
+    system = extraction_system
+    legacy_output = memory_output()
+    legacy_output["schema_version"] = "0.1"
+    legacy_output.pop("events")
+    legacy_output.pop("state_transitions")
+    serialized = json.dumps(legacy_output, ensure_ascii=False)
+    with system["manager"].transaction("operational") as connection:
+        connection.execute(
+            """
+            UPDATE memory_extraction_jobs
+            SET proposal_payload = ?, output_hash = ?
+            WHERE job_id = 'job-1'
+            """,
+            (
+                serialized,
+                system["worker"]._digest_text(serialized),
+            ),
+        )
+
+    assert system["worker"].process_one() is True
+    assert system["client"].calls == []
+    job = MemoryExtractionStatusService(
+        system["manager"]
+    ).get_job("run-1", "request-1")
+    assert job is not None
+    assert job.status == "completed"
+    assert len(system["service"].list_memories("run-1")) == 1
+
+
+def test_worker_rejects_nonexistent_character_event_quote(
+    extraction_system,
+):
+    system = extraction_system
+    event = dynamics_event()
+    event["evidence"][0]["exact_quote"] = "This was never said."
+    payload = memory_output()
+    payload["events"] = [event]
+    system["client"].content = json.dumps(payload, ensure_ascii=False)
+
+    assert system["worker"].process_one() is True
+
+    job = MemoryExtractionStatusService(
+        system["manager"]
+    ).get_job("run-1", "request-1")
+    assert job is not None
+    assert job.status == "failed"
+    assert job.last_error_code == "invalid_character_dynamics_evidence"
+    with system["manager"].connection("operational") as connection:
+        count = connection.execute(
+            "SELECT COUNT(*) FROM events WHERE extraction_method = 'model_assisted'"
+        ).fetchone()[0]
+    assert count == 0
 
 
 def test_worker_records_invalid_model_output_as_failed_execution(
@@ -460,9 +706,14 @@ def test_worker_rejects_therapist_authored_quotes_for_automatic_memory(
         }
     ]
     system["client"].content = json.dumps(
-        {"schema_version": "0.1", "proposals": [
-            {"memory_scope": "therapeutic", "proposal": proposal}
-        ]},
+        {
+            "schema_version": "0.2",
+            "proposals": [
+                {"memory_scope": "therapeutic", "proposal": proposal}
+            ],
+            "events": [],
+            "state_transitions": [],
+        },
         ensure_ascii=False,
     )
 
@@ -481,6 +732,9 @@ def test_worker_reuses_saved_proposals_after_a_partial_attempt(
     extraction_system,
 ):
     system = extraction_system
+    payload = memory_output()
+    payload["events"] = [dynamics_event()]
+    system["client"].content = json.dumps(payload, ensure_ascii=False)
     original_create_candidate = system["service"].create_candidate
 
     def fail_candidate_creation(**kwargs):
@@ -501,6 +755,10 @@ def test_worker_reuses_saved_proposals_after_a_partial_attempt(
     assert saved["proposal_payload"] is not None
     assert saved["output_hash"].startswith("sha256:")
     assert saved["status"] == "pending"
+    with system["manager"].connection("operational") as connection:
+        assert connection.execute(
+            "SELECT COUNT(*) FROM events WHERE extraction_method = 'model_assisted'"
+        ).fetchone()[0] == 1
 
     system["service"].create_candidate = original_create_candidate
     system["clock"][0] += timedelta(seconds=10)
@@ -515,6 +773,10 @@ def test_worker_reuses_saved_proposals_after_a_partial_attempt(
     )
     assert system["worker"].process_one() is True
     assert len(system["client"].calls) == 1
+    with system["manager"].connection("operational") as connection:
+        assert connection.execute(
+            "SELECT COUNT(*) FROM events WHERE extraction_method = 'model_assisted'"
+        ).fetchone()[0] == 1
 
     job = MemoryExtractionStatusService(
         system["manager"]
@@ -570,7 +832,10 @@ def test_outbox_recovers_expired_lease_and_rejects_stale_owner(
         assert repository.save_proposals(
             "job-1",
             worker_id="worker-b",
-            proposal_payload='{"schema_version":"0.1","proposals":[]}',
+            proposal_payload=(
+                '{"schema_version":"0.2","proposals":[],"events":[],'
+                '"state_transitions":[]}'
+            ),
             output_hash="sha256:test",
             updated_at=first_lease_end,
         ) is True

@@ -14,6 +14,11 @@ import {
 
 import type { Language } from '../../i18n'
 import { MemoryReviewPanel } from '../memories/MemoryReviewPanel'
+import { EventReviewPanel } from '../events/EventReviewPanel'
+import { TreatmentPlanPanel } from '../treatmentPlans/TreatmentPlanPanel'
+import { EvaluationPanel } from '../evaluations/EvaluationPanel'
+import { LongitudinalEvaluationPanel } from '../evaluations/LongitudinalEvaluationPanel'
+import { RunAnalyticsPanel } from '../analytics/RunAnalyticsPanel'
 
 import {
   completeSimulationRun,
@@ -505,6 +510,7 @@ export function SessionsPage({ language }: { language: Language }) {
     try {
       await createSimulationSession(activeRun.run_id)
       await refreshRunSessions(activeRun.run_id)
+      setMemoryRefreshKey((current) => current + 1)
     } catch (sessionError) {
       setError(errorMessage(sessionError, copy.genericError))
     } finally {
@@ -543,6 +549,7 @@ export function SessionsPage({ language }: { language: Language }) {
       if (activeRun) {
         await refreshRunSessions(activeRun.run_id)
       }
+      setMemoryRefreshKey((current) => current + 1)
 
       setNotice(
         isPersian
@@ -1131,6 +1138,54 @@ export function SessionsPage({ language }: { language: Language }) {
           runId={activeRun.run_id}
           language={language}
           refreshKey={memoryRefreshKey}
+        />
+      )}
+
+      {activeRun && (
+        <EventReviewPanel
+          key={activeRun.run_id}
+          runId={activeRun.run_id}
+          language={language}
+          refreshKey={memoryRefreshKey}
+        />
+      )}
+
+      {activeRun && (
+        <TreatmentPlanPanel
+          key={activeRun.run_id}
+          runId={activeRun.run_id}
+          language={language}
+          refreshKey={memoryRefreshKey}
+        />
+      )}
+
+      {activeRun && selectedSession?.status === 'completed' && (
+        <EvaluationPanel
+          key={selectedSession.session_id}
+          sessionId={selectedSession.session_id}
+          sessionStatus={selectedSession.status}
+          transcript={sessionMessages}
+          language={language}
+        />
+      )}
+      {activeRun && (
+        <LongitudinalEvaluationPanel
+          key={activeRun.run_id}
+          runId={activeRun.run_id}
+          modality={activeRun.modality}
+          completedSessionCount={
+            sessions.filter((session) => session.status === 'completed').length
+          }
+          refreshKey={memoryRefreshKey}
+          language={language}
+        />
+      )}
+      {activeRun && (
+        <RunAnalyticsPanel
+          key={activeRun.run_id}
+          runId={activeRun.run_id}
+          refreshKey={memoryRefreshKey}
+          language={language}
         />
       )}
     </section>

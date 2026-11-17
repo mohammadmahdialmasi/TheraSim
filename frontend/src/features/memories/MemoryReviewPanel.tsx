@@ -11,8 +11,16 @@ import {
 
 import type { Language } from '../../i18n'
 
-import { listMemoryCandidates, reviewMemoryCandidate } from './api'
-import type { MemoryRecord } from './types'
+import {
+  listMemoryCandidates,
+  listMemoryConsolidationSuggestions,
+  proposeMemoryConsolidation,
+  reviewMemoryCandidate,
+} from './api'
+import type {
+  MemoryConsolidationSuggestion,
+  MemoryRecord,
+} from './types'
 
 const text = {
   en: {
@@ -20,7 +28,27 @@ const text = {
     description:
       'Review proposed memories and their source evidence before they can influence later sessions.',
     reviewerWarning:
-      'Authentication is not configured. Decisions are recorded as “unverified_local_caller” and do not verify a person’s identity.',
+      'Consolidated memories remain proposals until reviewed. Similarity and contradiction flags are deterministic hints, not verified clinical conclusions.',
+    consolidation: 'Cross-session consolidation',
+    consolidationDescription:
+      'Select related memories from different sessions and write a concise proposal. Original memories and evidence remain unchanged.',
+    noSuggestions: 'No related cross-session memories were found.',
+    selectSources: 'Select these sources',
+    selectedSources: 'Selected source memories',
+    proposedContent: 'Proposed consolidated memory',
+    proposedContentPlaceholder:
+      'Write a cautious summary supported by the selected source memories.',
+    propose: 'Create review proposal',
+    proposed: 'Consolidation proposal created for review.',
+    related: 'Related',
+    repeated: 'Repeated pattern',
+    potential_contradiction: 'Potential contradiction',
+    similarity: 'Text similarity',
+    sourceMemories: 'Consolidation sources',
+    sourceMemory: 'Source memory',
+    sourceMemoryLabel: 'Memory',
+    version: 'Version',
+    selectAtLeastTwo: 'Select a suggestion and write a proposed memory.',
     refresh: 'Refresh candidates',
     loading: 'Loading memory candidates…',
     empty: 'There are no memory candidates awaiting review for this Run.',
@@ -41,7 +69,27 @@ const text = {
     description:
       'پیشنهادهای حافظه و شواهد منبع آن‌ها را پیش از استفاده در جلسات بعدی بررسی کن.',
     reviewerWarning:
-      'احراز هویت فعال نیست. تصمیم‌ها با شناسه «unverified_local_caller» ثبت می‌شوند و هویت هیچ فردی را تأیید نمی‌کنند.',
+      'حافظه‌های تلفیقی تا زمان بازبینی فقط پیشنهاد هستند. شباهت و تناقض، نشانه‌های قطعی و بالینی نیستند.',
+    consolidation: 'تلفیق بین جلسات',
+    consolidationDescription:
+      'خاطرات مرتبط از جلسات متفاوت را انتخاب و یک پیشنهاد کوتاه بنویس. خاطرات و شواهد اصلی بدون تغییر باقی می‌مانند.',
+    noSuggestions: 'خاطره مرتبطی برای تلفیق بین جلسات پیدا نشد.',
+    selectSources: 'انتخاب این منابع',
+    selectedSources: 'خاطرات منبع انتخاب‌شده',
+    proposedContent: 'پیشنهاد حافظه تلفیقی',
+    proposedContentPlaceholder:
+      'خلاصه‌ای محتاطانه و مستند بر پایه خاطرات انتخاب‌شده بنویس.',
+    propose: 'ایجاد پیشنهاد برای بازبینی',
+    proposed: 'پیشنهاد تلفیق برای بازبینی ایجاد شد.',
+    related: 'مرتبط',
+    repeated: 'الگوی تکرارشونده',
+    potential_contradiction: 'تناقض احتمالی',
+    similarity: 'شباهت متنی',
+    sourceMemories: 'منابع تلفیق',
+    sourceMemory: 'خاطره منبع',
+    sourceMemoryLabel: 'خاطره',
+    version: 'نسخه',
+    selectAtLeastTwo: 'یک پیشنهاد را انتخاب و متن حافظه را بنویس.',
     refresh: 'تازه‌سازی پیشنهادها',
     loading: 'در حال بارگذاری پیشنهادهای حافظه…',
     empty: 'پیشنهاد حافظه‌ای برای این اجرا در انتظار بازبینی نیست.',
@@ -76,15 +124,27 @@ export function MemoryReviewPanel({
   const [loading, setLoading] = useState(true)
   const [busyMemoryId, setBusyMemoryId] = useState('')
   const [error, setError] = useState('')
-  const [notice, setNotice] = useState<'accepted' | 'rejected' | ''>('')
+  const [notice, setNotice] = useState<
+    'accepted' | 'rejected' | 'consolidated' | ''
+  >('')
+  const [suggestions, setSuggestions] = useState<
+    MemoryConsolidationSuggestion[]
+  >([])
+  const [selectedSources, setSelectedSources] = useState<string[]>([])
+  const [consolidationContent, setConsolidationContent] = useState('')
+  const [consolidating, setConsolidating] = useState(false)
 
   const loadCandidates = useCallback(async () => {
     setLoading(true)
     setError('')
     setNotice('')
     try {
-      const response = await listMemoryCandidates(runId)
+      const [response, suggestionResponse] = await Promise.all([
+        listMemoryCandidates(runId),
+        listMemoryConsolidationSuggestions(runId),
+      ])
       setMemories(response.data)
+      setSuggestions(suggestionResponse.data)
     } catch (loadError) {
       setError(
         loadError instanceof Error ? loadError.message : 'memory_request_failed',
@@ -138,6 +198,35 @@ export function MemoryReviewPanel({
     }
   }
 
+  async function handleConsolidate() {
+    if (selectedSources.length < 2 || !consolidationContent.trim() || consolidating) {
+      return
+    }
+
+    setConsolidating(true)
+    setError('')
+    setNotice('')
+    try {
+      await proposeMemoryConsolidation(
+        runId,
+        selectedSources,
+        consolidationContent.trim(),
+      )
+      setSelectedSources([])
+      setConsolidationContent('')
+      await loadCandidates()
+      setNotice('consolidated')
+    } catch (proposalError) {
+      setError(
+        proposalError instanceof Error
+          ? proposalError.message
+          : 'memory_request_failed',
+      )
+    } finally {
+      setConsolidating(false)
+    }
+  }
+
   return (
     <section
       className="surface-card memory-review-card"
@@ -180,10 +269,124 @@ export function MemoryReviewPanel({
         <div className="sessions-alert sessions-alert-notice" role="status">
           <Check size={17} />
           <span>
-            {notice === 'accepted' ? copy.accepted : copy.rejected}
+            {notice === 'accepted'
+              ? copy.accepted
+              : notice === 'rejected'
+                ? copy.rejected
+                : copy.proposed}
           </span>
         </div>
       )}
+
+      <section className="memory-consolidation">
+        <h3>{copy.consolidation}</h3>
+        <p>{copy.consolidationDescription}</p>
+        {suggestions.length === 0 ? (
+          <p className="memory-review-state">{copy.noSuggestions}</p>
+        ) : (
+          <div className="memory-candidate-list">
+            {suggestions.map((suggestion) => {
+              const isSelected =
+                selectedSources.length === suggestion.source_memory_ids.length &&
+                suggestion.source_memory_ids.every((id) =>
+                  selectedSources.includes(id),
+                )
+              return (
+                <article
+                  className="memory-candidate"
+                  key={suggestion.source_memory_ids.join(':')}
+                >
+                  <div className="memory-candidate-meta">
+                    <span>
+                      {copy[
+                        suggestion.relationship_type as
+                          | 'related'
+                          | 'repeated'
+                          | 'potential_contradiction'
+                      ] ?? copy.related}
+                    </span>
+                    <span>
+                      {copy.similarity}: {Math.round(suggestion.similarity * 100)}%
+                    </span>
+                  </div>
+                  <p dir="ltr">
+                    {suggestion.source_memory_ids.join(' · ')}
+                  </p>
+                  <div className="memory-evidence">
+                    {suggestion.sources.map((source) => (
+                      <blockquote
+                        key={`${suggestion.source_memory_ids.join(':')}-${source.source_memory_id}`}
+                        dir="auto"
+                      >
+                        <strong>{copy.sourceMemoryLabel}</strong>
+                        <p>{source.content}</p>
+                        <footer>
+                          <bdi dir="ltr">{source.source_memory_id}</bdi>
+                          {' · '}
+                          {copy.version}:{' '}
+                          <bdi dir="ltr">
+                            {source.source_memory_version}
+                          </bdi>
+                          {' · '}
+                          {copy.session}:{' '}
+                          <bdi dir="ltr">{source.source_session_id}</bdi>
+                        </footer>
+                      </blockquote>
+                    ))}
+                  </div>
+                  <button
+                    type="button"
+                    className={isSelected ? 'primary-button' : 'secondary-button'}
+                    onClick={() => {
+                      setSelectedSources(suggestion.source_memory_ids)
+                      setConsolidationContent('')
+                    }}
+                    disabled={consolidating}
+                  >
+                    {copy.selectSources}
+                  </button>
+                </article>
+              )
+            })}
+          </div>
+        )}
+        {selectedSources.length > 0 && (
+          <>
+            <p className="memory-candidate-meta">
+              {copy.selectedSources}:{' '}
+              <bdi dir="ltr">{selectedSources.join(' · ')}</bdi>
+            </p>
+            <label className="memory-rationale">
+              <span>{copy.proposedContent}</span>
+              <textarea
+                value={consolidationContent}
+                onChange={(event) =>
+                  setConsolidationContent(event.target.value)
+                }
+                placeholder={copy.proposedContentPlaceholder}
+                maxLength={12000}
+                rows={3}
+                disabled={consolidating}
+              />
+            </label>
+            <button
+              type="button"
+              className="primary-button"
+              onClick={() => void handleConsolidate()}
+              disabled={
+                selectedSources.length < 2 ||
+                !consolidationContent.trim() ||
+                consolidating
+              }
+            >
+              {consolidating ? (
+                <LoaderCircle className="spin" size={15} />
+              ) : null}
+              {copy.propose}
+            </button>
+          </>
+        )}
+      </section>
 
       {loading && memories.length === 0 && (
         <p className="memory-review-state" role="status">
@@ -215,6 +418,37 @@ export function MemoryReviewPanel({
               <p className="memory-candidate-content" dir="auto">
                 {memory.content}
               </p>
+
+              {memory.consolidation_sources.length > 0 && (
+                <div className="memory-evidence">
+                  <strong>{copy.sourceMemories}</strong>
+                  {memory.consolidation_sources.map((source) => (
+                    <blockquote
+                      key={`${memory.memory_id}-${source.source_memory_id}`}
+                      dir="auto"
+                    >
+                      <p>{source.content}</p>
+                      <footer>
+                        {copy.sourceMemory}:{' '}
+                        <bdi dir="ltr">{source.source_memory_id}</bdi>
+                        {' · '}
+                        {copy.version}:{' '}
+                        <bdi dir="ltr">{source.source_memory_version}</bdi>
+                        {' · '}
+                        {copy.session}:{' '}
+                        <bdi dir="ltr">{source.source_session_id}</bdi>
+                        {' · '}
+                        {copy[
+                          source.relationship_type as
+                            | 'related'
+                            | 'repeated'
+                            | 'potential_contradiction'
+                        ] ?? copy.related}
+                      </footer>
+                    </blockquote>
+                  ))}
+                </div>
+              )}
 
               <div className="memory-evidence">
                 <strong>{copy.source}</strong>

@@ -14,11 +14,14 @@ from pydantic import (
 )
 
 from app.api.routes.runs import RunService, get_run_service
+from app.api.routes.auth import get_current_user
 from app.services.character_model import (
     MemoryEvidenceQuote,
     MemoryProposal,
 )
 from app.services.memory import (
+    MemoryConsolidationError,
+    MemoryConsolidationSuggestion,
     MemoryEvidenceRecord,
     MemoryEvidenceValidationError,
     MemoryIdempotencyConflictError,
@@ -32,15 +35,13 @@ from app.services.memory import (
 from app.services.memory_extraction import (
     MemoryExtractionStatusService,
 )
+from app.services.local_auth import AuthenticatedUser
 
 
 router = APIRouter(
     prefix="/api/v1/simulation-runs/{run_id}/memories",
     tags=["Longitudinal Memory"],
 )
-
-LOCAL_REVIEWER_ID = "unverified_local_caller"
-
 
 class MemoryCandidateRequest(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
@@ -146,6 +147,28 @@ class MemoryReviewRequest(BaseModel):
         return value.strip()
 
 
+class MemoryConsolidationRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+
+    source_memory_ids: list[StrictStr] = Field(min_length=2, max_length=5)
+    content: StrictStr = Field(min_length=1, max_length=12000)
+
+    @field_validator("source_memory_ids")
+    @classmethod
+    def validate_source_ids(cls, values: list[str]) -> list[str]:
+        cleaned = [value.strip() for value in values]
+        if any(not value for value in cleaned) or len(set(cleaned)) != len(cleaned):
+            raise ValueError("Source memory IDs must be distinct and nonblank.")
+        return cleaned
+
+    @field_validator("content")
+    @classmethod
+    def validate_content(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("Field must not be blank.")
+        return value.strip()
+
+
 class MemoryEvidenceData(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -154,6 +177,16 @@ class MemoryEvidenceData(BaseModel):
     start_offset: int | None
     end_offset: int | None
     excerpt: str | None
+
+
+class MemoryConsolidationSourceData(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    source_memory_id: str
+    source_memory_version: int
+    relationship_type: str
+    content: str
+    source_session_id: str
 
 
 class MemoryData(BaseModel):
@@ -171,8 +204,20 @@ class MemoryData(BaseModel):
     memory_scope: str
     supersedes_memory_id: str | None
     evidence: list[MemoryEvidenceData]
+    consolidation_sources: list[MemoryConsolidationSourceData] = Field(
+        default_factory=list
+    )
     created_at: str
     updated_at: str
+
+
+class MemoryConsolidationSuggestionData(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    source_memory_ids: list[str]
+    relationship_type: str
+    similarity: float
+    sources: list[MemoryConsolidationSourceData]
 
 
 class MemoryReviewData(BaseModel):
@@ -203,6 +248,18 @@ class MemoryReviewResponse(BaseModel):
 
     data: MemoryData
     review: MemoryReviewData
+
+
+class MemoryConsolidationSuggestionsResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    data: list[MemoryConsolidationSuggestionData]
+
+
+class MemoryConsolidationResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    data: MemoryData
 
 
 class MemoryExtractionStatusData(BaseModel):
@@ -262,6 +319,7 @@ def _ensure_run_exists(run_id: str, service: RunService) -> None:
 def _memory_data(
     memory: MemoryRecord,
     evidence: list[MemoryEvidenceRecord],
+    consolidation_sources=(),
 ) -> MemoryData:
     return MemoryData(
         memory_id=memory.memory_id,
@@ -284,6 +342,16 @@ def _memory_data(
                 excerpt=item.excerpt,
             )
             for item in evidence
+        ],
+        consolidation_sources=[
+            MemoryConsolidationSourceData(
+                source_memory_id=item.source_memory_id,
+                source_memory_version=item.source_memory_version,
+                relationship_type=item.relationship_type,
+                content=item.content,
+                source_session_id=item.source_session_id,
+            )
+            for item in consolidation_sources
         ],
         created_at=memory.created_at,
         updated_at=memory.updated_at,
@@ -316,6 +384,11 @@ def _raise_memory_error(exc: Exception) -> None:
             status_code=409,
             detail="memory_review_conflict",
         ) from None
+    if isinstance(exc, MemoryConsolidationError):
+        raise HTTPException(
+            status_code=422,
+            detail="memory_consolidation_invalid",
+        ) from None
     raise HTTPException(
         status_code=500,
         detail="memory_service_error",
@@ -344,9 +417,81 @@ def list_memories(
     memories = service.list_memories(run_id, status=status)
     return MemoryListResponse(
         data=[
-            _memory_data(memory, service.list_evidence(memory.memory_id))
+            _memory_data(
+                memory,
+                service.list_evidence(memory.memory_id),
+                service.list_consolidation_sources(memory.memory_id),
+            )
             for memory in memories
         ]
+    )
+
+
+@router.get(
+    "/consolidation-suggestions",
+    response_model=MemoryConsolidationSuggestionsResponse,
+)
+def list_memory_consolidation_suggestions(
+    run_id: str,
+    service: MemoryService = Depends(get_memory_service),
+    run_service: RunService = Depends(get_run_service),
+):
+    """Suggest cross-session memory relationships without changing records."""
+
+    _ensure_run_exists(run_id, run_service)
+    suggestions: list[MemoryConsolidationSuggestion] = (
+        service.list_consolidation_suggestions(run_id)
+    )
+    return MemoryConsolidationSuggestionsResponse(
+        data=[
+            MemoryConsolidationSuggestionData(
+                source_memory_ids=list(item.source_memory_ids),
+                relationship_type=item.relationship_type,
+                similarity=item.similarity,
+                sources=[
+                    MemoryConsolidationSourceData(
+                        source_memory_id=source.source_memory_id,
+                        source_memory_version=source.source_memory_version,
+                        relationship_type=source.relationship_type,
+                        content=source.content,
+                        source_session_id=source.source_session_id,
+                    )
+                    for source in item.sources
+                ],
+            )
+            for item in suggestions
+        ]
+    )
+
+
+@router.post(
+    "/consolidations",
+    response_model=MemoryConsolidationResponse,
+    status_code=201,
+)
+def propose_memory_consolidation(
+    run_id: str,
+    request: MemoryConsolidationRequest,
+    service: MemoryService = Depends(get_memory_service),
+    run_service: RunService = Depends(get_run_service),
+):
+    """Create an evidence-linked candidate requiring reviewer approval."""
+
+    _ensure_run_exists(run_id, run_service)
+    try:
+        memory = service.propose_consolidation(
+            run_id,
+            source_memory_ids=request.source_memory_ids,
+            content=request.content,
+        )
+    except MemoryConsolidationError as exc:
+        _raise_memory_error(exc)
+    return MemoryConsolidationResponse(
+        data=_memory_data(
+            memory,
+            service.list_evidence(memory.memory_id),
+            service.list_consolidation_sources(memory.memory_id),
+        )
     )
 
 
@@ -425,7 +570,11 @@ def create_memory_candidate(
     ) as exc:
         _raise_memory_error(exc)
     return MemoryCandidateResponse(
-        data=_memory_data(memory, service.list_evidence(memory.memory_id))
+        data=_memory_data(
+            memory,
+            service.list_evidence(memory.memory_id),
+            service.list_consolidation_sources(memory.memory_id),
+        )
     )
 
 
@@ -439,6 +588,7 @@ def review_memory_candidate(
     request: MemoryReviewRequest,
     service: MemoryService = Depends(get_memory_service),
     run_service: RunService = Depends(get_run_service),
+    reviewer: AuthenticatedUser = Depends(get_current_user),
 ):
     """Accept or reject a candidate, preserving the review rationale."""
 
@@ -466,14 +616,18 @@ def review_memory_candidate(
         memory, review = service.review_candidate(
             memory_id,
             decision=request.decision,
-            reviewer_id=LOCAL_REVIEWER_ID,
+            reviewer_id=reviewer.user_id,
             rationale=request.rationale,
             reviewed_at=reviewed_at,
         )
     except MemoryReviewConflictError as exc:
         _raise_memory_error(exc)
     return MemoryReviewResponse(
-        data=_memory_data(memory, service.list_evidence(memory.memory_id)),
+        data=_memory_data(
+            memory,
+            service.list_evidence(memory.memory_id),
+            service.list_consolidation_sources(memory.memory_id),
+        ),
         review=MemoryReviewData(
             review_id=review.review_id,
             memory_id=review.memory_id,

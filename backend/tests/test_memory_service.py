@@ -9,6 +9,7 @@ from app.main import app
 from app.persistence.database import DatabaseManager
 from app.persistence.repositories.cases import CaseRepository
 from app.persistence.repositories.messages import MessageRepository
+from app.persistence.repositories.memory import MemoryRepository
 from app.persistence.repositories.sessions import SessionRepository
 from app.persistence.repositories.simulation_runs import (
     SimulationRunRepository,
@@ -16,6 +17,7 @@ from app.persistence.repositories.simulation_runs import (
 from app.services.character_model import MemoryEvidenceQuote, MemoryProposal
 from app.services.memory import (
     MemoryEvidenceValidationError,
+    MemoryConsolidationError,
     MemoryIdempotencyConflictError,
     MemoryRequestNotCompletedError,
     MemoryReviewConflictError,
@@ -179,6 +181,163 @@ def create_candidate(system, *, proposal_index=0, content=None, supersedes=None)
         created_at=NOW,
         supersedes_memory_id=supersedes,
     )
+
+
+def insert_active_memory(
+    system,
+    *,
+    memory_id,
+    session_id,
+    message_id,
+    content,
+):
+    with system["manager"].transaction("operational") as connection:
+        repository = MemoryRepository(connection)
+        repository.create_memory(
+            memory_id=memory_id,
+            run_id="run-1",
+            source_session_id=session_id,
+            memory_type="reported_experience",
+            information_class="explicit_disclosure",
+            content=content,
+            memory_version=1,
+            created_at=NOW,
+            updated_at=NOW,
+            status="active",
+            confidence=0.8,
+            memory_scope="episodic",
+        )
+        repository.add_evidence(
+            memory_id,
+            message_id,
+            "supports",
+        )
+
+
+def test_consolidation_suggests_related_cross_session_memories_and_preserves_sources(
+    memory_system,
+):
+    insert_active_memory(
+        memory_system,
+        memory_id="memory-session-1",
+        session_id="session-1",
+        message_id="patient-1",
+        content="Ava avoids social meetings because she feels embarrassed.",
+    )
+    insert_active_memory(
+        memory_system,
+        memory_id="memory-session-2",
+        session_id="session-2",
+        message_id="patient-2",
+        content="Ava avoids social meetings and feels embarrassed.",
+    )
+
+    suggestions = memory_system["service"].list_consolidation_suggestions(
+        "run-1"
+    )
+    assert len(suggestions) == 1
+    assert suggestions[0].relationship_type == "repeated"
+
+    consolidated = memory_system["service"].propose_consolidation(
+        "run-1",
+        source_memory_ids=list(suggestions[0].source_memory_ids),
+        content="Ava has described avoiding social meetings and feeling embarrassed.",
+    )
+
+    assert consolidated.status == "requires_review"
+    assert consolidated.confidence == 0.8
+    sources = memory_system["service"].list_consolidation_sources(
+        consolidated.memory_id
+    )
+    assert {source.source_memory_id for source in sources} == {
+        "memory-session-1",
+        "memory-session-2",
+    }
+    assert all(source.relationship_type == "repeated" for source in sources)
+    assert {
+        source.source_memory_version for source in sources
+    } == {1}
+    assert {
+        source.content for source in sources
+    } == {
+        "Ava avoids social meetings because she feels embarrassed.",
+        "Ava avoids social meetings and feels embarrassed.",
+    }
+    evidence = memory_system["service"].list_evidence(consolidated.memory_id)
+    assert {item.message_id for item in evidence} == {
+        "patient-1",
+        "patient-2",
+    }
+    with pytest.raises(
+        sqlite3.IntegrityError,
+        match="memory_consolidation_sources_are_immutable",
+    ):
+        with memory_system["manager"].transaction("operational") as connection:
+            connection.execute(
+                """
+                UPDATE memory_consolidation_sources
+                SET source_content = 'rewritten'
+                WHERE consolidated_memory_id = ?
+                """,
+                (consolidated.memory_id,),
+            )
+
+    accepted, _ = memory_system["service"].review_candidate(
+        consolidated.memory_id,
+        decision="accepted",
+        reviewer_id="local-reviewer",
+        rationale="The summary is supported by both cited sessions.",
+        reviewed_at=NOW,
+    )
+    assert accepted.status == "active"
+    assert {
+        source.source_memory_id
+        for source in memory_system["service"].list_consolidation_sources(
+            accepted.memory_id
+        )
+    } == {"memory-session-1", "memory-session-2"}
+
+
+def test_consolidation_flags_possible_contradiction_and_requires_all_sources(
+    memory_system,
+):
+    insert_active_memory(
+        memory_system,
+        memory_id="memory-attends",
+        session_id="session-1",
+        message_id="patient-1",
+        content="Ava attends social meetings with friends.",
+    )
+    insert_active_memory(
+        memory_system,
+        memory_id="memory-avoids",
+        session_id="session-2",
+        message_id="patient-2",
+        content="Ava does not attend social meetings with friends.",
+    )
+
+    suggestions = memory_system["service"].list_consolidation_suggestions(
+        "run-1"
+    )
+    assert suggestions[0].relationship_type == "potential_contradiction"
+
+    insert_active_memory(
+        memory_system,
+        memory_id="memory-unrelated",
+        session_id="session-2",
+        message_id="patient-2",
+        content="Ava enjoys reading historical novels.",
+    )
+    with pytest.raises(MemoryConsolidationError):
+        memory_system["service"].propose_consolidation(
+            "run-1",
+            source_memory_ids=[
+                "memory-attends",
+                "memory-avoids",
+                "memory-unrelated",
+            ],
+            content="The source accounts differ.",
+        )
 
 
 def test_candidate_requires_review_and_is_idempotent(memory_system):
@@ -502,6 +661,46 @@ def test_memory_api_creates_candidate_and_exposes_evidence(memory_api):
     assert len(listed.json()["data"]) == 1
 
 
+def test_memory_api_exposes_consolidation_sources_for_review(
+    memory_system,
+    memory_api,
+):
+    insert_active_memory(
+        memory_system,
+        memory_id="memory-api-session-1",
+        session_id="session-1",
+        message_id="patient-1",
+        content="Ava avoids social meetings because she feels embarrassed.",
+    )
+    insert_active_memory(
+        memory_system,
+        memory_id="memory-api-session-2",
+        session_id="session-2",
+        message_id="patient-2",
+        content="Ava avoids social meetings and feels embarrassed.",
+    )
+
+    suggestions = memory_api.get(
+        "/api/v1/simulation-runs/run-1/memories/consolidation-suggestions"
+    )
+    assert suggestions.status_code == 200
+    suggestion = suggestions.json()["data"][0]
+
+    response = memory_api.post(
+        "/api/v1/simulation-runs/run-1/memories/consolidations",
+        json={
+            "source_memory_ids": suggestion["source_memory_ids"],
+            "content": "Ava has described avoiding social meetings and feeling embarrassed.",
+        },
+    )
+    assert response.status_code == 201
+    data = response.json()["data"]
+    assert data["status"] == "requires_review"
+    assert {
+        item["source_memory_id"] for item in data["consolidation_sources"]
+    } == {"memory-api-session-1", "memory-api-session-2"}
+
+
 def test_memory_api_rejects_invalid_evidence(memory_api):
     invalid_proposal = MemoryProposal(
         proposal_id="proposal",
@@ -599,7 +798,7 @@ def test_memory_api_review_is_run_scoped_and_auditable(memory_api):
     assert reviewed.json()["review"]["decision"] == "accepted"
     assert (
         reviewed.json()["review"]["reviewer_id"]
-        == "unverified_local_caller"
+        == "local-reviewer"
     )
     assert reviewed.json()["review"]["rationale"].startswith(
         "The cited client statements"

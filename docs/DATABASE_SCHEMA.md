@@ -600,6 +600,11 @@ Deterministic application events may be accepted directly through validated back
 
 Behavioral events must remain candidates until validated.
 
+Extracted events remain `requires_review` until explicitly accepted or
+rejected. Migration `012_event_review_history` adds the append-only review
+record, and a database trigger prevents status changes without a matching
+decision.
+
 ### 10.2 event_evidence
 
 Links events to transcript messages.
@@ -622,6 +627,23 @@ Composite primary key:
 The application must verify that the referenced message belongs to the same session as the event.
 
 Evidence offsets must follow a consistent character-indexing convention.
+
+### 10.3 event_reviews
+
+Stores one immutable decision for a behavioral event.
+
+| Field | Type | Constraints |
+|---|---|---|
+| review_id | TEXT | Primary Key |
+| event_id | TEXT | Unique Foreign Key |
+| run_id | TEXT | Foreign Key paired with event_id |
+| decision | TEXT | `accepted` or `rejected` |
+| reviewer_id | TEXT | Not Null; authenticated local reviewer account ID |
+| rationale | TEXT | Not Null |
+| reviewed_at | TEXT | Not Null |
+
+Review rows cannot be updated or deleted. A decision does not rewrite the
+event's extracted description or evidence.
 
 ---
 
@@ -802,7 +824,17 @@ The original transcript remains the authoritative record.
 
 Stores one immutable acceptance or rejection decision for a candidate, including the reviewer identifier, rationale, and review timestamp. Accepted and rejected memory records remain in `memory_items`; only `active` records may be retrieved as patient memory.
 
-### 12.4 memory_extraction_jobs
+### 12.4 memory_consolidation_sources
+
+Migration 015 records immutable links from a proposed consolidated memory to
+each original memory, including a snapshot of its version, session, and
+content, and whether the deterministic text heuristic found the pair related,
+repeated, or potentially contradictory. Transcript evidence is copied as
+references to the original message IDs; source memory records are never
+overwritten. Consolidated records are created as `requires_review` and cannot
+affect patient context until explicitly accepted.
+
+### 12.5 memory_extraction_jobs
 
 Durable post-interaction outbox for optional model-assisted memory proposal generation.
 
@@ -820,11 +852,60 @@ Durable post-interaction outbox for optional model-assisted memory proposal gene
 | lease_expires_at | TEXT | Required only while processing |
 | proposal_payload | TEXT | Optional validated, versioned output for replay |
 | output_hash | TEXT | Optional SHA-256 of proposal payload |
+| character_state_snapshot_id | TEXT | Optional FK to the Run character-state snapshot captured when the interaction was enqueued |
 | last_error_code | TEXT | Optional sanitized error code |
 | created_at / updated_at | TEXT | Not Null |
 | completed_at | TEXT | Required only when completed |
 
 The outbox row is created in the same transaction that completes an interaction and records its deterministic events. Model execution occurs after that transaction. Leases recover abandoned work, retries are bounded, and saved structured output makes candidate persistence safely replayable without calling the model again.
+
+Migration `011_memory_extraction_state_context` adds the nullable
+`character_state_snapshot_id` and an index. Workers use this pinned snapshot,
+not the Run's latest state, when constructing delayed extraction context.
+Legacy jobs with a null reference remain processable for memory and event
+proposals, but cannot submit state-transition proposals.
+
+### 12.6 treatment_plan_revisions
+
+Stores immutable, versioned plan snapshots for a Run.
+
+| Field | Type | Constraints |
+|---|---|---|
+| revision_id | TEXT | Primary Key |
+| plan_id | TEXT | Stable identifier across revisions |
+| run_id | TEXT | Foreign Key |
+| revision_number | INTEGER | Positive; unique within Run |
+| based_on_revision_number | INTEGER | Active revision number used as the proposal base; null for initial plan |
+| modality | TEXT | Copied from Run |
+| protocol_id / protocol_version | TEXT | Pinned protocol identity |
+| plan_json | TEXT | Validated goals, objectives, interventions, measures, review point, evidence, and rationale |
+| status | TEXT | `active`, `requires_review`, `superseded`, or `rejected` |
+| created_at | TEXT | Not Null |
+
+Revision content is immutable. A Run can have at most one active revision and
+one pending proposal. The initial plan is an explicitly authored baseline;
+later proposals must cite same-Run evidence. Only accepted events, accepted
+state transitions, completed sessions, and same-Run evaluations can be cited
+by the current service.
+
+### 12.7 treatment_plan_reviews
+
+Stores one immutable decision for a proposed plan revision.
+
+| Field | Type | Constraints |
+|---|---|---|
+| review_id | TEXT | Primary Key |
+| revision_id | TEXT | Unique Foreign Key |
+| run_id | TEXT | Paired Foreign Key |
+| decision | TEXT | `accepted` or `rejected` |
+| reviewer_id | TEXT | Authenticated local reviewer account ID |
+| rationale | TEXT | Not Null |
+| reviewed_at | TEXT | Not Null |
+
+Acceptance atomically supersedes the prior active revision and activates the
+proposal. Rejection leaves the active revision unchanged. This is a
+human-proposed workflow; automatic progress inference and plan adaptation are
+not implemented.
 
 ---
 
@@ -872,7 +953,7 @@ Stores both session-level and longitudinal evaluation reports.
 | transcript_manifest | TEXT | JSON |
 | evaluator_model_run_id | TEXT | Foreign Key, Optional |
 | overall_summary | TEXT | Optional |
-| report_metadata | TEXT | JSON, Optional |
+| report_metadata | TEXT | JSON, Optional; includes evaluator provenance and scope metadata |
 | evaluation_revision | INTEGER | Not Null |
 | status | TEXT | Not Null |
 | created_at | TEXT | Not Null |
@@ -909,11 +990,18 @@ The application must verify that all transcript references belong to the same ru
 **Longitudinal evaluation:**
 
 - References the entire simulation run.
-- Uses the completed session transcripts in its explicitly selected scope.
+- Uses every completed session transcript in the Run; at least two completed
+  sessions are required.
+- Captures a snapshot of all Run sessions, including in-progress sessions, so
+  later session creation or status changes can invalidate the report.
 - Preserves chronological order.
 - Evaluates therapeutic continuity and adaptation across sessions.
 
-Longitudinal evaluation must support any number of completed sessions and may be requested for an interim or final Run segment. It must not be inferred from a fixed session count.
+The application stores the completed transcript manifest and hashes, the
+evaluated session IDs/numbers/hashes, and the Run-session ID/number/status
+snapshot in `report_metadata`. A report is stale if the Run-session snapshot
+changes or any included completed transcript hash changes. Older longitudinal
+records without a Run-session snapshot are treated as stale.
 
 ### 14.3 evaluation_items
 
@@ -963,6 +1051,24 @@ Composite primary key:
 All referenced messages must belong to the evaluated session or to one of the sessions included in the longitudinal evaluation.
 
 The application must verify this condition.
+
+### 14.5 evaluation_reviews
+
+Stores authenticated, append-only reviewer feedback without modifying the
+generated evaluation revision.
+
+| Field | Type | Constraints |
+|---|---|---|
+| review_id | TEXT | Primary Key |
+| evaluation_id | TEXT | Foreign Key |
+| review_number | INTEGER | Positive; unique per evaluation |
+| reviewer_user_id | TEXT | Foreign Key to local reviewer account |
+| decision | TEXT | `accepted` or `revision_requested` |
+| feedback | TEXT | Required; 1–4000 characters |
+| created_at | TEXT | Not Null |
+
+Database triggers reject updates and deletes. Migration
+`017_evaluation_reviews` adds this table without rewriting existing reports.
 
 ---
 
@@ -1036,6 +1142,7 @@ Examples:
 - disclosure_confirmed
 - event_accepted
 - event_rejected
+- event_reviewed
 - state_transition_accepted
 - state_transition_rejected
 - evaluation_generated
@@ -1062,6 +1169,7 @@ The following relationships must be enforced:
 - interaction_requests to sessions and messages.
 - events to simulation_runs and sessions.
 - event_evidence to events and messages.
+- event_reviews to events and Runs.
 - case_fact_disclosures to runs and evidence messages.
 - case_fact_disclosure_history to disclosure records.
 - state_snapshots to simulation_runs and sessions.
@@ -1073,6 +1181,7 @@ The following relationships must be enforced:
 - evaluations to runs, sessions, and rubric versions.
 - evaluation_items to evaluations.
 - evaluation_evidence to evaluation items and messages.
+- evaluation_reviews to evaluations and authenticated local reviewers.
 - model_runs to their associated run and session where applicable.
 
 Cross-database relationships must be verified by application services.
@@ -1313,21 +1422,28 @@ Required tables:
 9. case_fact_disclosure_history
 10. events
 11. event_evidence
-12. state_snapshots
-13. state_snapshot_values
-14. state_transitions
-15. transition_evidence
-16. memory_items
-17. memory_evidence
-18. memory_reviews
-19. rubric_versions
-20. evaluations
-21. evaluation_items
-22. evaluation_evidence
-23. model_runs
-24. audit_events
-25. memory_extraction_jobs
-26. schema_migrations
+12. event_reviews
+13. state_snapshots
+14. state_snapshot_values
+15. state_transitions
+16. transition_evidence
+17. memory_items
+18. memory_evidence
+19. memory_reviews
+20. rubric_versions
+21. evaluations
+22. evaluation_items
+23. evaluation_evidence
+24. model_runs
+25. audit_events
+26. memory_extraction_jobs
+27. treatment_plan_revisions
+28. treatment_plan_reviews
+29. schema_migrations
+30. local_auth_users
+31. local_auth_sessions
+32. local_auth_login_attempts
+33. evaluation_reviews
 
 ### Restricted Database: case_vault.db
 
@@ -1336,6 +1452,28 @@ Required tables:
 1. restricted_case_profiles
 2. case_facts
 3. schema_migrations
+
+---
+
+## 25.1 Local Authentication Tables (Migration 014)
+
+`local_auth_users` stores the single local reviewer account:
+
+- `user_id`: fixed local account identity, `local-reviewer`.
+- `reviewer_name`: display name supplied during first-run setup.
+- `password_hash`: scrypt hash with per-user random salt and fixed parameters.
+- `created_at`: account creation timestamp.
+
+`local_auth_sessions` stores bearer-session metadata:
+
+- `session_id`: opaque internal session identifier.
+- `user_id`: foreign key to the local reviewer.
+- `token_sha256`: hash of the bearer token; the raw token is not persisted.
+- `created_at`, `expires_at`, and optional `revoked_at`.
+
+Sessions expire after eight hours. Expired and revoked sessions may be removed
+when a new login is created. The operational database and backups contain
+password hashes and session metadata and must be kept private.
 
 ---
 

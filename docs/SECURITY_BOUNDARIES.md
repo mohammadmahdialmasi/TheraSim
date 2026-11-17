@@ -314,9 +314,9 @@ It must preserve distinctions between:
 
 It must not silently convert a hypothesis into an established fact.
 
-The unauthenticated single-user review endpoint records
-`unverified_local_caller` and rejects caller-supplied reviewer identities.
-This sentinel is an audit limitation, not authenticated attribution.
+The initial unauthenticated version recorded `unverified_local_caller`.
+Migration 014 supersedes that baseline: review operations now require an
+authenticated local session and record the stable `local-reviewer` account ID.
 
 ### 5.5 Orchestrator
 
@@ -607,6 +607,14 @@ The implementation should:
 - Avoid exposing internal logs through the web server.
 - Use appropriate Windows file permissions.
 
+The paired backup CLI writes under the current user's local application data
+directory by default on Windows. The optional `backup --encrypt` format uses
+AES-256-GCM and scrypt-derived keys; restore verifies authenticated ciphertext
+and targets a new directory without overwriting existing data. The passphrase
+is not stored and has no recovery path. Plain backups remain available, and
+live SQLite database files are not encrypted at rest. Operators must protect
+the live data directory with filesystem permissions and device encryption.
+
 ### 10.3 Database Protection
 
 The application must:
@@ -632,6 +640,12 @@ The model runtime must:
 - Avoid placing restricted data into unnecessary external model services.
 
 Model downloads and updates should be treated as software supply-chain operations.
+
+The current provider configuration accepts HTTP(S) base URLs only and rejects
+URL user-info, query strings, and fragments. The provider catalog returns only
+the URL origin. Provider credentials belong in the explicit API-key
+configuration, not in the URL. This does not provide authentication,
+authorization, or protection against a maliciously configured provider host.
 
 ---
 
@@ -822,7 +836,30 @@ All acceptance criteria must be verified through tests or implementation inspect
 
 ---
 
-## 16. Future Security Improvements
+## 16. Implemented Local Authentication
+
+The local installation supports one reviewer account, created once through a
+loopback-only initialization endpoint. Passwords are hashed with scrypt using
+a per-account random salt. API sessions use opaque bearer tokens; only token
+hashes are persisted, sessions expire after eight hours, and logout revokes
+the current token. All data-bearing `/api/v1` routers require authentication;
+health and first-run/login endpoints are public.
+Evaluation review submissions record the authenticated local user ID, and
+review history is append-only. Reviewer feedback is stored in the operational
+database and is protected by the same bearer authentication as evaluation
+reports.
+
+The current local security boundary does not include multi-user roles,
+password reset, database encryption at rest, or transport encryption.
+Encrypted backups are optional and passphrase-based. Login attempts are
+persisted per hashed client address and throttled after five attempts in
+15 minutes; this is a local single-user safeguard, not distributed abuse
+prevention. Keep the server bound to loopback and protect the data directory
+and backups with operating-system access controls. Manually exposing the API
+on a network is unsupported without a separately secured network and
+transport boundary.
+
+## 17. Future Security Improvements
 
 The following improvements may be considered after the initial MVP:
 
@@ -843,7 +880,7 @@ These improvements must be prioritized according to the deployment environment a
 
 ---
 
-## 17. Open Design Questions
+## 18. Open Design Questions
 
 The following decisions remain unresolved:
 
@@ -854,7 +891,8 @@ The following decisions remain unresolved:
 - How should the application handle accidental submission of real personal information?
 - What is the minimum acceptable isolation between local agents?
 - How should model artifacts be verified before execution?
-- How should backup encryption and recovery work?
+- How should encrypted-backup passphrases be rotated or escrowed without
+  weakening their separation from the backup files?
 - Which security controls are mandatory before any multi-user deployment?
 
 These questions must be resolved before expanding beyond the initial local research prototype.

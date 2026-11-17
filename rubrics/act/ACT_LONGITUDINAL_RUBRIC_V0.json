@@ -1,0 +1,24 @@
+{
+  "rubric_id": "ACT_LONGITUDINAL_RUBRIC_V0",
+  "version": "0.2",
+  "scope": "longitudinal",
+  "status": "experimental_not_validated",
+  "source_document": "ACT_LONGITUDINAL_RUBRIC_V0_2.md",
+  "rating_codes": ["0", "1", "2", "3", "NE"],
+  "competency_ids": [
+    "longitudinal_formulation_continuity",
+    "disclosure_integration",
+    "longitudinal_homework_followup",
+    "longitudinal_adaptation",
+    "longitudinal_act_process_continuity",
+    "longitudinal_therapeutic_relationship",
+    "nonlinear_change_responsiveness",
+    "longitudinal_values_action",
+    "longitudinal_safety_boundaries"
+  ],
+  "limitations": [
+    "Experimental educational feedback; not clinically or psychometrically validated.",
+    "Not a clinical assessment, certification, or replacement for qualified supervision.",
+    "Do not compute an overall score or average session-level ratings."
+  ]
+}

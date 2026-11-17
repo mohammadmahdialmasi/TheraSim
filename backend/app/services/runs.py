@@ -15,6 +15,11 @@ from app.persistence.repositories.character_runtime import (
     RunCharacterRepository,
 )
 from app.services.character_model import CHARACTER_STATE_SCHEMA_VERSION
+from app.services.modalities import (
+    ACT_MODALITY,
+    DEFAULT_MODALITY_REGISTRY,
+    ModalityRegistry,
+)
 from app.persistence.repositories.cases import CaseRepository
 from app.persistence.repositories.operations import AuditRepository
 from app.persistence.repositories.restricted_cases import (
@@ -27,10 +32,10 @@ from app.persistence.repositories.simulation_runs import (
 )
 
 
-DEFAULT_PROTOCOL_ID = "ACT_EDUCATIONAL_SIMULATION"
-DEFAULT_PROTOCOL_VERSION = "0.1"
-DEFAULT_EVALUATION_RUBRIC_ID = "ACT_RUBRIC_V0"
-DEFAULT_EVALUATION_RUBRIC_VERSION = "0.2"
+DEFAULT_PROTOCOL_ID = ACT_MODALITY.protocol_id
+DEFAULT_PROTOCOL_VERSION = ACT_MODALITY.protocol_version
+DEFAULT_EVALUATION_RUBRIC_ID = ACT_MODALITY.evaluation_rubrics[0].rubric_id
+DEFAULT_EVALUATION_RUBRIC_VERSION = ACT_MODALITY.evaluation_rubrics[0].version
 
 
 class RunServiceError(Exception):
@@ -105,11 +110,20 @@ class RunService:
         "failed": frozenset(),
     }
 
-    def __init__(self, database_manager: DatabaseManager) -> None:
+    def __init__(
+        self,
+        database_manager: DatabaseManager,
+        modality_registry: ModalityRegistry | None = None,
+    ) -> None:
         if not isinstance(database_manager, DatabaseManager):
             raise TypeError("A DatabaseManager instance is required.")
+        if modality_registry is None:
+            modality_registry = DEFAULT_MODALITY_REGISTRY
+        if not isinstance(modality_registry, ModalityRegistry):
+            raise TypeError("A ModalityRegistry instance is required.")
 
         self._database_manager = database_manager
+        self._modality_registry = modality_registry
 
     @staticmethod
     def _from_row(row: sqlite3.Row) -> SimulationRunRecord:
@@ -200,13 +214,17 @@ class RunService:
                         "The requested version does not belong to this case."
                     )
 
+                modality = self._modality_registry.get_runnable(
+                    version["modality"]
+                )
                 if (
-                    protocol_id != DEFAULT_PROTOCOL_ID
-                    or protocol_version != DEFAULT_PROTOCOL_VERSION
-                    or version["modality"].casefold() != "act"
-                    or evaluation_rubric_id != DEFAULT_EVALUATION_RUBRIC_ID
-                    or evaluation_rubric_version
-                    != DEFAULT_EVALUATION_RUBRIC_VERSION
+                    modality is None
+                    or protocol_id != modality.protocol_id
+                    or protocol_version != modality.protocol_version
+                    or modality.session_rubric is None
+                    or evaluation_rubric_id
+                    != modality.session_rubric.rubric_id
+                    or evaluation_rubric_version != modality.session_rubric.version
                     or session_planning_policy not in SESSION_PLANNING_POLICIES
                 ):
                     raise RunProtocolConfigurationError(

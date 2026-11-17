@@ -302,6 +302,20 @@ class CharacterStateSnapshot(StrictFrozenModel):
         return value
 
 
+class MemoryEvidenceQuote(StrictFrozenModel):
+    """A proposed exact excerpt; backend must verify it against the message."""
+
+    message_id: StrictStr
+    exact_quote: StrictStr
+
+    @field_validator("message_id", "exact_quote")
+    @classmethod
+    def validate_nonblank_text(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("Memory evidence text must not be blank.")
+        return value
+
+
 class CharacterStateTransitionProposal(StrictFrozenModel):
     """Untrusted proposal. It cannot authorize or persist a transition."""
 
@@ -312,6 +326,7 @@ class CharacterStateTransitionProposal(StrictFrozenModel):
     previous_value: StrictInt
     proposed_value: StrictInt
     evidence_message_ids: tuple[StrictStr, ...]
+    evidence: tuple[MemoryEvidenceQuote, ...] = ()
     rationale: StrictStr
     confidence: StrictFloat = Field(ge=0.0, le=1.0)
     status: Literal["candidate", "requires_review"] = "candidate"
@@ -339,24 +354,17 @@ class CharacterStateTransitionProposal(StrictFrozenModel):
         ):
             raise ValueError("Evidence message identifiers must be unique.")
 
+        if self.evidence:
+            evidence_ids = tuple(item.message_id for item in self.evidence)
+            if evidence_ids != self.evidence_message_ids:
+                raise ValueError(
+                    "Quoted evidence must match the transition message IDs."
+                )
+
         if not self.rationale.strip():
             raise ValueError("Transition rationale must not be blank.")
 
         return self
-
-
-class MemoryEvidenceQuote(StrictFrozenModel):
-    """A proposed exact excerpt; backend must verify it against the message."""
-
-    message_id: StrictStr
-    exact_quote: StrictStr
-
-    @field_validator("message_id", "exact_quote")
-    @classmethod
-    def validate_nonblank_text(cls, value: str) -> str:
-        if not value.strip():
-            raise ValueError("Memory evidence text must not be blank.")
-        return value
 
 
 class MemoryProposal(StrictFrozenModel):
@@ -397,10 +405,41 @@ class CharacterEventProposal(StrictFrozenModel):
     """Candidate event that must be checked against persisted source messages."""
 
     proposal_id: StrictStr
-    event_type: StrictStr
-    actor: Literal["therapist", "patient", "context", "system"]
+    event_type: Literal[
+        "emotional_reaction",
+        "avoidance_episode",
+        "interpersonal_conflict",
+        "value_consistent_action",
+        "value_inconsistent_action",
+        "cognitive_fusion",
+        "defusion_experience",
+        "emotion_regulation_attempt",
+        "significant_disclosure",
+        "coping_change",
+        "setback",
+        "progress_indicator",
+        "contradiction",
+    ]
+    actor: Literal["patient"]
     summary: StrictStr
+    observed_fact: StrictStr
+    interpretation: StrictStr | None = None
+    psychological_dimensions: tuple[
+        Literal[
+            "affect_valence",
+            "arousal",
+            "perceived_safety",
+            "social_evaluative_threat",
+            "engagement",
+            "interpersonal_withdrawal",
+            "experiential_avoidance",
+            "cognitive_fusion",
+            "psychological_flexibility",
+        ],
+        ...,
+    ] = ()
     evidence: tuple[MemoryEvidenceQuote, ...]
+    confidence: StrictFloat = Field(ge=0.0, le=1.0)
     status: Literal["candidate", "requires_review"] = "candidate"
 
     @model_validator(mode="after")
@@ -408,11 +447,23 @@ class CharacterEventProposal(StrictFrozenModel):
         if not self.proposal_id.strip():
             raise ValueError("Event proposal identifier must not be blank.")
 
-        if not self.event_type.strip() or not self.summary.strip():
+        if not self.summary.strip() or not self.observed_fact.strip():
             raise ValueError("Event type and summary must not be blank.")
 
         if not self.evidence:
             raise ValueError("Event proposals require source evidence.")
+
+        evidence_ids = [item.message_id for item in self.evidence]
+        if len(evidence_ids) != len(set(evidence_ids)):
+            raise ValueError("Event evidence message IDs must be unique.")
+
+        if len(self.psychological_dimensions) != len(
+            set(self.psychological_dimensions)
+        ):
+            raise ValueError("Event psychological dimensions must be unique.")
+
+        if self.interpretation is not None and not self.interpretation.strip():
+            raise ValueError("Event interpretation must not be blank.")
 
         return self
 

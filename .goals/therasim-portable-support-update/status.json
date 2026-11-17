@@ -11,6 +11,11 @@
       "iteration": 1,
       "verdict": "FAIL",
       "summary": "Frontend localization build/parity is broken by duplicate providerError keys; support export is not end-to-end language-aware; the Windows package was not built or smoke-tested; security review remains blocked/unverified."
+    },
+    {
+      "iteration": 3,
+      "verdict": "FAIL",
+      "summary": "Focused export/localization tests and package smoke checks pass, but the UI preview still shows only a summary, detailed Windows guidance lacks Persian parity, and full release/security verification remains incomplete."
     }
   ]
 }

@@ -1,8 +1,12 @@
 import asyncio
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+import os
+from pathlib import Path
 
 from fastapi import Depends, FastAPI
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
 from app.api.routes.auth import get_current_user, router as auth_router
 from app.api.routes.analytics import router as analytics_router
@@ -160,3 +164,50 @@ app.include_router(memories_router, dependencies=protected)
 app.include_router(events_router, dependencies=protected)
 app.include_router(treatment_plans_router, dependencies=protected)
 app.include_router(analytics_router, dependencies=protected)
+
+
+def _configure_frontend() -> None:
+    """Serve the built React app when the packaged desktop runtime enables it."""
+
+    configured_dir = os.environ.get("THERASIM_STATIC_DIR")
+    if not configured_dir:
+        return
+
+    static_dir = Path(configured_dir).expanduser().resolve()
+    index_file = static_dir / "index.html"
+    if not index_file.is_file():
+        raise RuntimeError(
+            "The packaged TheraSim web interface is missing its index.html."
+        )
+
+    assets_dir = static_dir / "assets"
+    if assets_dir.is_dir():
+        app.mount(
+            "/assets",
+            StaticFiles(directory=assets_dir),
+            name="desktop-assets",
+        )
+
+    @app.get("/", include_in_schema=False)
+    async def serve_desktop_home() -> FileResponse:
+        return FileResponse(index_file)
+
+    @app.get("/{frontend_path:path}", include_in_schema=False)
+    async def serve_desktop_frontend(frontend_path: str) -> FileResponse:
+        # Do not let URL paths escape the packaged frontend directory.
+        candidate = (static_dir / frontend_path).resolve()
+        try:
+            candidate.relative_to(static_dir)
+        except ValueError:
+            return FileResponse(index_file)
+
+        if candidate.is_file():
+            return FileResponse(candidate)
+        if Path(frontend_path).suffix:
+            from fastapi import HTTPException
+
+            raise HTTPException(status_code=404, detail="Not found.")
+        return FileResponse(index_file)
+
+
+_configure_frontend()

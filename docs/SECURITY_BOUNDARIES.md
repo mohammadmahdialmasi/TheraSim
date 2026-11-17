@@ -25,6 +25,34 @@ The primary security objectives are:
 
 The initial system is designed for local, single-user operation and synthetic cases only.
 
+## Packaged Windows runtime boundary
+
+The one-folder Windows executable serves the web interface and API from one
+process bound to `127.0.0.1`; it does not install a service or open a remote
+listener. It stores both SQLite files and rotating application logs under the
+current user's `%LOCALAPPDATA%\TheraSim` directory. Packaging does not encrypt
+live databases, provide multi-user isolation, or remove data when the program
+is uninstalled or its executable folder is deleted.
+
+The optional `%LOCALAPPDATA%\TheraSim\config.env` file is a plain-text,
+allow-listed settings file. Do not put secrets in it unless you understand
+that Windows account/file permissions, not TheraSim encryption, protect that
+file. Process environment values take precedence. Model requests are sent to
+the configured provider URL; configure only a provider you trust. No language
+model weights are bundled. The application can run without a configured
+model, but patient-response and model-backed evaluation workflows will be
+unavailable.
+
+Provider URL validation requires HTTP(S) and rejects URL user-info, query,
+and fragment components, but does not restrict the hostname to loopback.
+Selecting an Ollama- or LM Studio-compatible provider does not by itself prove
+that the endpoint runs on the same device.
+
+The Windows packaging smoke test uses a newly created temporary profile,
+synthetic account, and temporary SQLite files. It does not open or inspect an
+existing user database. This smoke test is an operational check, not an
+independent security assessment.
+
 This document describes intended security controls. The presence of a control in this specification does not mean it has already been implemented or independently validated.
 
 ---

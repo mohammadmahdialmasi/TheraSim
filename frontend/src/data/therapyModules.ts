@@ -13,9 +13,9 @@ export const therapyModules: TherapyModule[] = [
     code: 'ACT',
     name: 'Acceptance and Commitment Therapy',
     description:
-      'Initial project approach. Its simulation scenarios, session contracts and versioned evaluation rubrics are under development.',
-    status: 'designing',
-    version: '0.1',
+      'The only runnable modality. The fictional workflow and experimental evaluations are not clinically or psychometrically validated.',
+    status: 'available',
+    version: '0.2',
   },
 ]
 

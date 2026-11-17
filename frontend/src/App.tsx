@@ -783,7 +783,7 @@ function App() {
 
           <div className="sidebar-version">
             <span className="version-indicator" />
-            TheraSim · 0.1.0
+            TheraSim · 0.2.0
           </div>
         </div>
       </aside>
@@ -1050,6 +1050,7 @@ function Dashboard({
           icon={Cpu}
           label={t.metricProvidersLabel}
           value={`${connectedProviderCount} / ${providers.length || 2}`}
+          valueDirection="ltr"
           description={t.providerDescription}
           t={t}
         />
@@ -1090,10 +1091,11 @@ function Dashboard({
               </span>
               <div className="provider-copy">
                 <strong>{providerLabels[name]}</strong>
-                <span>
-                  {name === 'ollama'
-                    ? '127.0.0.1:11434'
-                    : '127.0.0.1:1234'}
+                <span dir="ltr">
+                  {providers.find((item) => item.name === name)?.base_url
+                    ?? (name === 'ollama'
+                      ? 'http://127.0.0.1:11434/v1'
+                      : 'http://127.0.0.1:1234/v1')}
                 </span>
               </div>
               <span className={`connection-label ${providerStates[name]}`}>
@@ -1167,6 +1169,7 @@ function MetricCard({
   value,
   description,
   status,
+  valueDirection,
   t,
 }: {
   icon: LucideIcon
@@ -1174,6 +1177,7 @@ function MetricCard({
   value: string
   description: string
   status?: ConnectionState
+  valueDirection?: 'ltr'
   t: Translation
 }) {
   return (
@@ -1185,7 +1189,7 @@ function MetricCard({
         <span className="metric-tag">{label}</span>
       </div>
 
-      <div className="metric-value">{value}</div>
+      <div className="metric-value" dir={valueDirection}>{value}</div>
       <div className="metric-description">{description}</div>
 
       {status && (
@@ -1697,31 +1701,38 @@ function TherapiesPage({
       <div className="section-heading">
         <div>
           <h2>{t.registeredModules}</h2>
-          <p>{modules.length} modules</p>
+          <p>{modules.length} {t.moduleCount}</p>
         </div>
       </div>
 
       <div className="therapy-grid">
-        {modules.map((module) => (
-          <article className="therapy-card" key={module.id}>
-            <div className="therapy-card-top">
-              <span className="therapy-code">{module.code}</span>
-              <span className="module-status designing">
-                {t.modulePreparing}
-              </span>
-            </div>
-            <h3>
-              {module.id === 'act'
-                ? 'Acceptance and Commitment Therapy (ACT)'
-                : module.name}
-            </h3>
-            <p>{module.description}</p>
-            <div className="therapy-card-footer">
-              <span>{t.moduleVersion} {module.version}</span>
-              <span>{t.firstModule}</span>
-            </div>
-          </article>
-        ))}
+        {modules.map((module) => {
+          const isRunnable = module.status === 'available'
+          return (
+            <article className="therapy-card" key={module.id}>
+              <div className="therapy-card-top">
+                <span className="therapy-code">{module.code}</span>
+                <span className={`module-status ${isRunnable ? 'available' : 'designing'}`}>
+                  {isRunnable ? t.moduleRunnable : t.modulePreparing}
+                </span>
+              </div>
+              <h3>
+                {module.id === 'act'
+                  ? t.actModuleName
+                  : module.name}
+              </h3>
+              <p>
+                {module.id === 'act'
+                  ? t.actModuleDescription
+                  : module.description}
+              </p>
+              <div className="therapy-card-footer">
+                <span>{t.moduleVersion} {module.version}</span>
+                <span>{isRunnable ? t.onlyRunnableModule : t.firstModule}</span>
+              </div>
+            </article>
+          )
+        })}
       </div>
 
       <section className="planned-panel">
@@ -1791,6 +1802,10 @@ function SettingsPage({
   backendStatus: ConnectionState
   startupError: string
 }) {
+  const backendAddress = window.location.port === '5173'
+    ? '127.0.0.1:8000'
+    : window.location.host
+
   return (
     <section className="secondary-view">
       <div className="page-heading">
@@ -1808,7 +1823,7 @@ function SettingsPage({
         <div className="settings-row">
           <div>
             <strong>{t.backendService}</strong>
-            <small>127.0.0.1:8000</small>
+            <small dir="ltr">{backendAddress}</small>
           </div>
           <span className={`connection-label ${backendStatus}`}>
             <StatusDot status={backendStatus} />

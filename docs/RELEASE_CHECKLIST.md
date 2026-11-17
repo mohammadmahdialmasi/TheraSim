@@ -31,10 +31,10 @@ release-ready, production-ready, or clinically validated.
 | Run analytics | **Partially implemented / Exploratory** | Persisted-data counts, compatible rubric-scoped raw rating-code comparisons, and an evidence-linked chart. These are descriptive/exploratory, not validated competency trends or clinical outcomes. |
 | Authentication | **Partially implemented** | Single local reviewer, API authentication/authorization, and persistent login throttling. Multi-user roles and password recovery are absent. |
 | Data protection | **Partially implemented** | Paired SQLite backup/restore; opt-in encrypted backups. Encrypted backups do not encrypt live database files. Automated retention and live database encryption at rest are absent. |
-| Localization | **Partially implemented** | Persian and English are available in parts of the interface. Complete Persian/English localization is outstanding. |
+| Localization | **Implemented for current workflows** | English and Persian are available across implemented application workflows; document language and RTL direction switch with the interface. Comprehensive accessibility and screen-reader verification remain outstanding. |
 | Responsive/accessibility | **Not fully verified** | A limited viewport check is not full responsive or accessibility verification; representative workflows and keyboard/screen-reader behavior still need assessment. |
-| Windows operation | **Partially implemented / Not fully verified** | Development launchers exist. Clean-machine installation has not been verified. |
-| Desktop distribution | **Not implemented** | No packaged Windows desktop application or installer. |
+| Windows operation | **Implemented / Limited verification** | Development launchers and a one-folder Windows executable target exist. The executable uses loopback, user-local data/logs, no bundled model, and a temporary-data package smoke test. Broad clean-device usability is not independently established. |
+| Desktop distribution | **Implemented as a portable package** | A PyInstaller one-folder package and Windows CI workflow are provided. No MSI/installer is provided; package and release binary must be built and verified before publication. |
 | Frontend automated testing | **Partially implemented / Not verified** | No frontend test runner is currently configured. Populated chart states lack dedicated automated component tests. |
 | Independent validation | **Not implemented** | Independent qualified evaluator review and appropriate empirical validation remain necessary. |
 
@@ -70,9 +70,12 @@ release-ready, production-ready, or clinically validated.
 - [ ] Review loopback binding, API authorization, logging, authentication,
   backups, filesystem controls, dependencies, and threat-model limitations.
   Passing software tests is not an independent security audit.
-- [ ] If claiming clean-machine installation, test it on a clean Windows
-  environment. If claiming desktop distribution, build and test an actual
-  package and installer; neither claim is currently supported.
+- [ ] Build and verify the actual Windows ZIP on Windows. The smoke test must
+  use a unique temporary data directory and synthetic account; never inspect
+  or use a user's existing SQLite contents.
+- [ ] Do not claim a clean-machine installation or a Windows installer. The
+  distributable is a one-folder portable ZIP, and broader clean-device
+  usability remains unverified.
 - [ ] Verify the archive contains no user data, local model, `.env`, secrets,
   virtual environment, dependency/build output, or unintended backup files.
 - [ ] Confirm the Patient Agent model request includes only public identity,
@@ -99,9 +102,10 @@ it is enforced by TheraSim.
 Zenodo v0.1.0 is a published documentation-only archive (version DOI
 `10.5281/zenodo.24244882`; concept DOI `10.5281/zenodo.24244881`). It does
 not constitute an executable source release. The first public GitHub source
-release is being prepared for v0.2.0; no GitHub release or tag has been
-published. A release must not be described as production-ready or clinically
-validated.
+release is being prepared for v0.2.0. Verify the current public release and tag
+state before publication, and do not create or attach the release until the
+actual Windows artifact and its temporary-data smoke test have been verified.
+A release must not be described as production-ready or clinically validated.
 
 This document is a readiness aid, not authorization to create a tag, GitHub
 Release, or external deposit.

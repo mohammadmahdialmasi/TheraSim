@@ -9,6 +9,7 @@ from typing import Literal, Sequence
 
 from pydantic import BaseModel, ConfigDict, Field, StrictStr, field_validator
 
+from app.core.paths import project_root
 from app.llm.client import OpenAICompatibleClient, ProviderResponseError
 
 
@@ -18,7 +19,7 @@ EVALUATOR_INPUT_SCHEMA_VERSION = "0.1"
 EVALUATOR_OUTPUT_SCHEMA_VERSION = "0.1"
 DEFAULT_EVALUATOR_MAX_TOKENS = 8192
 DEFAULT_RUBRIC_JSON_PATH = (
-    Path(__file__).resolve().parents[3]
+    project_root()
     / "rubrics"
     / "act"
     / "ACT_RUBRIC_V0.json"

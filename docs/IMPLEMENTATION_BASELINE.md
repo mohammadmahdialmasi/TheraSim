@@ -61,19 +61,30 @@ implemented. Automated retention, live database encryption at rest,
 multi-user roles, and password recovery are not implemented. Encrypted
 backups do not replace filesystem/device protection.
 
-Persian and English are available in parts of the interface, but complete
-Persian/English localization is outstanding. Full responsive and accessibility
-verification is outstanding. Clean-machine installation has not been
-verified; Windows desktop packaging is not implemented. No frontend test
-runner is currently configured, frontend automated component tests are
-incomplete, and populated chart states lack dedicated automated component
-tests.
+English and Persian are available across the implemented interface workflows,
+including account setup, model laboratory, ACT registry, simulation runs,
+sessions, and review/analytics panels. The page language and direction are
+updated together; mixed-direction identifiers are rendered left-to-right or
+with automatic direction as appropriate. Comprehensive accessibility and
+screen-reader verification remain outstanding. No frontend test runner is
+currently configured, frontend automated component tests are incomplete, and
+populated chart states lack dedicated automated component tests.
 
-The 2026-11-17 release-preparation verification run passed **449 Backend
-tests**, Frontend lint, TypeScript compilation and the Frontend production
-build, and `git diff --check`. pip-audit reported no known vulnerabilities in
-either backend dependency file, and npm audit reported none in the frontend
-lockfile. Passing software tests does not establish clinical validity or
+A one-folder Windows executable package is available as a build target. It
+serves the React UI and FastAPI API on a loopback-only origin, stores databases
+and rotating logs under the current user's local application data, accepts an
+allow-listed local configuration file, and includes no model weights. A
+Windows CI workflow builds and smoke-tests the package. The package is not an
+installer, clean-device usability beyond the isolated package smoke test is
+not established, and the app does not claim fully offline installation.
+
+The earlier 2026-11-17 release-preparation verification run passed **449
+Backend tests**, Frontend lint, TypeScript compilation and the Frontend
+production build, and `git diff --check`. pip-audit reported no known
+vulnerabilities in either backend dependency file, and npm audit reported
+none in the frontend lockfile. Current release-candidate checks and their
+results are recorded in the release checklist and must be rerun for each
+release. Passing software tests does not establish clinical validity or
 constitute an independent security audit.
 
 Use synthetic data only. TheraSim is not production-ready or clinically

@@ -283,7 +283,7 @@ def test_create_run_selects_single_matching_public_version(api_services):
     call = runs.calls[0]
     assert call[0] == "create"
     assert call[1]["case_version_id"] == "version-1"
-    assert call[1]["configuration_version"] == "0.1.0"
+    assert call[1]["configuration_version"] == "0.2.0"
     assert call[1]["session_planning_policy"] == "flexible"
 
 

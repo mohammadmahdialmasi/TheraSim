@@ -41,6 +41,15 @@ v0.2.0, which has not been published or tagged.
   backups using scrypt-derived passphrase keys.
 - Added Windows development launchers with process ownership checks, safe
   initialization, logs, health checks, and shutdown support.
+- Added a one-folder Windows executable build with a same-origin local UI,
+  user-local SQLite storage and logs, allow-listed user configuration, a
+  smoke-test script using an isolated temporary account, and a Windows CI
+  workflow. The package contains no language-model weights and is not an
+  installer.
+- Added English/Persian translations for the ACT registry and aligned visible
+  application version metadata to 0.2.0.
+- Added Windows build/install instructions and contributor, support,
+  security-reporting, and community-standards policies.
 
 ### Security and dependencies
 
@@ -62,12 +71,12 @@ v0.2.0, which has not been published or tagged.
   automated data retention, and live database encryption at rest are not
   implemented. Encrypted backups are optional and do not encrypt live
   database files.
-- Complete Persian/English localization and full responsive/accessibility
-  verification remain outstanding. Frontend component tests are incomplete;
+- Comprehensive accessibility verification remains outstanding. Frontend
+  component tests are incomplete;
   no frontend test runner is currently configured, and populated chart states
   lack dedicated component tests.
-- Clean-machine installation has not been verified. Windows desktop packaging
-  and an installer are not implemented.
+- Broad clean-device usability has not been independently reviewed. A
+  one-folder Windows package is implemented; an installer is not provided.
 - Passing automated software tests does not constitute a security audit or
   establish clinical or psychometric validity. Use synthetic data only.
 - Patient Agent output validation checks JSON structure, not semantic

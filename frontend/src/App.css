@@ -1476,6 +1476,11 @@
   font-size: 8px;
 }
 
+.module-status.available {
+  color: #52714F;
+  background: var(--ts-sage-pale);
+}
+
 .therapy-card h3 {
   margin: 17px 0 8px;
   color: var(--ts-forest);

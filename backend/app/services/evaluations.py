@@ -12,6 +12,7 @@ import sqlite3
 import uuid
 from typing import NoReturn
 
+from app.core.paths import project_root
 from app.llm.client import ProviderConnectionError
 from app.llm.evaluator_agent import (
     DEFAULT_RUBRIC_JSON_PATH,
@@ -55,7 +56,7 @@ LONGITUDINAL_RUBRIC_VERSION = "0.2"
 LONGITUDINAL_PROMPT_ID = "ACT_LONGITUDINAL_EVALUATOR_V0"
 LONGITUDINAL_PROMPT_VERSION = "0.1"
 LONGITUDINAL_RUBRIC_JSON_PATH = (
-    Path(__file__).resolve().parents[3]
+    project_root()
     / "rubrics"
     / "act"
     / "ACT_LONGITUDINAL_RUBRIC_V0.json"

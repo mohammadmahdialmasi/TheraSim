@@ -22,6 +22,7 @@ const text = {
     transitions: 'Character-state transitions',
     evaluations: 'Evaluations',
     stale: 'Stale longitudinal reports',
+    staleMark: 'stale',
     competencyComparisons: 'Session competency observations',
     competencyComparisonNote:
       'Raw observations are grouped by exact rubric version and content hash. Ratings are not averaged or treated as clinical outcomes.',
@@ -79,6 +80,7 @@ const text = {
     transitions: 'گذارهای حالت شخصیت',
     evaluations: 'ارزیابی‌ها',
     stale: 'گزارش طولی قدیمی',
+    staleMark: 'قدیمی',
     competencyComparisons: 'مشاهده‌های شایستگی در جلسات',
     competencyComparisonNote:
       'مشاهده‌های خام بر اساس نسخه و هش دقیق روبریک گروه‌بندی می‌شوند. امتیازها میانگین‌گیری یا به‌عنوان پیامد بالینی تفسیر نمی‌شوند.',
@@ -121,6 +123,21 @@ const text = {
     session: 'جلسه',
   },
 } as const
+
+const persianLimitations: Record<string, string> = {
+  'Experimental operational analytics; not a clinical outcome measure.':
+    'این تحلیل عملیاتی و آزمایشی است و معیار پیامد بالینی محسوب نمی‌شود.',
+  'Counts do not establish therapeutic effectiveness or competency.':
+    'شمارش‌ها اثربخشی درمان یا صلاحیت درمانگر را اثبات نمی‌کنند.',
+  'Competency observations are raw session-level rubric results grouped by exact rubric version; no trend score or average is calculated.':
+    'مشاهده‌های شایستگی، نتایج خام جلسات‌اند که بر اساس نسخه دقیق روبریک گروه‌بندی می‌شوند؛ امتیاز روندی یا میانگینی محاسبه نمی‌شود.',
+  'Missing session observations mean no reportable score is available, not that the competency was absent.':
+    'نبود مشاهده برای جلسه یعنی امتیاز قابل گزارشی در دسترس نیست، نه اینکه شایستگی وجود نداشته است.',
+  "Evaluation staleness follows the evaluator's stored transcript and Run-scope validation.":
+    'قدیمی‌شدن ارزیابی بر اساس رونوشت ذخیره‌شده توسط ارزیاب و اعتبارسنجی در محدوده اجرا تعیین می‌شود.',
+  'Transcript text and case details are intentionally excluded from this export.':
+    'متن رونوشت و جزئیات پرونده عمداً از این خروجی حذف شده‌اند.',
+}
 
 interface RunAnalyticsPanelProps {
   runId: string
@@ -684,7 +701,7 @@ export function RunAnalyticsPanel({
                 <bdi dir="ltr">{evaluation.evaluation_id}</bdi> ·{' '}
                 {evaluation.rubric_id} {evaluation.rubric_version} ·{' '}
                 {evaluation.status}
-                {evaluation.stale ? ' · stale' : ''}
+                {evaluation.stale ? ` · ${copy.staleMark}` : ''}
               </p>
             ))}
           </div>
@@ -692,7 +709,11 @@ export function RunAnalyticsPanel({
           <div className="memory-evidence">
             <strong>{copy.limitations}</strong>
             {snapshot.limitations.map((limitation) => (
-              <p key={limitation}>{limitation}</p>
+              <p key={limitation}>
+                {language === 'fa'
+                  ? persianLimitations[limitation] ?? limitation
+                  : limitation}
+              </p>
             ))}
           </div>
         </>

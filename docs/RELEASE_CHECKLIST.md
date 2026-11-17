@@ -35,7 +35,7 @@ clinically validated.
 | Responsive/accessibility | **Not fully verified** | A limited viewport check is not full responsive or accessibility verification; representative workflows and keyboard/screen-reader behavior still need assessment. |
 | Windows operation | **Implemented / Limited verification** | Development launchers and a one-folder Windows executable target exist. The executable uses loopback, user-local data/logs, no bundled model, and a temporary-data package smoke test. Broad clean-device usability is not independently established. |
 | Desktop distribution | **Implemented as a portable package** | A PyInstaller one-folder package and Windows CI workflow are provided. No MSI/installer is provided; package and release binary must be built and verified before publication. |
-| Frontend automated testing | **Partially implemented / Not verified** | No frontend test runner is currently configured. Populated chart states lack dedicated automated component tests. |
+| Frontend automated testing | **Partially implemented** | Localization and unit-test tooling exists, but populated chart states and representative browser accessibility workflows still need broader coverage. |
 | Independent validation | **Not implemented** | Independent qualified evaluator review and appropriate empirical validation remain necessary. |
 
 ## Before preparing a source archive
@@ -117,3 +117,8 @@ clinically validated.
 
 This document is a readiness aid, not authorization to create a tag, GitHub
 Release, or external deposit.
+
+The v0.3.0 candidate is not published and has not cleared the full source,
+security, dependency, clean-device, and package gates until acceptance evidence
+is recorded. See
+[RELEASE_AUDIT_v0.3.0.md](RELEASE_AUDIT_v0.3.0.md).

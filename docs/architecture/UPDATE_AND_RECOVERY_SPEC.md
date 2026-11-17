@@ -2,7 +2,8 @@
 
 **Document ID:** THERASIM-UPDATE-RECOVERY-001
 **Version:** 0.1
-**Status:** Architecture Draft
+**Status:** Architecture Draft; manual read-only metadata lookup is implemented,
+but this full update, signing, and recovery design is not
 **Target Platform:** Windows x64
 **Update Source:** GitHub Releases
 **Last Updated:** 2026-11-16
@@ -420,6 +421,13 @@ The update and recovery implementation will not be considered complete until:
 ## 22. Implementation Status
 
 This document records the intended update and recovery architecture.
+
+For the current release, manual update checks may report stable GitHub release
+metadata and source-checkout status. They do not download or install a package,
+do not invoke Git to change files, and do not perform database migrations.
+Portable users must download and verify an official package manually. The
+Tauri, signature, manifest, pre-migration backup, rollback, and coordinated
+recovery components below remain planned.
 
 The following components are planned and not yet implemented:
 

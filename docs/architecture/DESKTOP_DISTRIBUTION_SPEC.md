@@ -2,7 +2,8 @@
 
 **Document ID:** THERASIM-DESKTOP-DIST-SPEC-001
 **Version:** 0.1
-**Status:** Architecture Draft
+**Status:** Architecture Draft; portable implementation differs from this
+initial installer/Tauri direction
 **Target:** Windows x64
 **Last Updated:** 2026-11-16
 
@@ -13,6 +14,11 @@ This document defines the architecture for distributing TheraSim as an independe
 The end user must not need to manually install Python, Node.js, Git, or project dependencies.
 
 ## 2. Initial Distribution Decisions
+
+**Current implementation status:** the current executable is a PyInstaller
+one-folder Windows portable package, not an MSI or NSIS installer. The Tauri
+and installer descriptions below remain planned architecture and are not
+implemented as a release workflow for the portable package.
 
 - Operating system: Windows 10/11 x64.
 - Distribution format: Single installer executable.

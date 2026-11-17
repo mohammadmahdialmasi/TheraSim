@@ -11,6 +11,10 @@ $pythonVersion = (& $python -c "import sys; print(f'{sys.version_info.major}.{sy
 if ($pythonVersion -ne "3.13") {
     throw "The reproducible Windows build requires Python 3.13; found $pythonVersion."
 }
+$is64BitPython = (& $python -c "import struct; print(struct.calcsize('P') == 8)").Trim()
+if ($is64BitPython -ne "True") {
+    throw "A 64-bit Python interpreter is required for the Windows x64 package."
+}
 $node = Get-Command node.exe -ErrorAction SilentlyContinue
 if (-not $node) {
     $candidate = Join-Path $env:ProgramFiles "nodejs\node.exe"

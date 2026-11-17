@@ -75,7 +75,6 @@ export const translations = {
     loadingModels: 'Loading model list...',
     modelsFound: 'chat models available',
     providerNoModels: 'Connected, but no chat models were found.',
-    providerError: 'Could not reach this model engine.',
     selectModel: 'Select a model',
     chatTitle: 'Model conversation',
     chatMode: 'REQUEST / RESPONSE',

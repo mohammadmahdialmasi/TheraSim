@@ -81,6 +81,52 @@ export function getModels(provider: ProviderName) {
   )
 }
 
+export interface SupportPreviewResponse {
+  language: 'en' | 'fa'
+  application: Record<string, unknown>
+  runtime: Record<string, unknown>
+  service: Record<string, unknown>
+  model_provider: Record<string, unknown>
+  privacy: Record<string, boolean>
+  [key: string]: unknown
+}
+
+export function getSupportPreview(language: 'en' | 'fa') {
+  return request<SupportPreviewResponse>(
+    `/api/v1/support/preview?language=${encodeURIComponent(language)}`,
+  )
+}
+
+export async function downloadSupportArchive(
+  language: 'en' | 'fa',
+): Promise<{ blob: Blob; filename: string }> {
+  const token = getAuthToken()
+  const response = await fetch('/api/v1/support/export', {
+    method: 'POST',
+    headers: {
+      Accept: 'application/zip',
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify({ confirmed: true, language }),
+  })
+  if (!response.ok) {
+    if (response.status === 401) {
+      clearAuthToken()
+      window.dispatchEvent(new Event('therasim:auth-expired'))
+    }
+    throw new Error('Support diagnostics export failed.')
+  }
+  const blob = await response.blob()
+  const disposition = response.headers.get('Content-Disposition') ?? ''
+  const filenameMatch = disposition.match(/filename="?([^";]+)"?/i)
+  const filename = filenameMatch?.[1]
+    ?? (language === 'fa'
+      ? 'TheraSim-support-diagnostics-fa.zip'
+      : 'TheraSim-support-diagnostics.zip')
+  return { blob, filename }
+}
+
 export function sendChat(
   provider: ProviderName,
   model: string,

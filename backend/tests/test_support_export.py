@@ -94,3 +94,20 @@ def test_support_export_is_never_written_to_disk(tmp_path, monkeypatch):
 
     assert response.status_code == 200
     assert list(tmp_path.rglob("TheraSim-support-diagnostics.zip")) == []
+
+
+def test_support_preview_and_persian_export_are_language_aware():
+    preview = client.get("/api/v1/support/preview", params={"language": "fa"})
+    assert preview.status_code == 200
+    assert preview.json()["language"] == "fa"
+
+    response = client.post(
+        "/api/v1/support/export",
+        json={"confirmed": True, "language": "fa"},
+    )
+    assert response.status_code == 200
+    assert "TheraSim-support-diagnostics-fa.zip" in response.headers["content-disposition"]
+
+    with ZipFile(BytesIO(response.content)) as archive:
+        readme = archive.read("README.txt").decode("utf-8")
+    assert "اطلاعات عیب‌یابی" in readme

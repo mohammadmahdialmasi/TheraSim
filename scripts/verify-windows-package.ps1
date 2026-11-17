@@ -28,7 +28,7 @@ try {
     $migrationPrefix = "TheraSim/_internal/app/persistence/migrations/"
     $migrationEntries = @(
         $zip.Entries | Where-Object {
-            $_.FullName.StartsWith($migrationPrefix) -and
+            ($_.FullName.Replace('\', '/').StartsWith($migrationPrefix)) -and
             -not [string]::IsNullOrEmpty($_.Name)
         }
     )
@@ -43,7 +43,7 @@ try {
     }
 
     $actualMigrationEntries = @(
-        $migrationEntries | ForEach-Object { $_.FullName } | Sort-Object
+        $migrationEntries | ForEach-Object { $_.FullName.Replace('\', '/') } | Sort-Object
     )
     $migrationDifferences = @(
         Compare-Object `
@@ -93,7 +93,7 @@ try {
         throw "The packaged health endpoint did not become ready."
     }
 
-    $page = Invoke-WebRequest -Uri "$base/" -TimeoutSec 5
+    $page = Invoke-WebRequest -Uri "$base/" -TimeoutSec 5 -UseBasicParsing
     if ($page.StatusCode -ne 200 -or $page.Content -notmatch "TheraSim") {
         throw "The packaged frontend did not load."
     }

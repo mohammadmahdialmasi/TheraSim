@@ -1,0 +1,16 @@
+{
+  "goal_id": "therasim-portable-support-update",
+  "status": "inspecting",
+  "iteration": 1,
+  "builder_model": "GPT:5.6-Luna",
+  "inspector_model": "GPT:5.6-Sol",
+  "initial_sha": "82298889912206ac8c07e834e463dd0fba26a263",
+  "created_at": "2026-11-17T22:29:04+03:30",
+  "history": [
+    {
+      "iteration": 1,
+      "verdict": "FAIL",
+      "summary": "Frontend localization build/parity is broken by duplicate providerError keys; support export is not end-to-end language-aware; the Windows package was not built or smoke-tested; security review remains blocked/unverified."
+    }
+  ]
+}

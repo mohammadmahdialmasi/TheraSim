@@ -2,8 +2,19 @@ cff-version: 1.2.0
 message: "If you use this project, please cite it as follows."
 type: software
 title: "TheraSim: A Local-First Framework for Psychotherapy Skills Simulation and Evaluation"
-version: 0.1.0
-date-released: 2026-11-14
+abstract: >-
+  TheraSim is an experimental, local-first research and educational prototype
+  for psychotherapy-skills simulation with fictional cases. It combines a
+  FastAPI backend, a React interface, SQLite persistence, and optional local
+  language-model providers. ACT is currently the only runnable modality.
+  Evaluation and analytics features are exploratory and do not establish
+  clinical or psychometric validity.
+keywords:
+  - psychotherapy simulation
+  - research software
+  - educational software
+  - local language models
+  - Acceptance and Commitment Therapy
 authors:
   - family-names: "Almasi Dargah"
     given-names: "Mohammad Mahdi"

@@ -1,15 +1,18 @@
 # TheraSim
 
-**A local-first research prototype for psychotherapy-skills simulation**
+**An experimental, local-first research and educational prototype for
+psychotherapy-skills simulation**
 
 TheraSim is an educational software project for practicing therapist-client
 conversations with fictional clients. It combines a local FastAPI service, a
 React interface, SQLite persistence, and optional local language-model
 providers.
 
-> **Scope and safety:** TheraSim is for research and education with synthetic
-> cases only. It does not provide psychotherapy, diagnosis, clinical advice,
-> supervision, certification, or a validated measure of therapist competence.
+> **Synthetic data only:** Use fictional and synthetic cases only. Do not enter
+> real client or patient information. TheraSim is an experimental research and
+> educational prototype; it does not provide psychotherapy, diagnosis,
+> clinical advice, professional supervision, certification, or a validated
+> measure of therapist competence.
 
 ## Current implementation status
 
@@ -31,9 +34,10 @@ Important limitations:
 - A separate local-model-backed ACT session Evaluator Agent provides
   experimental formative feedback when a model is configured. It validates
   competency coverage and exact therapist-message quote references, saves
-  immutable `requires_review` revisions, and does not claim semantic evidence
-  validity or clinical/psychometric validity. Without a configured model,
-  evaluation generation is unavailable; invalid model output is not saved.
+  immutable `requires_review` revisions, and does not establish semantic
+  evidence validity or clinical/psychometric validity. Without a configured
+  model, evaluation generation is unavailable; invalid model output is not
+  saved.
   A separate experimental longitudinal evaluator analyzes every completed
   session in a Run (minimum two), requires scored competencies to cite evidence
   from at least two sessions, and preserves transcript and run-session
@@ -54,10 +58,15 @@ Important limitations:
   displays longitudinal reports, cross-session evidence, provenance, and stale
   status. A standalone evaluation dashboard is not implemented. The Sessions
   workspace includes persisted Run analytics, compatible rubric-scoped raw
-  rating-code comparisons, an evidence-linked chart, and a research-oriented
-  JSON export.
-- The Windows launcher runs development servers; there is no desktop installer
-  or production distribution bundle yet.
+  rating-code comparisons, an evidence-linked exploratory chart, and a
+  research-oriented JSON export. These are descriptive analytics, not
+  validated competency trends or clinical outcomes.
+- The Windows launcher runs development servers. Clean-machine installation
+  has not been verified; desktop packaging and an installer are not
+  implemented.
+- Frontend lint and production-build checks are available, but a frontend
+  automated component-test runner is not configured; populated chart states
+  lack dedicated automated component tests.
 
 See [docs/IMPLEMENTATION_BASELINE.md](docs/IMPLEMENTATION_BASELINE.md) for
 verified implementation notes and gaps.
@@ -173,9 +182,10 @@ count-agnostic longitudinal rubric is `ACT_LONGITUDINAL_RUBRIC_V0` 0.2;
 version 0.1 is retained as a historical three-session example. Neither rubric
 is validated. Session evaluation reports are experimental, transcript-linked
 and require human review; no semantic evidence judgment is guaranteed.
-Without a configured Evaluator Agent, generation returns
-`503 evaluator_unavailable_experimental`; invalid output returns `502` and is
-not persisted as a report. Longitudinal evaluation is also experimental:
+Evaluation generation requires a configured local Evaluator Agent/model.
+Without one, the API returns `503 evaluator_unavailable_experimental`; invalid
+model output returns `502` and is not persisted as a report. Longitudinal
+evaluation is also experimental:
 therapist-message references and excerpts are checked against the exact
 transcripts, but semantic support for a rating is not established. Reports are
 immutable, review-required revisions over all completed sessions in the Run
@@ -186,13 +196,13 @@ source messages. Persisted Run analytics and JSON export include source
 identifiers, event/memory/state counts, treatment-plan status, and evaluation
 staleness. The workspace also lists raw session-level competency observations,
 grouped by rubric version with confidence, missing-session reasons, evaluation
-IDs, and evidence-message IDs. It does not calculate averages or claim
-ratings are not averaged across rubric versions or represented as clinical
-outcomes. The workspace provides a session-range-filtered chart only within an
-exact rubric version and content hash; numeric codes are plotted as raw
-observations, while NE and missing data are omitted and separately counted.
-This descriptive comparison is not a validated competency trend. Exports omit
-transcript and case text but still contain sensitive operational identifiers.
+IDs, and evidence-message IDs. It does not calculate averages or combine
+incompatible rubric versions. The workspace provides a session-range-filtered
+chart only within an exact rubric version and content hash; numeric codes are
+plotted as raw observations, while NE and missing data are omitted and
+separately counted. This exploratory comparison is not a validated competency
+trend or clinical outcome. Exports omit transcript and case text but still
+contain sensitive operational identifiers.
 
 ## Windows quick start
 
@@ -314,6 +324,10 @@ Set-Location backend
 ..\.venv\Scripts\python.exe -m app.persistence.backup_cli backup
 ```
 
+For an optional passphrase-encrypted backup, add `--encrypt`; the command
+prompts for a passphrase that must be retained separately. Encryption protects
+the backup copy, not the live SQLite databases.
+
 For restore instructions and limitations, see
 [docs/BACKUP_RESTORE.md](docs/BACKUP_RESTORE.md). Do not remove either
 database to troubleshoot startup. Migrations should be tested against isolated
@@ -349,18 +363,26 @@ is designed for synthetic data. Do not enter real client information. Review
 [docs/SECURITY_BOUNDARIES.md](docs/SECURITY_BOUNDARIES.md) before deployment;
 this repository is not production-ready.
 
-Known gaps include semantic evaluation validity, interpretation of raw analytic
-comparisons, complete event processing, complete localization, encrypted
-database storage, automated retention, and desktop packaging.
+Known gaps include independent evaluator validation and semantic/clinical
+validity, clinical or psychometric validation of the ACT rubrics, automated
+longitudinal treatment adaptation, complete event processing, complete
+Persian/English localization, full responsive/accessibility verification,
+automated retention, live database encryption at rest, clean-machine
+installation verification, and desktop packaging. Analytics remain
+descriptive/exploratory; no validated competency trend or clinical outcome is
+provided.
 
 ## Release status and roadmap
 
 The intended near-term work is independent evaluator validation and review,
 compatible longitudinal evaluation interpretation, further memory/event
-lifecycle completion, bilingual accessibility, and integration testing. A Windows
-installer is only a proposed architecture; a reproducible installer has not
-been built or tested. Current release preparation is source-based, and no
-release has been published.
+lifecycle completion, bilingual accessibility, responsive/accessibility
+verification, and integration testing. A Windows installer is only a proposed
+architecture; a reproducible installer has not been built or tested. Current
+release preparation is source-based, and no formal release or release tag has
+been published. The first formal source release may be version `0.1.0`,
+subject to final readiness verification; no definitive release date has been
+assigned.
 
 See [CHANGELOG.md](CHANGELOG.md) and
 [docs/RELEASE_CHECKLIST.md](docs/RELEASE_CHECKLIST.md).
@@ -369,6 +391,8 @@ See [CHANGELOG.md](CHANGELOG.md) and
 
 Original project documentation, specifications, rubrics, and scenarios are
 licensed under CC BY 4.0 as described in [LICENSE.md](LICENSE.md). That file
-does not establish license terms for future executable software or third-party
-materials. See [COPYRIGHT.md](COPYRIGHT.md) and [CITATION.cff](CITATION.cff)
-for attribution and citation metadata.
+does not license executable source code. Source code remains under the
+copyright holder's exclusive rights unless separately licensed; third-party
+materials retain their own terms. See [COPYRIGHT.md](COPYRIGHT.md) for the
+repository's mixed-license scope and future Zenodo deposit guidance, and
+[CITATION.cff](CITATION.cff) for citation metadata.

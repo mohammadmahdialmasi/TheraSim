@@ -1,8 +1,8 @@
 # TheraSim — Security Boundaries and Agent Isolation
 
 **Document Version:** 0.1
-**Project Status:** Research Prototype / Pre-MVP
-**Last Updated:** 2026-11-14
+**Project Status:** Experimental Research Prototype
+**Last Updated:** 2026-11-17
 
 ---
 
@@ -850,7 +850,8 @@ database and is protected by the same bearer authentication as evaluation
 reports.
 
 The current local security boundary does not include multi-user roles,
-password reset, database encryption at rest, or transport encryption.
+password reset/recovery, database encryption at rest, automated retention,
+desktop packaging or desktop-specific hardening, or transport encryption.
 Encrypted backups are optional and passphrase-based. Login attempts are
 persisted per hashed client address and throttled after five attempts in
 15 minutes; this is a local single-user safeguard, not distributed abuse
@@ -858,6 +859,10 @@ prevention. Keep the server bound to loopback and protect the data directory
 and backups with operating-system access controls. Manually exposing the API
 on a network is unsupported without a separately secured network and
 transport boundary.
+
+Automated security tests exercise specified software behavior only. They are
+not an independent security audit, certification, or guarantee that the
+application is secure for sensitive real-world or clinical data.
 
 ## 17. Future Security Improvements
 

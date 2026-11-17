@@ -4,6 +4,76 @@
 **Status:** Initial Implementation Decisions
 **Date:** 2026-11-15
 
+## Current Verified Implementation Status — 2026-11-17
+
+This section is the current status summary. The dated implementation
+checkpoints below are archival records that preserve the state and verification
+reported at those times. Older statements that a feature was absent or
+unavailable, including evaluator and analytics capabilities, describe earlier
+states and are superseded where this section or later checkpoint details
+document subsequent implementation. Earlier decision/specification documents
+may likewise retain historical implementation statements; use this current
+status and the later checkpoints below when describing the implemented
+application. For example, the earlier evaluator-status statement in
+`docs/MVP_DECISIONS.md` is superseded by the evaluator implementation checkpoints
+below. Historical test counts are not current test results.
+
+TheraSim is an experimental, local-first FastAPI and React research/educational
+prototype for fictional ACT simulation. Runs and sequential sessions persist
+in SQLite; Ollama and LM Studio are optional local inference providers. ACT is
+the only runnable modality.
+
+Character identity and review-gated state transitions are implemented.
+Behavioral/emotional event proposals and evidence-linked longitudinal memory
+proposals, consolidation, retrieval, and review are present, with deterministic
+and model-assisted components bounded by available evidence. These components
+do not establish psychological realism or validated memory behavior.
+
+Versioned treatment plans support human-supervised revisions and review.
+Guidance is limited to available evidence sources; autonomous clinical
+treatment adaptation is not implemented or claimed.
+
+Separate experimental ACT session and longitudinal evaluators are available
+when a compatible local model is configured. Raw competency observations
+preserve rubric ID/version/hash, confidence, transcript evidence references,
+and explicit missing/non-evaluable reasons. Authenticated append-only human
+evaluation reviews are implemented. The evaluators validate output structure
+and transcript references, but semantic evidence validity is unestablished;
+ACT rubrics are not clinically or psychometrically validated. Independent
+evaluator validation remains necessary.
+
+Run analytics use persisted data and provide descriptive counts,
+rubric-compatible raw numeric rating-code comparisons, an exploratory
+evidence-linked chart, and JSON export. They are not validated competency
+trends or clinical outcomes.
+
+Paired SQLite backup and restore are implemented; encrypted backups are
+optional and do not encrypt live database files. Local single-reviewer
+authentication, API authorization, and persistent login throttling are
+implemented. Automated retention, live database encryption at rest,
+multi-user roles, and password recovery are not implemented. Encrypted
+backups do not replace filesystem/device protection.
+
+Persian and English are available in parts of the interface, but complete
+Persian/English localization is outstanding. Full responsive and accessibility
+verification is outstanding. Clean-machine installation has not been
+verified; Windows desktop packaging is not implemented. No frontend test
+runner is currently configured, frontend automated component tests are
+incomplete, and populated chart states lack dedicated automated component
+tests.
+
+The latest reported verification checkpoint identified for this status was
+**445 Backend tests passed**, with Frontend lint, the Frontend production
+build, and `git diff --check` reported as passing. These are historical
+reported results, not tests rerun for this documentation update. Passing
+software tests does not establish clinical validity or constitute an
+independent security audit.
+
+Use synthetic data only. TheraSim is not production-ready or clinically
+validated.
+
+---
+
 ## 1. Decision Authority
 
 MVP_DECISIONS.md is the authoritative product and implementation scope document. It takes precedence over conflicting provisional statements in earlier architecture documents.
@@ -227,6 +297,12 @@ at the end of this document.
 - Learned state transition policies.
 
 ## Verified implementation checkpoint — 2026-11-17
+
+**Archival checkpoint:** The statements below record the implementation and
+verification state at this checkpoint. In particular, its statements that
+analytics were outstanding are superseded by the current status above and the
+later analytics checkpoint below; do not treat them as current capability
+claims.
 
 The shared session lifecycle supports any positive sequential session number. Runs can be completed after one or more sessions when every created session is completed; numbering gaps and incomplete sessions remain invalid. Migration `006_unbounded_session_numbers` removes the legacy SQLite ceiling without rewriting applied migration history and preserves existing session references and transcript-integrity triggers. Successfully persisted interactions atomically record factual therapist-message and generated-patient-response events linked to their source messages and enqueue one memory-extraction job. Migration `007_memory_review_lifecycle` adds quote-span provenance, immutable reviews, rejection state, and explicit supersession lineage. Migration `008_memory_extraction_outbox` adds durable leased jobs and replayable validated output. Migration `009_memory_extraction_model_component` records memory-extraction attempts in the shared model-run ledger. Migration `010_versioned_run_protocols` persists immutable protocol, planning-policy, and session-rubric identifiers per Run. `011_memory_extraction_state_context` pins the character-state snapshot visible at interaction time to each memory-extraction job. `012_event_review_history` records append-only decisions for extracted event proposals.
 

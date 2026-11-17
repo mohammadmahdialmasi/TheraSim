@@ -288,7 +288,7 @@ No validated overall competency score will be calculated.
 
 For a longitudinal evaluation, the Evaluator Agent receives the authorized finalized transcripts in the selected completed Run scope. The session count is not fixed.
 
-`ACT_LONGITUDINAL_RUBRIC_V0` version 0.2 is count-agnostic; version 0.1 is retained as a historical three-session example. Both remain experimental. The Evaluator Agent is not implemented, so longitudinal evaluation is unavailable.
+`ACT_LONGITUDINAL_RUBRIC_V0` version 0.2 is count-agnostic; version 0.1 is retained as a historical three-session example. Both remain experimental. **Historical implementation status recorded for this document (2026-11-14):** The Evaluator Agent was not implemented, so longitudinal evaluation was unavailable at that time. This dated statement is superseded by the current implementation status in Section 21 and the current implementation baseline.
 
 It will evaluate:
 
@@ -907,18 +907,27 @@ Existing historical specifications must not be silently overwritten without vers
 
 ## 21. Final MVP Definition
 
-The current TheraSim implementation is a local-first educational simulation
-prototype for one fictional ACT case, with sequential sessions and optional
-local-model patient interactions. It includes versioned persistence, transcript
-integrity, disclosure and memory services, and memory-review controls.
-
-The Evaluator Agent and actual session/longitudinal assessment are not
-implemented. Evaluation-generation requests are unavailable rather than
+**Historical implementation status recorded for this document (2026-11-14):**
+At that time, the Evaluator Agent and session/longitudinal assessment were not
+implemented, and evaluation-generation requests were unavailable rather than
 returning fabricated completed reports. Event extraction, state transitions,
-complete localization, analytics, and multi-modality execution remain
-incomplete. The implementation is not a validated clinical competency
-instrument, diagnostic system, treatment service, or replacement for human
-supervision.
+localization, analytics, and multi-modality execution were also incomplete.
+These statements preserve the status recorded when this decision document was
+written; they are not current implementation claims.
+
+**Current implementation clarification — 2026-11-17:** ACT remains the only
+runnable modality. Experimental local-model-backed ACT session and longitudinal
+evaluators exist, but semantic evidence validity and clinical/psychometric
+validity are unestablished. Authenticated append-only human evaluation reviews
+exist. Raw competency observations retain rubric version/hash, confidence,
+evidence references, and missing-data reasons. Run analytics provide persisted
+data-based descriptive summaries, exploratory raw-rating-code charts, and JSON
+export; these are not validated competency trends or clinical outcomes.
+Treatment-plan revisions are human-supervised and limited to available
+evidence; autonomous clinical treatment adaptation is not implemented.
+
+TheraSim is not a validated clinical competency instrument, diagnostic system,
+treatment service, or replacement for human supervision.
 
 ---
 

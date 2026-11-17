@@ -1,12 +1,26 @@
 # Changelog
 
-Notable project changes are recorded here. The `Unreleased` section records
-current development work and is not a published software release. Zenodo
-v0.1.0 is a published documentation-only archive; it is not an executable
-source release. The first public GitHub source release is being prepared for
-v0.2.0, which has not been published or tagged.
+Notable project changes are recorded here. GitHub Release v0.2.0 is published
+and its tag and assets are immutable; the Windows ZIP contains an unintended
+ignored migration backup. The v0.2.1 patch corrects the packaging allowlist.
+Zenodo v0.1.0 remains a documentation-only archive, not an executable source
+release.
 
-## Unreleased
+## v0.2.1 — Corrective patch
+
+- Restrict the Windows package to explicit `.sql` migration files and verify
+  the archive contains exactly the source migration allowlist, with no backup
+  files.
+- Run backend tests against an isolated temporary data directory in CI and
+  update package names and application version metadata to `0.2.1`.
+- Complete Persian labels for persisted feature statuses, improve mixed
+  direction handling for user/model text and identifiers, and keep Persian
+  interface errors localized.
+- Add bilingual installation and release guidance. The v0.2.0 release remains
+  unchanged; publish v0.2.1 only after the tagged Windows workflow and its
+  generated package have been verified.
+
+## v0.2.0
 
 ### Added
 

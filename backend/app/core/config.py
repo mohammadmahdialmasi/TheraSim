@@ -113,7 +113,7 @@ class Settings:
 
         return cls(
             app_name="TheraSim API",
-            app_version="0.2.0",
+            app_version="0.2.1",
             llm_provider=cast(ProviderName, provider_value),
 
             ollama_base_url=_validated_provider_url(

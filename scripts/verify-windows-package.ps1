@@ -7,6 +7,56 @@ param(
 
 $ErrorActionPreference = "Stop"
 $archive = (Resolve-Path $PackageZip).Path
+$projectRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
+$migrationRoot = Join-Path $projectRoot "backend\app\persistence\migrations"
+$expectedMigrationEntries = @(
+    foreach ($area in @("operational", "restricted")) {
+        $sourceDirectory = Join-Path $migrationRoot $area
+        if (-not (Test-Path -LiteralPath $sourceDirectory -PathType Container)) {
+            throw "Required migration directory is missing: $area"
+        }
+        Get-ChildItem -LiteralPath $sourceDirectory -Filter "*.sql" -File |
+            ForEach-Object {
+                "TheraSim/_internal/app/persistence/migrations/$area/$($_.Name)"
+            }
+    }
+) | Sort-Object
+
+Add-Type -AssemblyName System.IO.Compression.FileSystem
+$zip = [System.IO.Compression.ZipFile]::OpenRead($archive)
+try {
+    $migrationPrefix = "TheraSim/_internal/app/persistence/migrations/"
+    $migrationEntries = @(
+        $zip.Entries | Where-Object {
+            $_.FullName.StartsWith($migrationPrefix) -and
+            -not [string]::IsNullOrEmpty($_.Name)
+        }
+    )
+    if ($migrationEntries.Count -eq 0) {
+        throw "The package does not contain application SQL migrations."
+    }
+    if ($migrationEntries | Where-Object { $_.FullName -notmatch "\.sql$" }) {
+        throw "The package contains a non-SQL file in its migration resources."
+    }
+    if ($zip.Entries | Where-Object { $_.FullName -match "(?i)\.bak$" }) {
+        throw "The package contains an unintended backup file."
+    }
+
+    $actualMigrationEntries = @(
+        $migrationEntries | ForEach-Object { $_.FullName } | Sort-Object
+    )
+    $migrationDifferences = @(
+        Compare-Object `
+            -ReferenceObject $expectedMigrationEntries `
+            -DifferenceObject $actualMigrationEntries
+    )
+    if ($migrationDifferences.Count -gt 0) {
+        throw "The package migration files do not match the source SQL whitelist."
+    }
+} finally {
+    $zip.Dispose()
+}
+
 $scratch = Join-Path ([System.IO.Path]::GetTempPath()) "TheraSim-smoke-$PID"
 New-Item -ItemType Directory -Path $scratch | Out-Null
 $oldLocalAppData = $env:LOCALAPPDATA

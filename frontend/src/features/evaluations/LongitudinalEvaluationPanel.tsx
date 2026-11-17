@@ -221,14 +221,14 @@ export function LongitudinalEvaluationPanel({
           {report.overall_summary && (
             <div className="evaluation-summary">
               <strong>{labels.summary}</strong>
-              <p>{report.overall_summary}</p>
+              <p dir="auto">{report.overall_summary}</p>
             </div>
           )}
 
           {report.limitations.length > 0 && (
             <ul className="evaluation-limitations">
               {report.limitations.map((limitation) => (
-                <li key={limitation}>{limitation}</li>
+                <li key={limitation} dir="auto">{limitation}</li>
               ))}
             </ul>
           )}
@@ -245,18 +245,18 @@ export function LongitudinalEvaluationPanel({
                   <strong>{item.rating_code}</strong>
                 </summary>
                 <div className="evaluation-item-content">
-                  {item.justification && <p>{item.justification}</p>}
+                  {item.justification && <p dir="auto">{item.justification}</p>}
                   {item.confidence && (
-                    <p><strong>{labels.confidence}:</strong> {item.confidence}</p>
+                    <p dir="auto"><strong>{labels.confidence}:</strong> {item.confidence}</p>
                   )}
                   {item.missing_evidence.length > 0 && (
                     <div>
                       <strong>{labels.missing}</strong>
-                      <ul>{item.missing_evidence.map((value) => <li key={value}>{value}</li>)}</ul>
+                      <ul>{item.missing_evidence.map((value) => <li key={value} dir="auto">{value}</li>)}</ul>
                     </div>
                   )}
                   {item.limitations && (
-                    <p><strong>{labels.limitations}:</strong> {item.limitations}</p>
+                    <p dir="auto"><strong>{labels.limitations}:</strong> {item.limitations}</p>
                   )}
                   <div>
                     <strong>{labels.evidence}</strong>
@@ -269,7 +269,7 @@ export function LongitudinalEvaluationPanel({
                         key={`${evidence.message_id}-${index}`}
                       >
                         <p dir="auto">{evidence.evidence_excerpt}</p>
-                        {evidence.evidence_note && <small>{evidence.evidence_note}</small>}
+                        {evidence.evidence_note && <small dir="auto">{evidence.evidence_note}</small>}
                         <small dir="ltr">
                           {labels.source}: {labels.session} {evidence.session_number ?? '?'} ·{' '}
                           {evidence.session_id ?? '?'} · {evidence.message_id}

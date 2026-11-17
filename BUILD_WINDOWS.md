@@ -29,17 +29,19 @@ py -3.13 -m venv .venv
 The build runs `npm ci`, frontend lint and TypeScript/production build, installs
 the pinned backend/build dependencies, then creates a PyInstaller one-folder
 package. The default output is
-`dist\TheraSim-v0.2.0-windows-x64.zip`, accompanied by a SHA-256 sidecar.
+`dist\TheraSim-v0.2.1-windows-x64.zip`, accompanied by a SHA-256 sidecar.
 Existing output files are never overwritten. The temporary build directory is
 removed after success or failure. Build from a clean checkout when preparing a
-public release.
+public release. The migration bundle includes only `.sql` files from the
+operational and restricted migration directories; archive verification
+rejects backup files and mismatches against that source allowlist.
 
 To select another Python executable or output path:
 
 ```powershell
 .\scripts\build-windows.ps1 `
   -PythonExe .\.venv\Scripts\python.exe `
-  -OutputZip "$env:TEMP\TheraSim-v0.2.0-windows-x64.zip"
+  -OutputZip "$env:TEMP\TheraSim-v0.2.1-windows-x64.zip"
 ```
 
 ## Verify the actual package
@@ -48,7 +50,7 @@ Run the smoke test against the resulting archive:
 
 ```powershell
 .\scripts\verify-windows-package.ps1 `
-  -PackageZip .\dist\TheraSim-v0.2.0-windows-x64.zip
+  -PackageZip .\dist\TheraSim-v0.2.1-windows-x64.zip
 ```
 
 The smoke test extracts the package into a unique temporary directory,

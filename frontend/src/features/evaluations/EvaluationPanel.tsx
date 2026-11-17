@@ -201,14 +201,14 @@ export function EvaluationPanel({
           {report.overall_summary && (
             <div className="evaluation-summary">
               <strong>{labels.summary}</strong>
-              <p>{report.overall_summary}</p>
+              <p dir="auto">{report.overall_summary}</p>
             </div>
           )}
 
           {report.limitations.length > 0 && (
             <ul className="evaluation-limitations">
               {report.limitations.map((limitation) => (
-                <li key={limitation}>{limitation}</li>
+                <li key={limitation} dir="auto">{limitation}</li>
               ))}
             </ul>
           )}
@@ -225,24 +225,24 @@ export function EvaluationPanel({
                   <strong>{item.rating_code}</strong>
                 </summary>
                 <div className="evaluation-item-content">
-                  {item.justification && <p>{item.justification}</p>}
+                  {item.justification && <p dir="auto">{item.justification}</p>}
                   {item.confidence && (
-                    <p><strong>{labels.confidence}:</strong> {item.confidence}</p>
+                    <p dir="auto"><strong>{labels.confidence}:</strong> {item.confidence}</p>
                   )}
                   {item.strengths.length > 0 && (
                     <div>
                       <strong>{labels.strengths}</strong>
-                      <ul>{item.strengths.map((value) => <li key={value}>{value}</li>)}</ul>
+                      <ul>{item.strengths.map((value) => <li key={value} dir="auto">{value}</li>)}</ul>
                     </div>
                   )}
                   {item.missing_evidence.length > 0 && (
                     <div>
                       <strong>{labels.missing}</strong>
-                      <ul>{item.missing_evidence.map((value) => <li key={value}>{value}</li>)}</ul>
+                      <ul>{item.missing_evidence.map((value) => <li key={value} dir="auto">{value}</li>)}</ul>
                     </div>
                   )}
                   {item.limitations && (
-                    <p><strong>{labels.limitations}:</strong> {item.limitations}</p>
+                    <p dir="auto"><strong>{labels.limitations}:</strong> {item.limitations}</p>
                   )}
                   <div>
                     <strong>{labels.evidence}</strong>
@@ -259,8 +259,8 @@ export function EvaluationPanel({
                           className="evaluation-evidence"
                           key={`${evidence.message_id}-${index}`}
                         >
-                          <p>{evidence.evidence_excerpt}</p>
-                          {evidence.evidence_note && <small>{evidence.evidence_note}</small>}
+                          <p dir="auto">{evidence.evidence_excerpt}</p>
+                          {evidence.evidence_note && <small dir="auto">{evidence.evidence_note}</small>}
                           <small dir="ltr">
                             {labels.source}: {evidence.message_id}
                           </small>

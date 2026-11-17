@@ -88,9 +88,10 @@ export function EvaluationReviewPanel({
                   : labels.revisionRequested}
               </strong>
               <small>
-                {review.reviewer_name} · <bdi dir="ltr">{review.created_at}</bdi>
+                <bdi dir="auto">{review.reviewer_name}</bdi> ·{' '}
+                <bdi dir="ltr">{review.created_at}</bdi>
               </small>
-              <p>{review.feedback}</p>
+              <p dir="auto">{review.feedback}</p>
             </article>
           ))}
         </div>
@@ -129,6 +130,7 @@ export function EvaluationReviewPanel({
               maxLength={4000}
               required
               disabled={saving}
+              dir="auto"
             />
           </label>
           {error && <p className="evaluation-review-error" role="alert">{error}</p>}

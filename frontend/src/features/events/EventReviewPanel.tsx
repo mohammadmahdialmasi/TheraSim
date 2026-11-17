@@ -10,6 +10,7 @@ import {
 } from 'lucide-react'
 
 import type { Language } from '../../i18n'
+import { localizedValue } from '../localizedValues'
 
 import { listPendingEvents, reviewEvent } from './api'
 import type { BehavioralEvent } from './types'
@@ -77,6 +78,11 @@ function payloadText(
   return typeof value === 'string' ? value : ''
 }
 
+function errorLabel(error: unknown, fallback: string, language: Language) {
+  if (language === 'fa') return fallback
+  return error instanceof Error ? error.message : fallback
+}
+
 export function EventReviewPanel({
   runId,
   language,
@@ -98,13 +104,11 @@ export function EventReviewPanel({
       const response = await listPendingEvents(runId)
       setEvents(response.data)
     } catch (loadError) {
-      setError(
-        loadError instanceof Error ? loadError.message : 'event_request_failed',
-      )
+      setError(errorLabel(loadError, text[language].error, language))
     } finally {
       setLoading(false)
     }
-  }, [runId])
+  }, [runId, language])
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -135,11 +139,7 @@ export function EventReviewPanel({
       })
       setNotice(decision)
     } catch (reviewError) {
-      setError(
-        reviewError instanceof Error
-          ? reviewError.message
-          : 'event_request_failed',
-      )
+      setError(errorLabel(reviewError, text[language].error, language))
     } finally {
       setBusyEventId('')
     }
@@ -178,7 +178,7 @@ export function EventReviewPanel({
       {error && (
         <div className="sessions-alert sessions-alert-error" role="alert">
           <AlertCircle size={17} />
-          <span>{error === 'event_request_failed' ? copy.error : error}</span>
+          <span dir="auto">{error}</span>
         </div>
       )}
       {notice && (
@@ -207,8 +207,8 @@ export function EventReviewPanel({
           return (
             <article className="memory-candidate" key={event.event_id}>
               <div className="memory-candidate-meta">
-                <span>{event.event_type}</span>
-                <span>{event.extraction_method}</span>
+                <span dir="auto">{localizedValue(event.event_type, language)}</span>
+                <span dir="auto">{localizedValue(event.extraction_method, language)}</span>
                 {typeof confidence === 'number' && (
                   <span>
                     {copy.confidence}: {Math.round(confidence * 100)}%
@@ -259,6 +259,7 @@ export function EventReviewPanel({
                   rows={2}
                   required
                   disabled={Boolean(busyEventId)}
+                  dir="auto"
                 />
               </label>
 

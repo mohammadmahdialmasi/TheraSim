@@ -126,7 +126,9 @@ export function AuthPage({
             {error && (
               <div className="sessions-alert sessions-alert-error" role="alert">
                 <AlertCircle size={17} />
-                <span>{error === 'loopback_setup_required' ? labels.loopbackOnly : error}</span>
+                <span dir="auto">
+                  {error === 'loopback_setup_required' ? labels.loopbackOnly : error}
+                </span>
               </div>
             )}
 

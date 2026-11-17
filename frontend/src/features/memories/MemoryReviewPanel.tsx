@@ -10,6 +10,7 @@ import {
 } from 'lucide-react'
 
 import type { Language } from '../../i18n'
+import { localizedValue } from '../localizedValues'
 
 import {
   listMemoryCandidates,
@@ -113,6 +114,11 @@ interface MemoryReviewPanelProps {
   refreshKey: number
 }
 
+function errorLabel(error: unknown, fallback: string, language: Language) {
+  if (language === 'fa') return fallback
+  return error instanceof Error ? error.message : fallback
+}
+
 export function MemoryReviewPanel({
   runId,
   language,
@@ -146,13 +152,11 @@ export function MemoryReviewPanel({
       setMemories(response.data)
       setSuggestions(suggestionResponse.data)
     } catch (loadError) {
-      setError(
-        loadError instanceof Error ? loadError.message : 'memory_request_failed',
-      )
+      setError(errorLabel(loadError, text[language].error, language))
     } finally {
       setLoading(false)
     }
-  }, [runId])
+  }, [runId, language])
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -188,11 +192,7 @@ export function MemoryReviewPanel({
       })
       setNotice(decision)
     } catch (reviewError) {
-      setError(
-        reviewError instanceof Error
-          ? reviewError.message
-          : 'memory_request_failed',
-      )
+      setError(errorLabel(reviewError, text[language].error, language))
     } finally {
       setBusyMemoryId('')
     }
@@ -217,11 +217,7 @@ export function MemoryReviewPanel({
       await loadCandidates()
       setNotice('consolidated')
     } catch (proposalError) {
-      setError(
-        proposalError instanceof Error
-          ? proposalError.message
-          : 'memory_request_failed',
-      )
+      setError(errorLabel(proposalError, text[language].error, language))
     } finally {
       setConsolidating(false)
     }
@@ -260,9 +256,7 @@ export function MemoryReviewPanel({
       {error && (
         <div className="sessions-alert sessions-alert-error" role="alert">
           <AlertCircle size={17} />
-          <span>
-            {error === 'memory_request_failed' ? copy.error : error}
-          </span>
+          <span dir="auto">{error}</span>
         </div>
       )}
       {notice && (
@@ -367,6 +361,7 @@ export function MemoryReviewPanel({
                 maxLength={12000}
                 rows={3}
                 disabled={consolidating}
+                dir="auto"
               />
             </label>
             <button
@@ -406,9 +401,9 @@ export function MemoryReviewPanel({
           return (
             <article className="memory-candidate" key={memory.memory_id}>
               <div className="memory-candidate-meta">
-                <span>{memory.memory_scope}</span>
-                <span>{memory.memory_type}</span>
-                <span>{memory.information_class}</span>
+                <span dir="auto">{localizedValue(memory.memory_scope, language)}</span>
+                <span dir="auto">{localizedValue(memory.memory_type, language)}</span>
+                <span dir="auto">{localizedValue(memory.information_class, language)}</span>
                 {memory.confidence !== null && (
                   <span>
                     {copy.confidence}: {Math.round(memory.confidence * 100)}%
@@ -460,7 +455,7 @@ export function MemoryReviewPanel({
                     {evidence.excerpt ? (
                       <p>{evidence.excerpt}</p>
                     ) : (
-                      <p>{evidence.relationship_type}</p>
+                      <p>{localizedValue(evidence.relationship_type, language)}</p>
                     )}
                     <footer>
                       {copy.session}:{' '}
@@ -490,6 +485,7 @@ export function MemoryReviewPanel({
                   rows={2}
                   required
                   disabled={Boolean(busyMemoryId)}
+                  dir="auto"
                 />
               </label>
 

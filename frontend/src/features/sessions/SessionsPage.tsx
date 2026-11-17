@@ -196,7 +196,12 @@ const text = {
 
 type Copy = { [K in keyof typeof text.en]: string }
 
-function errorMessage(error: unknown, fallback: string) {
+function errorMessage(
+  error: unknown,
+  fallback: string,
+  language: Language,
+) {
+  if (language === 'fa') return fallback
   return error instanceof Error ? error.message : fallback
 }
 
@@ -345,13 +350,13 @@ export function SessionsPage({ language }: { language: Language }) {
           setSelectedCaseId(caseResult.value.data[0].case_id)
         }
       } else {
-        setError(errorMessage(caseResult.reason, copy.genericError))
+        setError(errorMessage(caseResult.reason, copy.genericError, language))
       }
 
       if (runResult.status === 'fulfilled') {
         setRuns(runResult.value.data)
       } else if (caseResult.status === 'fulfilled') {
-        setError(errorMessage(runResult.reason, copy.genericError))
+        setError(errorMessage(runResult.reason, copy.genericError, language))
       }
 
       setCasesLoading(false)
@@ -362,7 +367,7 @@ export function SessionsPage({ language }: { language: Language }) {
     return () => {
       mounted = false
     }
-  }, [copy.genericError])
+  }, [copy.genericError, language])
 
   useEffect(() => {
     if (!selectedCaseId) return
@@ -381,7 +386,7 @@ export function SessionsPage({ language }: { language: Language }) {
         )
       } catch (loadError) {
         if (mounted) {
-          setError(errorMessage(loadError, copy.genericError))
+          setError(errorMessage(loadError, copy.genericError, language))
         }
       } finally {
         if (mounted) {
@@ -395,7 +400,7 @@ export function SessionsPage({ language }: { language: Language }) {
     return () => {
       mounted = false
     }
-  }, [selectedCaseId, copy.genericError])
+  }, [selectedCaseId, copy.genericError, language])
 
   async function openExistingRun(runId: string) {
     setError('')
@@ -423,7 +428,7 @@ export function SessionsPage({ language }: { language: Language }) {
     try {
       await refreshRunSessions(run.run_id)
     } catch (loadError) {
-      setError(errorMessage(loadError, copy.genericError))
+      setError(errorMessage(loadError, copy.genericError, language))
     } finally {
       setBusy(false)
     }
@@ -467,7 +472,7 @@ export function SessionsPage({ language }: { language: Language }) {
       await refreshRunSessions(started.data.run_id)
       setNotice(isPersian ? 'اجرا با موفقیت شروع شد.' : 'Run started successfully.')
     } catch (createError) {
-      setError(errorMessage(createError, copy.genericError))
+      setError(errorMessage(createError, copy.genericError, language))
     } finally {
       setBusy(false)
     }
@@ -494,7 +499,7 @@ export function SessionsPage({ language }: { language: Language }) {
 
       await refreshRunSessions(response.data.run_id)
     } catch (actionError) {
-      setError(errorMessage(actionError, copy.genericError))
+      setError(errorMessage(actionError, copy.genericError, language))
     } finally {
       setBusy(false)
     }
@@ -512,7 +517,7 @@ export function SessionsPage({ language }: { language: Language }) {
       await refreshRunSessions(activeRun.run_id)
       setMemoryRefreshKey((current) => current + 1)
     } catch (sessionError) {
-      setError(errorMessage(sessionError, copy.genericError))
+      setError(errorMessage(sessionError, copy.genericError, language))
     } finally {
       setBusy(false)
     }
@@ -530,7 +535,7 @@ export function SessionsPage({ language }: { language: Language }) {
     try {
       await refreshMessages(sessionId)
     } catch (loadError) {
-      setError(errorMessage(loadError, copy.genericError))
+      setError(errorMessage(loadError, copy.genericError, language))
     } finally {
       setBusy(false)
     }
@@ -557,7 +562,7 @@ export function SessionsPage({ language }: { language: Language }) {
           : 'Session completed. Its transcript is now sealed.',
       )
     } catch (completionError) {
-      setError(errorMessage(completionError, copy.genericError))
+      setError(errorMessage(completionError, copy.genericError, language))
     } finally {
       setBusy(false)
     }
@@ -584,7 +589,7 @@ export function SessionsPage({ language }: { language: Language }) {
         isPersian ? 'اجرای شبیه‌سازی تکمیل شد.' : 'Simulation run completed.',
       )
     } catch (completionError) {
-      setError(errorMessage(completionError, copy.genericError))
+      setError(errorMessage(completionError, copy.genericError, language))
     } finally {
       setBusy(false)
     }
@@ -650,7 +655,7 @@ export function SessionsPage({ language }: { language: Language }) {
         // Preserve the original interaction error.
       }
 
-      setError(errorMessage(sendError, copy.genericError))
+      setError(errorMessage(sendError, copy.genericError, language))
     } finally {
       setSending(false)
     }
@@ -677,7 +682,7 @@ export function SessionsPage({ language }: { language: Language }) {
       {error && (
         <div className="sessions-alert sessions-alert-error" role="alert">
           <AlertCircle size={17} />
-          <span>{error}</span>
+          <span dir="auto">{error}</span>
         </div>
       )}
 
@@ -712,7 +717,8 @@ export function SessionsPage({ language }: { language: Language }) {
               </option>
               {cases.map((item) => (
                 <option key={item.case_id} value={item.case_id}>
-                  {item.display_name} ({item.case_code})
+                  <bdi dir="auto">{item.display_name}</bdi>{' '}
+                  (<bdi dir="ltr">{item.case_code}</bdi>)
                 </option>
               ))}
             </select>
@@ -775,7 +781,7 @@ export function SessionsPage({ language }: { language: Language }) {
                 {selectedVersion.presentation.occupation && (
                   <span>
                     <strong>{copy.occupation}:</strong>{' '}
-                    {selectedVersion.presentation.occupation}
+                    <bdi dir="auto">{selectedVersion.presentation.occupation}</bdi>
                   </span>
                 )}
               </div>
@@ -786,7 +792,7 @@ export function SessionsPage({ language }: { language: Language }) {
                   <ul>
                     {selectedVersion.presentation.presenting_concerns.map(
                       (concern, index) => (
-                        <li key={`${index}-${concern}`}>{concern}</li>
+                        <li key={`${index}-${concern}`} dir="auto">{concern}</li>
                       ),
                     )}
                   </ul>
@@ -1086,6 +1092,7 @@ export function SessionsPage({ language }: { language: Language }) {
                 rows={3}
                 maxLength={100000}
                 disabled={!canSendMessage}
+                dir="auto"
               />
 
               <div className="sessions-composer-bottom">

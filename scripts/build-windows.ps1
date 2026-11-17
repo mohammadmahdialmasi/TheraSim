@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
     [string]$PythonExe = (Join-Path $PSScriptRoot "..\.venv\Scripts\python.exe"),
-    [string]$OutputZip = (Join-Path $PSScriptRoot "..\dist\TheraSim-v0.2.0-windows-x64.zip")
+    [string]$OutputZip = (Join-Path $PSScriptRoot "..\dist\TheraSim-v0.2.1-windows-x64.zip")
 )
 
 $ErrorActionPreference = "Stop"

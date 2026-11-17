@@ -14,7 +14,7 @@ def test_health_endpoint_returns_backend_status() -> None:
         "status": "ok",
         "service": "therasim",
         "component": "backend",
-        "version": "0.2.0",
+        "version": "0.2.1",
     }
 
 

@@ -15,7 +15,7 @@ TheraSim is an experimental application for rehearsing therapist-client conversa
 
 The project explores whether fictional conversations, explicit information boundaries, longitudinal records, and transcript-linked formative feedback can support skills practice and software research. The current implementation is a prototype; it does not demonstrate improved clinical outcomes.
 
-The application supports a fictional ACT workflow. **Acceptance and Commitment Therapy (ACT) is the only runnable modality.** Other approaches shown in the interface are roadmap categories, not executable therapy modules. Check the [GitHub Releases page](https://github.com/mohammadmahdialmasi/TheraSim/releases) for current publication status; do not treat a local build or repository version number as a published release.
+The application supports a fictional ACT workflow. **Acceptance and Commitment Therapy (ACT) is the only runnable modality.** Other approaches shown in the interface are roadmap categories, not executable therapy modules. GitHub Release v0.2.0 is published and immutable; its Windows ZIP accidentally includes an ignored migration backup. The v0.2.1 patch is intended to include only the required `.sql` migrations. Check the [GitHub Releases page](https://github.com/mohammadmahdialmasi/TheraSim/releases) for publication status and use the corrected package only after its tagged workflow and checksum have been verified.
 
 ### Implemented capabilities
 
@@ -28,7 +28,7 @@ The application supports a fictional ACT workflow. **Acceptance and Commitment T
 
 ### Application screenshots
 
-All screenshots below are genuine browser captures of the running application using an isolated temporary database with only the project's fictional AVA-001 demonstration case. Model providers were disconnected and no model was invoked. The images document interface layout only; they are not clinical or model-performance evidence.
+All screenshots below are genuine browser captures of the application using a fresh temporary data directory seeded only with the fictional AVA-001 case and additional synthetic demonstration records. The default local database was not opened or used. Model providers were disconnected and no model was invoked. The images document interface layout only; they are not clinical or model-performance evidence.
 
 ![TheraSim dashboard showing the ACT-first prototype and local provider status](docs/assets/screenshots/en/dashboard.png)
 
@@ -37,6 +37,18 @@ All screenshots below are genuine browser captures of the running application us
 ![Fictional case selection and a synthetic simulation workspace](docs/assets/screenshots/en/simulation-workspace.png)
 
 *Simulation workspace. The fictional case profile is demonstration data.*
+
+![Synthetic session workspace with Persian-ready status labels and local-only controls](docs/assets/screenshots/en/session-workspace.png)
+
+*Session workspace. The fictional run is active and its transcript is empty; no model was invoked.*
+
+![Behavioral event and memory review panels in the English interface](docs/assets/screenshots/en/review-workspace.png)
+
+*Review workspace. The memory and event queues are empty; no model-generated proposal or acceptance decision is depicted.*
+
+![Treatment plan and exploratory analytics panels in the English interface](docs/assets/screenshots/en/plan-analytics.png)
+
+*Plan and analytics. A human-entered fictional example and descriptive run counts are shown, not outcomes or validated competency scores.*
 
 ### Architecture
 
@@ -119,12 +131,12 @@ The current roadmap remains ACT-first. Additional therapy categories shown in th
 
 `LICENSE.md` applies CC BY 4.0 to the original documentation and research materials identified there; **it does not license executable source code**. Unless a separate software license is introduced, source code remains under the copyright holder's exclusive rights. Third-party dependencies and materials retain their own licenses.
 
-Cite the project using [`CITATION.cff`](CITATION.cff). The published Zenodo `v0.1.0` record is a documentation-only archive ([version DOI: 10.5281/zenodo.24244882](https://doi.org/10.5281/zenodo.24244882); [concept DOI: 10.5281/zenodo.24244881](https://doi.org/10.5281/zenodo.24244881)). It is not an executable source release. No Zenodo `v0.2.0` deposit or GitHub source release has been published.
+Cite the project using [`CITATION.cff`](CITATION.cff). The published Zenodo `v0.1.0` record is a documentation-only archive ([version DOI: 10.5281/zenodo.24244882](https://doi.org/10.5281/zenodo.24244882); [concept DOI: 10.5281/zenodo.24244881](https://doi.org/10.5281/zenodo.24244881)). It is not an executable source release. GitHub Release v0.2.0 is published; its Windows ZIP contains the unintended migration backup noted above. The v0.2.1 patch is the corrective release target, and no Zenodo v0.2.0 deposit has been made.
 
 ### Project links
 
 - [GitHub repository](https://github.com/mohammadmahdialmasi/TheraSim)
-- [Changelog](CHANGELOG.md) · [Release checklist](docs/RELEASE_CHECKLIST.md) · [Windows installation](INSTALL_WINDOWS.md) · [Windows build](BUILD_WINDOWS.md)
+- [Changelog](CHANGELOG.md) · [v0.2.1 release notes](docs/RELEASE_NOTES_v0.2.1.md) · [Release checklist](docs/RELEASE_CHECKLIST.md) · [Security scan notes](docs/SECURITY_SCAN_NOTES.md) · [Windows installation](INSTALL_WINDOWS.md) · [Windows build](BUILD_WINDOWS.md)
 - [MVP decisions](docs/MVP_DECISIONS.md) · [Security boundaries](docs/SECURITY_BOUNDARIES.md)
 - [Documentation license](LICENSE.md) · [Copyright notice](COPYRIGHT.md) · [Citation metadata](CITATION.cff)
 - [Contributing](CONTRIBUTING.md) · [Support](.github/SUPPORT.md) · [Security](.github/SECURITY.md) · [Code of Conduct](CODE_OF_CONDUCT.md)
@@ -146,7 +158,7 @@ TheraSim نرم‌افزاری آزمایشی برای تمرین گفت‌وگ�
 
 این پروژه بررسی می‌کند که آیا گفت‌وگوهای داستانی، مرزبندی روشن اطلاعات، ثبت پیوستگی میان جلسات و بازخورد تکوینیِ متصل به رونوشت می‌توانند به تمرین مهارت‌ها و پژوهش نرم‌افزاری کمک کنند یا نه. پیاده‌سازی فعلی نمونهٔ اولیه است و بهبود پیامدهای بالینی را نشان نمی‌دهد.
 
-برنامه از یک جریان کاری داستانی مبتنی بر درمان مبتنی بر پذیرش و تعهد پشتیبانی می‌کند. **ACT تنها رویکرد درمانیِ قابل اجرا در نسخهٔ فعلی است.** رویکردهای دیگری که در رابط دیده می‌شوند دسته‌های احتمالیِ آینده‌اند، نه ماژول‌های درمانیِ اجرایی. برای مشاهدهٔ وضعیت انتشار، [صفحهٔ GitHub Releases](https://github.com/mohammadmahdialmasi/TheraSim/releases) را بررسی کنید؛ شمارهٔ نسخه یا ساخت محلی به‌تنهایی به معنی انتشار رسمی نیست.
+برنامه از یک جریان کاری داستانی مبتنی بر درمان مبتنی بر پذیرش و تعهد پشتیبانی می‌کند. **ACT تنها رویکرد درمانیِ قابل اجرا در نسخهٔ فعلی است.** رویکردهای دیگری که در رابط دیده می‌شوند دسته‌های احتمالیِ آینده‌اند، نه ماژول‌های درمانیِ اجرایی. انتشار GitHub نسخهٔ ۰٫۲٫۰ منتشر و تغییرناپذیر است؛ فایل ZIP ویندوز آن سهواً یک نسخهٔ پشتیبان مهاجرتِ محلی را در بر دارد. نسخهٔ ۰٫۲٫۱ برای بسته‌بندی فقط مهاجرت‌های ضروری `.sql` در نظر گرفته شده است. وضعیت انتشار را در [صفحهٔ GitHub Releases](https://github.com/mohammadmahdialmasi/TheraSim/releases) بررسی کنید و فقط پس از موفقیت گردش‌کار برچسب و تأیید checksum از بستهٔ اصلاح‌شده استفاده کنید.
 
 ### قابلیت‌های پیاده‌سازی‌شده
 
@@ -159,7 +171,7 @@ TheraSim نرم‌افزاری آزمایشی برای تمرین گفت‌وگ�
 
 ### تصاویر برنامه
 
-همهٔ تصاویر، عکس‌های واقعی از اجرای رابط با پایگاه‌دادهٔ موقت و جداگانه‌اند که فقط پروندهٔ نمایشیِ داستانی AVA-001 را دارد. ارائه‌دهندگان مدل هنگام ثبت تصویر قطع بودند و هیچ مدلی فراخوانی نشد. تصاویر فقط چیدمان رابط را نشان می‌دهند و شاهدی دربارهٔ عملکرد مدل یا نتیجهٔ بالینی نیستند.
+همهٔ تصاویر، عکس‌های واقعی از برنامه با مسیر دادهٔ موقت و تازه‌اند که فقط پروندهٔ نمایشیِ داستانی AVA-001 و رکوردهای نمایشیِ ساختگی را دارد. پایگاه‌دادهٔ محلی پیش‌فرض باز یا استفاده نشده است. ارائه‌دهندگان مدل هنگام ثبت تصویر قطع بودند و هیچ مدلی فراخوانی نشد. تصاویر فقط چیدمان رابط را نشان می‌دهند و شاهدی دربارهٔ عملکرد مدل یا نتیجهٔ بالینی نیستند.
 
 ![داشبورد TheraSim با نمایش نمونهٔ اولیهٔ ACT و وضعیت ارائه‌دهندگان محلی](docs/assets/screenshots/fa/dashboard.png)
 
@@ -168,6 +180,18 @@ TheraSim نرم‌افزاری آزمایشی برای تمرین گفت‌وگ�
 ![انتخاب پروندهٔ داستانی و فضای اجرای شبیه‌سازی با دادهٔ ساختگی](docs/assets/screenshots/fa/simulation-workspace.png)
 
 *فضای شبیه‌سازی؛ مشخصات پروندهٔ داستانی صرفاً دادهٔ نمایشی است.*
+
+![فضای جلسهٔ ساختگی با برچسب‌های فارسی و کنترل‌های محلی](docs/assets/screenshots/fa/session-workspace.png)
+
+*فضای جلسه؛ اجرای داستانی فعال است و رونوشت خالی است؛ هیچ مدلی فراخوانی نشد.*
+
+![پنل‌های بازبینی رویداد و حافظه در رابط فارسی](docs/assets/screenshots/fa/review-workspace.png)
+
+*فضای بازبینی؛ صف‌های حافظه و رویداد خالی‌اند؛ پیشنهاد مدل یا تصمیم پذیرش نمایش داده نمی‌شود.*
+
+![پنل‌های طرح درمان و تحلیل اکتشافی در رابط فارسی](docs/assets/screenshots/fa/plan-analytics.png)
+
+*طرح و تحلیل؛ نمونهٔ ساختگی را انسان وارد کرده است؛ شمارش‌ها توصیفی‌اند، نه پیامد یا سنجهٔ معتبر مهارت.*
 
 ### معماری
 
@@ -250,12 +274,12 @@ $env:OLLAMA_MODEL = "your-installed-model"
 
 مجوز `LICENSE.md`، مجوز CC BY 4.0 را فقط برای مستندات و مواد پژوهشیِ اصیلِ مشخص‌شده در آن اعمال می‌کند؛ **این مجوز کد اجرایی را پوشش نمی‌دهد**. تا زمانی که مجوز نرم‌افزاری جداگانه‌ای معرفی نشود، حقوق کد منبع برای دارندهٔ حق نشر محفوظ است. وابستگی‌ها و مواد اشخاص ثالث تابع مجوزهای خود هستند.
 
-برای استناد از [`CITATION.cff`](CITATION.cff) استفاده کنید. رکورد منتشرشدهٔ Zenodo با نسخهٔ `v0.1.0` فقط آرشیوی از مستندات است ([DOI نسخه: 10.5281/zenodo.24244882](https://doi.org/10.5281/zenodo.24244882)، [DOI مفهومی: 10.5281/zenodo.24244881](https://doi.org/10.5281/zenodo.24244881)) و انتشار اجراییِ کد منبع نیست. نسخهٔ `v0.2.0` نه در Zenodo سپرده شده و نه به‌عنوان انتشار منبع GitHub منتشر شده است.
+برای استناد از [`CITATION.cff`](CITATION.cff) استفاده کنید. رکورد منتشرشدهٔ Zenodo با نسخهٔ `v0.1.0` فقط آرشیوی از مستندات است ([DOI نسخه: 10.5281/zenodo.24244882](https://doi.org/10.5281/zenodo.24244882)، [DOI مفهومی: 10.5281/zenodo.24244881](https://doi.org/10.5281/zenodo.24244881)) و انتشار اجراییِ کد منبع نیست. انتشار GitHub نسخهٔ `v0.2.0` منتشر شده و فایل ZIP ویندوز آن نسخهٔ پشتیبان مهاجرتِ ناخواسته‌ای دارد که در بالا توضیح داده شد. نسخهٔ `v0.2.1` هدف اصلاح بسته‌بندی است؛ نسخهٔ `v0.2.0` در Zenodo سپرده نشده است.
 
 ### پیوندهای پروژه
 
 - [مخزن GitHub](https://github.com/mohammadmahdialmasi/TheraSim)
-- [تاریخچهٔ تغییرات](CHANGELOG.md) · [چک‌لیست انتشار](docs/RELEASE_CHECKLIST.md) · [نصب ویندوز](INSTALL_WINDOWS.md) · [ساخت ویندوز](BUILD_WINDOWS.md)
+- [تاریخچهٔ تغییرات](CHANGELOG.md) · [یادداشت‌های انتشار ۰٫۲٫۱](docs/RELEASE_NOTES_v0.2.1.md) · [چک‌لیست انتشار](docs/RELEASE_CHECKLIST.md) · [یادداشت‌های بررسی امنیتی](docs/SECURITY_SCAN_NOTES.md) · [نصب ویندوز](INSTALL_WINDOWS.md) · [ساخت ویندوز](BUILD_WINDOWS.md)
 - [تصمیم‌های MVP](docs/MVP_DECISIONS.md) · [مرزهای امنیتی](docs/SECURITY_BOUNDARIES.md)
 - [مجوز مستندات](LICENSE.md) · [اطلاعیهٔ حق نشر](COPYRIGHT.md) · [فرادادهٔ استناد](CITATION.cff)
 - [مشارکت](CONTRIBUTING.md) · [پشتیبانی](.github/SUPPORT.md) · [امنیت](.github/SECURITY.md) · [آیین رفتار](CODE_OF_CONDUCT.md)

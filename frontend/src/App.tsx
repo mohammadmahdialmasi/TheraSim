@@ -166,7 +166,12 @@ function getInitialLanguage(): Language {
   }
 }
 
-function errorMessage(error: unknown, fallback: string): string {
+function errorMessage(
+  error: unknown,
+  fallback: string,
+  language: Language,
+): string {
+  if (language === 'fa') return fallback
   return error instanceof Error ? error.message : fallback
 }
 
@@ -280,14 +285,14 @@ function App() {
             setAuthMode('login')
           } else {
             setAuthError(
-              errorMessage(requestError, t.noStartupConnection),
+              errorMessage(requestError, t.noStartupConnection, language),
             )
             setAuthMode('unavailable')
           }
         }
       } catch (requestError) {
         if (!active) return
-        setAuthError(errorMessage(requestError, t.noStartupConnection))
+        setAuthError(errorMessage(requestError, t.noStartupConnection, language))
         setAuthMode('unavailable')
       }
     }
@@ -297,7 +302,7 @@ function App() {
     return () => {
       active = false
     }
-  }, [authRetryKey, t.noStartupConnection])
+  }, [authRetryKey, language, t.noStartupConnection])
 
   useEffect(() => {
     function handleAuthExpired() {
@@ -418,7 +423,7 @@ function App() {
       setAuthenticatedUser(response.data.user)
       setAuthMode('authenticated')
     } catch (requestError) {
-      const message = errorMessage(requestError, t.noStartupConnection)
+      const message = errorMessage(requestError, t.noStartupConnection, language)
       setAuthError(
         message === 'invalid_credentials'
           ? (language === 'fa'
@@ -439,7 +444,7 @@ function App() {
     try {
       await logoutLocalAccount()
     } catch (requestError) {
-      setAuthError(errorMessage(requestError, t.noStartupConnection))
+      setAuthError(errorMessage(requestError, t.noStartupConnection, language))
     } finally {
       clearAuthToken()
       setAuthenticatedUser(null)
@@ -783,7 +788,7 @@ function App() {
 
           <div className="sidebar-version">
             <span className="version-indicator" />
-            TheraSim · 0.2.0
+            TheraSim · 0.2.1
           </div>
         </div>
       </aside>

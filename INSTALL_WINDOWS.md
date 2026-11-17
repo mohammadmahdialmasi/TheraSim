@@ -6,10 +6,14 @@ Download the Windows x64 ZIP and its `.sha256` file from the GitHub Release.
 Before extracting, verify the hash in PowerShell:
 
 ```powershell
-$expected = (Get-Content .\TheraSim-v0.2.0-windows-x64.zip.sha256).Split()[0]
-$actual = (Get-FileHash .\TheraSim-v0.2.0-windows-x64.zip -Algorithm SHA256).Hash.ToLowerInvariant()
+$expected = (Get-Content .\TheraSim-v0.2.1-windows-x64.zip.sha256).Split()[0]
+$actual = (Get-FileHash .\TheraSim-v0.2.1-windows-x64.zip -Algorithm SHA256).Hash.ToLowerInvariant()
 if ($actual -ne $expected) { throw "SHA-256 verification failed." }
 ```
+
+The v0.2.0 Windows ZIP contains an unintended migration backup. Use the
+corrective v0.2.1 package only after its tagged Windows workflow has passed
+and its release checksum has been verified.
 
 Extract the ZIP to a folder you can write to, such as a folder under your
 profile. No administrator access or installer is required. Start
@@ -87,3 +91,55 @@ folder does not remove user-local data or logs.
   workaround.
 
 See [`BUILD_WINDOWS.md`](BUILD_WINDOWS.md) to build the package yourself.
+
+---
+
+## نصب و اجرای TheraSim در ویندوز
+
+### دریافت و تأیید
+
+فایل ZIP ویندوز و فایل `.sha256` نسخهٔ v0.2.1 را از
+[GitHub Releases](https://github.com/mohammadmahdialmasi/TheraSim/releases)
+دریافت کنید. ZIP نسخهٔ v0.2.0 یک فایل پشتیبان مهاجرتِ ناخواسته دارد؛ از بستهٔ
+اصلاح‌شدهٔ v0.2.1 فقط پس از موفقیت گردش‌کار ویندوز و تأیید checksum انتشار
+استفاده کنید. پیش از استخراج، در PowerShell هش را بررسی کنید:
+
+```powershell
+$expected = (Get-Content .\TheraSim-v0.2.1-windows-x64.zip.sha256).Split()[0]
+$actual = (Get-FileHash .\TheraSim-v0.2.1-windows-x64.zip -Algorithm SHA256).Hash.ToLowerInvariant()
+if ($actual -ne $expected) { throw "SHA-256 verification failed." }
+```
+
+ZIP را در پوشه‌ای قابل‌نوشتن، مانند پوشه‌ای در نمایهٔ کاربری خود، استخراج کنید.
+نصب‌کننده یا دسترسی مدیر لازم نیست. فایل `TheraSim\TheraSim.exe` را اجرا کنید.
+برنامه فقط به `127.0.0.1` متصل می‌شود، رابط محلی را در مرورگر پیش‌فرض باز می‌کند
+و پایگاه‌داده‌ها را در `%LOCALAPPDATA%\TheraSim\data` نگه می‌دارد. بستن پنجرهٔ
+کنسول یا فشردن `Ctrl+C` خاموش‌شدن کنترل‌شدهٔ سرور را درخواست می‌کند.
+
+در نخستین اجرا، حساب محلی بازبین را با گذرواژه‌ای حداقل ۱۲ نویسه‌ای بسازید.
+این حساب سامانهٔ چندکاربره نیست. فایل‌های SQLite زنده با TheraSim رمزنگاری
+نمی‌شوند.
+
+### داده، گزارش‌ها و مدل‌های محلی
+
+- پایگاه‌داده‌ها: `%LOCALAPPDATA%\TheraSim\data\therasim.db` و
+  `case_vault.db`
+- گزارش برنامه: `%LOCALAPPDATA%\TheraSim\logs\therasim.log`
+- تنظیمات محلی اختیاری: `%LOCALAPPDATA%\TheraSim\config.env`
+
+برای تولید پاسخ مراجع یا گزارش ارزیاب باید Ollama یا LM Studio را جداگانه نصب
+و اجرا کنید؛ هیچ مدل زبانی همراه بسته نیست. نشانی ارائه‌دهنده را پیش از ارسال
+متن بررسی کنید؛ محلی‌محور بودن تضمین نمی‌کند که همهٔ نصب‌ها یا جریان‌های کاری
+کاملاً بدون اینترنت باشند.
+
+### استفادهٔ ایمن و محدودیت‌ها
+
+فقط از داده‌های داستانی و ساختگی استفاده کنید. TheraSim نمونهٔ اولیه‌ای پژوهشی
+و آموزشی است و درمان، تشخیص، توصیهٔ بالینی، نظارت حرفه‌ای، گواهی صلاحیت یا
+سنجش معتبر مهارت ارائه نمی‌کند. ACT تنها رویکرد اجرایی است. ارزیابی، تحلیل،
+پاسخ‌های شبیه‌سازی‌شده و روبریک‌ها آزمایشی‌اند و اعتبار بالینی، معنایی یا
+روان‌سنجی آن‌ها اثبات نشده است. بازبینی انسانی لازم است.
+
+پیش از جابه‌جایی یا حذف داده‌های محلی، برنامه را متوقف و نسخهٔ پشتیبان تهیه
+کنید؛ راهنمای [پشتیبان‌گیری و بازیابی](docs/BACKUP_RESTORE.md) را ببینید.
+حذف پوشهٔ برنامه داده‌ها و گزارش‌های محلی کاربر را حذف نمی‌کند.

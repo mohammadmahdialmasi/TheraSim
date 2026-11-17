@@ -1,8 +1,8 @@
 # Source Release Readiness Checklist
 
-This checklist records the current implementation boundaries and practical
-checks for a future source release. It does not declare the repository
-release-ready, production-ready, or clinically validated.
+This checklist records implementation boundaries and verification gates for
+public releases. It does not declare the repository production-ready or
+clinically validated.
 
 ## Status definitions
 
@@ -47,8 +47,8 @@ release-ready, production-ready, or clinically validated.
   notices, and any scenario/material-specific terms.
 - [ ] Review README, changelog, citation metadata, installation instructions,
   supported Python/Node versions, and all documented limitations for
-  consistency. Keep the GitHub source-release target (v0.2.0) clearly marked
-  unpublished until a release is formally created.
+  consistency. v0.2.0 is a published, immutable GitHub release; do not move,
+  overwrite, delete, or edit its tag or assets.
 - [ ] Confirm `CITATION.cff` is valid and does not contain provisional release
   metadata; do not create Zenodo-specific metadata unless it is required and
   approved.
@@ -73,6 +73,10 @@ release-ready, production-ready, or clinically validated.
 - [ ] Build and verify the actual Windows ZIP on Windows. The smoke test must
   use a unique temporary data directory and synthetic account; never inspect
   or use a user's existing SQLite contents.
+- [ ] Confirm the package includes exactly the intended migration `.sql`
+  files from the operational and restricted migration directories. Reject
+  backup files, including `.sql.*.bak` artifacts, without deleting local
+  copies.
 - [ ] Do not claim a clean-machine installation or a Windows installer. The
   distributable is a one-folder portable ZIP, and broader clean-device
   usability remains unverified.
@@ -101,11 +105,15 @@ it is enforced by TheraSim.
 
 Zenodo v0.1.0 is a published documentation-only archive (version DOI
 `10.5281/zenodo.24244882`; concept DOI `10.5281/zenodo.24244881`). It does
-not constitute an executable source release. The first public GitHub source
-release is being prepared for v0.2.0. Verify the current public release and tag
-state before publication, and do not create or attach the release until the
-actual Windows artifact and its temporary-data smoke test have been verified.
-A release must not be described as production-ready or clinically validated.
+not constitute an executable source release. GitHub Release v0.2.0 is
+published and immutable; its Windows ZIP contains an unintended ignored
+migration backup. v0.2.1 is the corrective patch version. Push its annotated
+tag to trigger the Windows workflow; publish the bilingual GitHub Release
+only after that workflow succeeds, its generated ZIP is inspected against the
+SQL migration allowlist, and its temporary-data smoke test and checksum are
+verified. Use only that workflow-generated artifact; never attach a locally
+fabricated package. Releases must not be described as production-ready or
+clinically validated.
 
 This document is a readiness aid, not authorization to create a tag, GitHub
 Release, or external deposit.

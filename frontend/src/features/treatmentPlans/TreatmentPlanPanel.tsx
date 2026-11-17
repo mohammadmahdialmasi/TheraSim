@@ -10,6 +10,7 @@ import {
 } from 'lucide-react'
 
 import type { Language } from '../../i18n'
+import { localizedValue } from '../localizedValues'
 
 import {
   createInitialTreatmentPlan,
@@ -146,6 +147,11 @@ interface TreatmentPlanPanelProps {
   refreshKey: number
 }
 
+function errorLabel(error: unknown, fallback: string, language: Language) {
+  if (language === 'fa') return fallback
+  return error instanceof Error ? error.message : fallback
+}
+
 type PlanChangeKind =
   | 'add_goal'
   | 'revise_goal'
@@ -269,13 +275,11 @@ export function TreatmentPlanPanel({
       setGuidance(guidanceResponse.data)
       setEventIds(guidanceResponse.data.evidence.map((event) => event.event_id))
     } catch (loadError) {
-      setError(
-        loadError instanceof Error ? loadError.message : 'plan_request_failed',
-      )
+      setError(errorLabel(loadError, text[language].error, language))
     } finally {
       setLoading(false)
     }
-  }, [runId])
+  }, [runId, language])
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -297,7 +301,7 @@ export function TreatmentPlanPanel({
       setGoal('')
       await loadPlan()
     } catch (createError) {
-      setError(createError instanceof Error ? createError.message : 'plan_request_failed')
+      setError(errorLabel(createError, text[language].error, language))
     } finally {
       setBusy(false)
     }
@@ -342,7 +346,7 @@ export function TreatmentPlanPanel({
       setEventIds([])
       await loadPlan()
     } catch (proposalError) {
-      setError(proposalError instanceof Error ? proposalError.message : 'plan_request_failed')
+      setError(errorLabel(proposalError, text[language].error, language))
     } finally {
       setBusy(false)
     }
@@ -367,7 +371,7 @@ export function TreatmentPlanPanel({
       setNotice(decision)
       await loadPlan()
     } catch (reviewError) {
-      setError(reviewError instanceof Error ? reviewError.message : 'plan_request_failed')
+      setError(errorLabel(reviewError, text[language].error, language))
     } finally {
       setBusy(false)
     }
@@ -406,7 +410,7 @@ export function TreatmentPlanPanel({
       {error && (
         <div className="sessions-alert sessions-alert-error" role="alert">
           <AlertCircle size={17} />
-          <span>{error === 'plan_request_failed' ? copy.error : error}</span>
+          <span dir="auto">{error}</span>
         </div>
       )}
       {notice && (
@@ -445,7 +449,9 @@ export function TreatmentPlanPanel({
                     : copy.humanReview}
             </p>
           )}
-          <p dir="auto">{guidance.rationale}</p>
+          {language === 'en' && (
+            <p dir="auto">{guidance.rationale}</p>
+          )}
           {guidance.evidence.length > 0 && (
             <div className="memory-evidence">
               <strong>{copy.adaptationEvidence}</strong>
@@ -467,7 +473,7 @@ export function TreatmentPlanPanel({
                     }
                     disabled={busy}
                   />
-                  <span>{event.event_type}</span>
+                  <span dir="auto">{localizedValue(event.event_type, language)}</span>
                   {event.session_id && (
                     <span>
                       {copy.session}:{' '}
@@ -486,7 +492,7 @@ export function TreatmentPlanPanel({
         <article className="memory-candidate">
           <div className="memory-candidate-meta">
             <span>{copy.version}: {plan.current.revision_number}</span>
-            <span>{plan.current.modality}</span>
+            <span dir="ltr">{plan.current.modality}</span>
             <span>{copy.active}</span>
           </div>
           <strong>{copy.formulation}</strong>
@@ -495,7 +501,7 @@ export function TreatmentPlanPanel({
             <strong>{copy.goal}</strong>
             {plan.current.definition.goals.map((item) => (
               <p key={item.goal_id} dir="auto">
-                {item.description} · {item.status}
+                {item.description} · {localizedValue(item.status, language)}
                 {item.progress_notes && ` · ${copy.progress}: ${item.progress_notes}`}
               </p>
             ))}
@@ -504,7 +510,7 @@ export function TreatmentPlanPanel({
                 <strong>{copy.objectives}</strong>
                 {plan.current.definition.objectives.map((item) => (
                   <p key={item.objective_id} dir="auto">
-                    {item.description} · {item.progress_indicator}
+                    {item.description} · {localizedValue(item.progress_indicator, language)}
                   </p>
                 ))}
               </>
@@ -514,7 +520,7 @@ export function TreatmentPlanPanel({
                 <strong>{copy.interventions}</strong>
                 {plan.current.definition.interventions.map((item) => (
                   <p key={item.intervention_id} dir="auto">
-                    {item.description} · {item.status}
+                    {item.description} · {localizedValue(item.status, language)}
                   </p>
                 ))}
               </>
@@ -538,6 +544,7 @@ export function TreatmentPlanPanel({
               rows={3}
               required
               disabled={busy}
+              dir="auto"
             />
           </label>
           <label className="memory-rationale">
@@ -550,6 +557,7 @@ export function TreatmentPlanPanel({
               rows={2}
               required
               disabled={busy}
+              dir="auto"
             />
           </label>
           <button
@@ -622,7 +630,7 @@ export function TreatmentPlanPanel({
                 {changeKind === 'pause_intervention' &&
                   plan.current.definition.interventions.map((item) => (
                     <option key={item.intervention_id} value={item.intervention_id}>
-                      {item.description} · {item.status}
+                      {item.description} · {localizedValue(item.status, language)}
                     </option>
                   ))}
               </select>
@@ -646,6 +654,7 @@ export function TreatmentPlanPanel({
                 maxLength={changeKind === 'review_formulation' ? 8000 : 2000}
                 rows={2}
                 disabled={busy}
+                dir="auto"
               />
             </label>
           )}
@@ -663,6 +672,7 @@ export function TreatmentPlanPanel({
               maxLength={4000}
               rows={2}
               disabled={busy}
+              dir="auto"
             />
           </label>
           <button
@@ -735,6 +745,7 @@ export function TreatmentPlanPanel({
                         maxLength={4000}
                         rows={2}
                         disabled={busy}
+                        dir="auto"
                       />
                     </label>
                     <div className="memory-review-actions">

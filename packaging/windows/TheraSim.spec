@@ -20,12 +20,26 @@ if not (FRONTEND_DIST / "index.html").is_file():
 
 datas = [(str(FRONTEND_DIST), "frontend")]
 datas.append((str(ROOT / "rubrics"), "rubrics"))
-datas.append(
-    (
-        str(ROOT / "backend" / "app" / "persistence" / "migrations"),
-        "app/persistence/migrations",
+migrations_root = ROOT / "backend" / "app" / "persistence" / "migrations"
+for migration_area in ("operational", "restricted"):
+    migration_directory = migrations_root / migration_area
+    if not migration_directory.is_dir():
+        raise SystemExit(
+            f"Required migration directory is missing: {migration_directory}"
+        )
+    migration_files = sorted(migration_directory.glob("*.sql"))
+    if not migration_files:
+        raise SystemExit(
+            f"No SQL migrations were found in {migration_directory}"
+        )
+    datas.extend(
+        (
+            str(migration_file),
+            f"app/persistence/migrations/{migration_area}",
+        )
+        for migration_file in migration_files
+        if migration_file.is_file()
     )
-)
 binaries = []
 hiddenimports = collect_submodules("app")
 for package in ("cryptography", "fastapi", "pydantic", "starlette", "uvicorn"):

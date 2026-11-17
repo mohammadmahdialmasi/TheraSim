@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { AlertCircle, Download, LoaderCircle, RefreshCw } from 'lucide-react'
 
 import type { Language } from '../../i18n'
+import { localizedValue } from '../localizedValues'
 
 import { getRunAnalytics, type RunAnalyticsSnapshot } from './api'
 
@@ -145,11 +146,18 @@ interface RunAnalyticsPanelProps {
   refreshKey: number
 }
 
-function countsLabel(counts: Record<string, number>) {
+function countsLabel(counts: Record<string, number>, language: Language) {
   const entries = Object.entries(counts)
   return entries.length > 0
-    ? entries.map(([name, count]) => `${name}: ${count}`).join(' · ')
+    ? entries
+      .map(([name, count]) => `${localizedValue(name, language)}: ${count}`)
+      .join(' · ')
     : '0'
+}
+
+function errorLabel(error: unknown, fallback: string, language: Language) {
+  if (language === 'fa') return fallback
+  return error instanceof Error ? error.message : fallback
 }
 
 function trajectoryId(
@@ -181,13 +189,11 @@ export function RunAnalyticsPanel({
     try {
       setSnapshot(await getRunAnalytics(runId))
     } catch (loadError) {
-      setError(
-        loadError instanceof Error ? loadError.message : 'analytics_request_failed',
-      )
+      setError(errorLabel(loadError, text[language].error, language))
     } finally {
       setLoading(false)
     }
-  }, [runId])
+  }, [runId, language])
 
   useEffect(() => {
     const timer = window.setTimeout(() => void load(), 0)
@@ -338,7 +344,7 @@ export function RunAnalyticsPanel({
       {error && (
         <div className="sessions-alert sessions-alert-error" role="alert">
           <AlertCircle size={17} />
-          <span>{error === 'analytics_request_failed' ? copy.error : error}</span>
+          <span dir="auto">{error}</span>
         </div>
       )}
       {loading && (
@@ -352,7 +358,7 @@ export function RunAnalyticsPanel({
         <>
           <div className="memory-candidate-meta">
             <span>
-              {copy.scope}: {snapshot.data_scope}
+              {copy.scope}: {localizedValue(snapshot.data_scope, language)}
             </span>
             <span>
               {copy.timeRange}:{' '}
@@ -376,17 +382,17 @@ export function RunAnalyticsPanel({
             <article>
               <strong>{copy.events}</strong>
               <span>{snapshot.events.length}</span>
-              <small>{countsLabel(snapshot.event_counts)}</small>
+              <small>{countsLabel(snapshot.event_counts, language)}</small>
             </article>
             <article>
               <strong>{copy.memories}</strong>
               <span>{snapshot.memories.length}</span>
-              <small>{countsLabel(snapshot.memory_counts)}</small>
+              <small>{countsLabel(snapshot.memory_counts, language)}</small>
             </article>
             <article>
               <strong>{copy.transitions}</strong>
               <span>{snapshot.state_transitions.length}</span>
-              <small>{countsLabel(snapshot.transition_counts)}</small>
+              <small>{countsLabel(snapshot.transition_counts, language)}</small>
             </article>
             <article>
               <strong>{copy.evaluations}</strong>
@@ -499,7 +505,7 @@ export function RunAnalyticsPanel({
                     </span>
                     <span>
                       {copy.reviewOutcomes}:{' '}
-                      {countsLabel(rangeReviewDecisionCounts)}
+                      {countsLabel(rangeReviewDecisionCounts, language)}
                     </span>
                   </div>
                   <p className="run-analytics-chart-description">
@@ -606,7 +612,8 @@ export function RunAnalyticsPanel({
                         {copy.session} {observation.session_number} · {copy.rating}:{' '}
                         {observation.rating_code} ·{' '}
                         {copy.confidence}: {observation.confidence ?? '—'} ·{' '}
-                        {copy.evaluationStatus}: {observation.evaluation_status} ·{' '}
+                        {copy.evaluationStatus}:{' '}
+                        {localizedValue(observation.evaluation_status, language)} ·{' '}
                         <bdi dir="ltr">{observation.evaluation_id}</bdi> ·{' '}
                         {copy.evidenceMessages}:{' '}
                         <bdi dir="ltr">
@@ -640,7 +647,8 @@ export function RunAnalyticsPanel({
                 {copy.record}:{' '}
                 <bdi dir="ltr">{snapshot.current_plan.revision_id}</bdi>
                 {' · '}
-                {copy.goals}: {countsLabel(snapshot.current_plan.goal_status_counts)}
+                {copy.goals}:{' '}
+                {countsLabel(snapshot.current_plan.goal_status_counts, language)}
               </p>
             ) : (
               <p>{copy.noPlan}</p>
@@ -651,13 +659,15 @@ export function RunAnalyticsPanel({
             {snapshot.sessions.map((session) => (
               <p key={session.session_id}>
                 {copy.sessions} {session.session_number}:{' '}
-                <bdi dir="ltr">{session.session_id}</bdi> · {session.status}
+                <bdi dir="ltr">{session.session_id}</bdi> ·{' '}
+                {localizedValue(session.status, language)}
               </p>
             ))}
             {snapshot.events.map((event) => (
               <p key={event.event_id}>
                 {copy.events}: <bdi dir="ltr">{event.event_id}</bdi> ·{' '}
-                {event.event_type} · {event.event_status}
+                {localizedValue(event.event_type, language)} ·{' '}
+                {localizedValue(event.event_status, language)}
                 {event.session_id && (
                   <>
                     {' · '}
@@ -669,7 +679,8 @@ export function RunAnalyticsPanel({
             {snapshot.memories.map((memory) => (
               <p key={memory.memory_id}>
                 {copy.memory}: <bdi dir="ltr">{memory.memory_id}</bdi> ·{' '}
-                {memory.memory_type} · {memory.status} · v
+                {localizedValue(memory.memory_type, language)} ·{' '}
+                {localizedValue(memory.status, language)} · v
                 {memory.memory_version}
                 {memory.source_session_id && (
                   <>
@@ -684,7 +695,8 @@ export function RunAnalyticsPanel({
               <p key={transition.transition_id}>
                 {copy.transition}:{' '}
                 <bdi dir="ltr">{transition.transition_id}</bdi> ·{' '}
-                {transition.variable_name} · {transition.validation_status} ·{' '}
+                <bdi dir="ltr">{transition.variable_name}</bdi> ·{' '}
+                {localizedValue(transition.validation_status, language)} ·{' '}
                 <bdi dir="ltr">{transition.session_id}</bdi>
               </p>
             ))}
@@ -692,7 +704,7 @@ export function RunAnalyticsPanel({
               <p key={revision.revision_id}>
                 {copy.planRevision}:{' '}
                 <bdi dir="ltr">{revision.revision_id}</bdi> ·{' '}
-                {revision.revision_number} · {revision.status}
+                {revision.revision_number} · {localizedValue(revision.status, language)}
               </p>
             ))}
             {snapshot.evaluations.map((evaluation) => (
@@ -700,7 +712,7 @@ export function RunAnalyticsPanel({
                 {copy.evaluations}:{' '}
                 <bdi dir="ltr">{evaluation.evaluation_id}</bdi> ·{' '}
                 {evaluation.rubric_id} {evaluation.rubric_version} ·{' '}
-                {evaluation.status}
+                {localizedValue(evaluation.status, language)}
                 {evaluation.stale ? ` · ${copy.staleMark}` : ''}
               </p>
             ))}
@@ -710,9 +722,9 @@ export function RunAnalyticsPanel({
             <strong>{copy.limitations}</strong>
             {snapshot.limitations.map((limitation) => (
               <p key={limitation}>
-                {language === 'fa'
+                <span dir="auto">{language === 'fa'
                   ? persianLimitations[limitation] ?? limitation
-                  : limitation}
+                  : limitation}</span>
               </p>
             ))}
           </div>

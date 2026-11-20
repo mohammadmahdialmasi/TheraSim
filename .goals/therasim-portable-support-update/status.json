@@ -1,7 +1,7 @@
 {
   "goal_id": "therasim-portable-support-update",
   "status": "inspecting",
-  "iteration": 4,
+  "iteration": 5,
   "builder_model": "GPT:5.6-Luna",
   "inspector_model": "GPT:5.6-Sol",
   "initial_sha": "82298889912206ac8c07e834e463dd0fba26a263",
@@ -21,6 +21,16 @@
       "iteration": 4,
       "verdict": "FAIL",
       "summary": "Support preview serialization and focused tests pass, but Persian Windows guidance is incomplete/inaccurate and the available ZIP is stale relative to current frontend source; security/auth review and dependent release checks remain blocked or unverified."
+    },
+    {
+      "iteration": 5,
+      "verdict": "INSPECTING",
+      "summary": "Bilingual setup/support guidance and a fresh isolated Windows package are ready for independent verification; security/auth review remains blocked."
+    },
+    {
+      "iteration": 5,
+      "verdict": "FAIL",
+      "summary": "English/Persian setup guidance, support export, frontend/backend gates, dependency audits, and the fresh ZIP/source-bundle/restart checks verified. Security/auth review remains blocked; visual browser, graceful-shutdown, clean-machine, and remote-state checks remain unverified, so release publication is blocked."
     }
   ]
 }

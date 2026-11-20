@@ -1,29 +1,49 @@
 # Inspector Feedback — Iteration 7
 
-## Verdict: BLOCKED
+## Verdict: FAIL
 
 ## Acceptance Criteria Check
 
-- [x] Environment-sourced provider-key persistence finding — verified in the worktree: `ProviderSettingsStore` retains the last persisted key separately from runtime settings and does not persist an environment-only key when the UI omits it. Explicitly entered UI keys are still protected before persistence. Focused tests cover both behaviors and preserving environment precedence.
-- [x] Release-audit wording finding — verified: `docs/RELEASE_AUDIT_v0.3.0.md` now records the packaged-browser evidence for `fa/rtl`, `en/ltr`, language persistence, narrow layout, and diagnostics preview in the package summary and detailed section. The remaining caveats are consistent: clean-machine operation, graceful shutdown, and accessibility remain unverified.
-- [ ] Release readiness — BLOCKED, not represented as a clean security result. The audit explicitly says the independent security review is blocked/unverified and not passed or clean. No security reviewer was rerun. No release, tag, or remote publication was attempted.
+- [x] Environment-only key omission — VERIFIED: the focused test starts with `CUSTOM_OPENAI_API_KEY`, omits `api_key` in the update, and confirms no protected or plaintext key is written.
+- [x] Explicit UI key protection — VERIFIED: the focused test enters an explicit key and confirms it is persisted as `api_key_protected`, without plaintext in the settings file.
+- [x] Environment runtime precedence — VERIFIED: the focused test confirms a saved key can be preserved while the environment key remains the runtime key after save.
+- [ ] Documentation of saved-key preservation and environment override — FAILED: the implementation preserves the last protected user-saved key when a settings update omits `api_key`, while environment values override it only at runtime. `README.md`, `INSTALL_WINDOWS.md`, and the release audit mention environment precedence and non-persistence, but do not accurately explain that a previously saved UI key is preserved; the English/Persian text also makes a Windows-capable saved-key implementation sound like all environment values are never written.
+- [x] Release-audit browser evidence alignment — VERIFIED: `docs/RELEASE_AUDIT_v0.3.0.md` records `fa/rtl`, `en/ltr`, language persistence after reload, a 346px viewport with 331px document/main scroll widths, the full `diagnostics.json` preview, and loopback-only model probes. It consistently leaves clean-machine operation, graceful shutdown, and accessibility unverified.
+- [ ] Security/authentication criterion — BLOCKED/UNVERIFIED: no dedicated security reviewer result is available or treated as passing. The audit and goal remain blocked, with no clean-security claim and no release publication.
 
 ## Quality Gate
 
-- Command: `python -m pytest -q tests/test_provider_settings_env.py tests/test_provider_config.py` from `backend`
+- Command: `python -m pytest -q tests/test_provider_settings_env.py` from `backend`
 - Result: PASS
-- Details: 28 tests passed. One pytest deprecation warning was emitted by the installed `anyio` plugin.
+- Details: 3 provider-key tests passed.
+- Command: `python -m pytest -q` from `backend` with isolated `THERASIM_DATA_DIR`
+- Result: PASS
+- Details: 494 tests passed.
+- Command: `npm test` from `frontend`
+- Result: PASS
+- Details: 34 frontend tests passed.
+- Command: `npm run lint` from `frontend`
+- Result: PASS
+- Details: ESLint completed with no findings.
+- Command: isolated `npm run build -- --outDir <temporary-directory> --emptyOutDir` from `frontend`
+- Result: PASS
+- Details: TypeScript and Vite build completed successfully outside the worktree.
 - Command: `git diff --check`
 - Result: PASS
-- Details: No whitespace errors; Git emitted only line-ending conversion warnings.
+- Details: no whitespace errors.
 
 ## Issues Found
 
-The two requested worktree fixes passed the focused verification. However, the provider settings module required for the fix (`backend/app/core/provider_settings.py`) is untracked and the implementation depends on it. It cannot safely be included in this Inspector commit: that would commit an entire pre-existing product module, while omitting it from a product commit would leave the fix unusable. Accordingly, the product fix remains uncommitted and this iteration is BLOCKED. The worktree also contains other modified and untracked product files; none were staged or committed by this inspection.
-
-The independent security/authentication review, clean-machine package check, graceful-shutdown check, and full accessibility review remain blocked or unverified. This inspection does not claim clean security or release clearance.
+1. The provider implementation correctly separates saved keys from runtime environment overrides, but the documentation is incomplete. It needs to state that an update which omits `api_key` preserves the existing user-saved key on Windows, that an environment key takes precedence only for runtime use, and that environment-only keys are not added to the provider-settings file.
+2. The same preservation distinction should be consistent in English and Persian README/install text and in the release audit. The current broad “environment values ... are not written” wording may be read as covering cases where a previous saved key remains in the file.
+3. The dedicated security/authentication review remains unavailable. Clean-machine, graceful-shutdown, and accessibility checks are also not verified; they must not be represented as passing.
 
 ## What Must Be Fixed
 
-- Preserve the provider settings module and its dependent fix in the appropriate product change/commit workflow; do not include unrelated pre-existing product work.
-- Complete the independent security review and the remaining release checks before considering publication. Keep the release unpublished until then.
+- Update README and INSTALL_WINDOWS English/Persian provider-key wording to distinguish:
+  - explicit UI key entry creates protected saved storage;
+  - an omitted key preserves the previous protected saved key;
+  - environment keys override saved keys at runtime;
+  - environment-only values are not newly written to provider settings.
+- Reconcile the release audit's credential paragraph with the same preservation/override behavior.
+- Keep security/authentication BLOCKED/UNVERIFIED and keep this release unpublished until the required review and remaining release gates are complete.

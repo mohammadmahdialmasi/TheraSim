@@ -1,6 +1,6 @@
 {
   "goal_id": "therasim-portable-support-update",
-  "status": "building",
+  "status": "inspecting",
   "iteration": 7,
   "builder_model": "GPT:5.6-Luna",
   "inspector_model": "GPT:5.6-Sol",
@@ -44,13 +44,18 @@
     },
     {
       "iteration": 7,
-      "verdict": "BUILDING",
-      "summary": "Prevent environment-sourced provider keys from being persisted by settings saves, reconcile audit wording with verified browser evidence, and retain security review/publication blockers."
+      "verdict": "INSPECTING",
+      "summary": "Provider settings now distinguish explicitly saved keys from environment overrides; release-audit browser claims were reconciled. Fresh verification is pending; independent security review remains blocked."
     },
     {
       "iteration": 7,
       "verdict": "BLOCKED",
       "summary": "Both requested worktree fixes and focused provider tests verified; product change remains uncommitted because its required provider settings module is pre-existing untracked work, and security/release checks remain blocked or unverified."
+    },
+    {
+      "iteration": 7,
+      "verdict": "FAIL",
+      "summary": "Provider-key behavior and browser/release-audit evidence are verified, but the provider-key documentation does not distinguish preservation of previously saved UI keys from environment-only runtime precedence; security/authentication remains blocked/unverified and publication remains prohibited."
     }
   ]
 }

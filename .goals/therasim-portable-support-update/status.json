@@ -1,7 +1,7 @@
 {
   "goal_id": "therasim-portable-support-update",
-  "status": "inspecting",
-  "iteration": 6,
+  "status": "building",
+  "iteration": 7,
   "builder_model": "GPT:5.6-Luna",
   "inspector_model": "GPT:5.6-Sol",
   "initial_sha": "82298889912206ac8c07e834e463dd0fba26a263",
@@ -41,6 +41,16 @@
       "iteration": 6,
       "verdict": "FAIL",
       "summary": "Independent review and release checks remain blocked; provider environment-key non-persistence wording conflicts with the Windows settings-save path, and the release audit has stale localization verification statements."
+    },
+    {
+      "iteration": 7,
+      "verdict": "BUILDING",
+      "summary": "Prevent environment-sourced provider keys from being persisted by settings saves, reconcile audit wording with verified browser evidence, and retain security review/publication blockers."
+    },
+    {
+      "iteration": 7,
+      "verdict": "BLOCKED",
+      "summary": "Both requested worktree fixes and focused provider tests verified; product change remains uncommitted because its required provider settings module is pre-existing untracked work, and security/release checks remain blocked or unverified."
     }
   ]
 }

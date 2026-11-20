@@ -1,7 +1,7 @@
 {
   "goal_id": "therasim-portable-support-update",
   "status": "inspecting",
-  "iteration": 7,
+  "iteration": 8,
   "builder_model": "GPT:5.6-Luna",
   "inspector_model": "GPT:5.6-Sol",
   "initial_sha": "82298889912206ac8c07e834e463dd0fba26a263",
@@ -56,6 +56,16 @@
       "iteration": 7,
       "verdict": "FAIL",
       "summary": "Provider-key behavior and browser/release-audit evidence are verified, but the provider-key documentation does not distinguish preservation of previously saved UI keys from environment-only runtime precedence; security/authentication remains blocked/unverified and publication remains prohibited."
+    },
+    {
+      "iteration": 8,
+      "verdict": "INSPECTING",
+      "summary": "README, English/Persian Windows setup, and release-audit wording now distinguish explicit saved keys, preserved saved keys, environment overrides, and environment-only keys. Independent verification pending; security and release gates remain blocked."
+    },
+    {
+      "iteration": 8,
+      "verdict": "BLOCKED",
+      "summary": "Provider-key documentation matches verified DPAPI, preservation, environment-runtime-override, and non-Windows behavior; release-audit browser evidence is consistent and does not claim clean security. Independent security review, clean-machine testing, graceful-shutdown verification, and accessibility review remain unavailable or unverified, so the goal is blocked."
     }
   ]
 }

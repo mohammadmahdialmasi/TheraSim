@@ -1,7 +1,7 @@
 {
   "goal_id": "therasim-portable-support-update",
   "status": "inspecting",
-  "iteration": 5,
+  "iteration": 6,
   "builder_model": "GPT:5.6-Luna",
   "inspector_model": "GPT:5.6-Sol",
   "initial_sha": "82298889912206ac8c07e834e463dd0fba26a263",
@@ -31,6 +31,16 @@
       "iteration": 5,
       "verdict": "FAIL",
       "summary": "English/Persian setup guidance, support export, frontend/backend gates, dependency audits, and the fresh ZIP/source-bundle/restart checks verified. Security/auth review remains blocked; visual browser, graceful-shutdown, clean-machine, and remote-state checks remain unverified, so release publication is blocked."
+    },
+    {
+      "iteration": 6,
+      "verdict": "INSPECTING",
+      "summary": "Credential-storage documentation now reflects Windows DPAPI and environment-only non-Windows behavior; packaged bilingual browser checks passed. Independent review is next; security remains blocked."
+    },
+    {
+      "iteration": 6,
+      "verdict": "FAIL",
+      "summary": "Independent review and release checks remain blocked; provider environment-key non-persistence wording conflicts with the Windows settings-save path, and the release audit has stale localization verification statements."
     }
   ]
 }

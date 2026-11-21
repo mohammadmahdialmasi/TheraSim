@@ -38,6 +38,7 @@ test-results/
 .idea/
 .DS_Store
 Thumbs.db
+/.goals/
 # Local-only backups and development artifacts
 *.bak
 .goals/

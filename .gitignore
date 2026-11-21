@@ -40,6 +40,7 @@ test-results/
 Thumbs.db
 # Local-only backups and development artifacts
 *.bak
+.goals/
 /.vscode/
 /therasim_connect_character_runtime.py
 /therasim_connect_character_runtime_v2.py

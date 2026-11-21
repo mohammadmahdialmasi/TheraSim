@@ -105,20 +105,20 @@ it is enforced by TheraSim.
 
 Zenodo v0.1.0 is a published documentation-only archive (version DOI
 `10.5281/zenodo.24244882`; concept DOI `10.5281/zenodo.24244881`). It does
-not constitute an executable source release. GitHub Release v0.2.0 is
-published and immutable; its Windows ZIP contains an unintended ignored
-migration backup. v0.2.1 is the corrective patch version. Push its annotated
-tag to trigger the Windows workflow; publish the bilingual GitHub Release
-only after that workflow succeeds, its generated ZIP is inspected against the
-SQL migration allowlist, and its temporary-data smoke test and checksum are
-verified. Use only that workflow-generated artifact; never attach a locally
-fabricated package. Releases must not be described as production-ready or
-clinically validated.
+not constitute an executable source release. GitHub Release v0.2.0 is published and immutable; its Windows ZIP contains an
+unintended ignored migration backup. The v0.3.0 build has a fresh locally
+built ZIP with isolated startup, UI, persistence, shutdown, migration
+allowlist, archive-content, checksum, and local Ollama chat checks recorded in
+[the final integration audit](V0.3.0_FINAL_INTEGRATION_AUDIT.md). The
+corresponding GitHub Windows workflow must also complete successfully before
+the release is published. Do not substitute any pre-existing `dist/` archive
+for the verified artifact. Releases must not be described as
+production-ready or clinically validated.
 
-This document is a readiness aid, not authorization to create a tag, GitHub
-Release, or external deposit.
+This document is a readiness aid, not standalone authorization to create a
+tag, GitHub Release, or external deposit.
 
-The v0.3.0 candidate is not published and has not cleared the full source,
-security, dependency, clean-device, and package gates until acceptance evidence
-is recorded. See
+The local checks do not establish clean-device operation, physical
+network-disconnection, independent security review, or clinical validity.
+Current release evidence and limits are in
 [RELEASE_AUDIT_v0.3.0.md](RELEASE_AUDIT_v0.3.0.md).

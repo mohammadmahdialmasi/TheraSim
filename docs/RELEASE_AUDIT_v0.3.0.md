@@ -1,99 +1,104 @@
-# TheraSim v0.3.0 — Source and Release Audit
+# TheraSim v0.3.0 — Release audit
 
-**Audit date:** 2026-11-17
-**Release status:** Not published; verification required
+**Audit date:** 2026-11-21
+**Version metadata:** 0.3.0
+**Artifact:** `TheraSim-v0.3.0-Windows-x64-Portable.zip`
 
-This report distinguishes source-verified implementation evidence from findings
-that still require an external or clean-device check. It does not represent a
-clinical, psychometric, or independent security validation.
+This report records local source and package evidence. A GitHub release is
+authoritative only when its assets and workflow status are visible on the
+official [GitHub Releases page](https://github.com/mohammadmahdialmasi/TheraSim/releases).
+This audit is not clinical, psychometric, independent security, or clean-device
+validation.
 
-## Product and source verification
+## Package evidence
 
-| Area | Source-verifiable result | Boundary |
-|---|---|---|
-| Runtime | FastAPI serves the bundled React application on loopback in the Windows desktop runtime. | Start, health, UI, and isolated persistence are operationally smoke-tested where Windows automation is available. |
-| Data | Operational and restricted SQLite databases use independent migration histories and paired backup/restore tooling. | Live SQLite files are not encrypted at rest. A restore destination must be separate from an active or existing user directory. |
-| Authentication | A single local reviewer account, bearer sessions, and persistent login throttling are implemented. | This is not multi-user authorization or password recovery. |
-| Provider configuration | Provider settings and connection diagnostics are implemented with redacted settings responses and explicitly configurable endpoints. | A remote HTTPS or HTTP endpoint requires explicit trust and must not receive real-person data. |
-| Support diagnostics | A strict export implementation and leak-prevention tests are required before publication. | The dedicated credential/support security review has not been recorded as complete in this audit. |
-| Updates | Update checks are manual/read-only and report stable release metadata without applying files or invoking Git. | Automatic download and installation are not implemented; source checkout status is read-only. |
-| Windows package | A one-folder x64 PyInstaller ZIP workflow is implemented and migration `.sql` resources are allow-listed. | Clean-device startup, persistence, shutdown, and localization remain unverified unless the Windows smoke test is run in a representative environment. |
-| Clinical scope | ACT is the only runnable modality; analytics and evaluator output are experimental. | No clinical efficacy, evaluator reliability, psychometric validity, or therapeutic outcome is claimed or established. |
+The package was freshly built from the current source on Windows 11 Pro x64
+using Python 3.13.9 and Node.js 26.13.0. It is a PyInstaller one-folder
+application inside a ZIP, not an installer or single-file executable. The
+build script refused to overwrite existing output; the fresh package was
+written into a new temporary directory.
 
-## Authentication and credential review
+| Property | Value |
+|---|---|
+| File | `TheraSim-v0.3.0-Windows-x64-Portable.zip` |
+| Size | 26,345,293 bytes |
+| SHA-256 | `df1be242f0040b67b9b15ad7e7d7f52e136ed260f690f79370716200d9715319` |
+| Package format | Windows x64 portable one-folder ZIP |
+| Model weights | Not included |
+| Manifest and sidecar | Both match the archive checksum |
 
-The repository separates live SQLite data, bearer-session metadata, provider
-configuration, and optional backups. Provider API keys must be treated as
-secrets: do not place them in public issues, support logs, screenshots, or
-source control. Plain live provider settings and live databases remain
-protected only by the host operating system and account permissions. Export
-and provider behavior should be judged by the focused security review before
-release publication.
+Archive inspection found 1,110 entries under one top-level `TheraSim/`
+directory, including 19 allow-listed SQL migrations. No SQLite database,
+database sidecar, backup, `.env`, provider-settings file, key, or model weights
+were present. No absolute or parent-traversal archive paths were detected.
 
-**Security review blocker:** the requested read-only security review did not
-return any analysis because no model endpoint was available. Its status is
-blocked/unverified, not passed or clean. Credential handling, provider URL
-enforcement, connection diagnostics, support export, and directly related tests
-must remain unchanged until a review can run with an available endpoint.
+The fresh extraction smoke test passed on the same development workstation:
 
-## Migration and cleanup
+- packaged executable started with a system-only `PATH` and served the local
+  health endpoint and UI;
+- a synthetic local reviewer account was initialized in isolated temporary
+  application data and persisted across restart and replacement-directory
+  extraction;
+- the process completed graceful shutdown and left no listener;
+- the packaged app connected to the already-installed local Ollama
+  `qwen2.5:3b` model and completed one fictional synthetic chat.
 
-Paired backup and restore tests cover:
+No existing user database or patient data was read. The Ollama check is a
+generic local chat smoke test, not a PatientAgent benchmark or ACT evaluator
+validation. No clean VM or physically disconnected network was used.
 
-- verified database copies and SHA-256 manifests;
-- encrypted round trips and wrong-passphrase rejection;
-- ciphertext tampering;
-- destination collision protection;
-- WAL-mode refusal;
-- database-lock failure guidance;
-- restore into a new directory only.
+## Software and dependency checks
 
-Migration and backup operations are not destructive source updates. The
-application does not automatically delete, rotate, or purge backup sets. Stop
-TheraSim before backup or restore operations that require a point-in-time pair.
+- Backend: 507 tests passed with Python 3.13.9.
+- Frontend: 18 tests passed; ESLint, TypeScript, and Vite production build
+  passed.
+- `pip-audit` found no known vulnerabilities in the backend lock or Windows
+  packaging requirements at scan time.
+- Full `npm audit --audit-level=moderate` reported zero vulnerabilities.
+- Bandit reported 11 findings: 0 high, 6 medium, and 5 low. SQL-fragment
+  construction, a fixed HTTPS release URL, and bounded subprocess use were
+  reviewed; findings remain visible and are not suppressed. See
+  [Security audit](SECURITY_AUDIT.md).
 
-## Update safety
+## Model and device scope
 
-The implemented update check:
+Current workstation inventory: Windows 11 Pro build `10.0.26300`, 15.6 GiB
+visible RAM, Intel Core i7-12650H (10 cores / 16 logical processors), NVIDIA
+RTX 3060 Laptop GPU with 6 GiB VRAM, and Intel UHD graphics. This is one
+machine, not a general compatibility claim.
 
-- runs only when requested;
-- accepts stable GitHub release metadata only;
-- validates official release URLs and SHA-256 asset digests;
-- reports source-checkout state without exposing changed paths;
-- never runs `git pull`, `git reset`, `git checkout`, or an installer.
+Synthetic `qwen2.5:3b` PatientAgent tests recorded 7/7 schema-valid responses.
+Its ACT EvaluatorAgent passed 4/6 repeated reports; two were rejected for
+failing exact transcript-quote validation. Two additional structured reports
+passed, but reliability is not established. No evaluator model is recommended.
+The application still validates evaluator reports, rubric coverage, transcript
+speakers/messages, and exact quotes; structured output does not bypass those
+checks. See [local model evaluation](LOCAL_AI_MODEL_EVALUATION.md) and
+[`config/model-compatibility.json`](../config/model-compatibility.json).
 
-Automatic application installation remains explicitly unsupported. Users must
-download and verify a package themselves. The portable ZIP is not evidence of
-an upgrade mechanism and must not replace the existing application folder
-while the application is running.
+## Security, privacy, and research boundaries
 
-## Localization and documentation
+- SQLite databases are not encrypted at rest. The local reviewer account is
+  not multi-user authorization or password recovery.
+- Saved Windows provider keys use DPAPI for the current Windows user.
+  Persistent provider-key storage is not supported on non-Windows platforms;
+  use environment variables there.
+- User-selected remote providers may receive submitted text after local-only
+  controls are explicitly disabled and remote use is confirmed. Use fictional
+  data only.
+- Support export is allow-listed, previewed, user-confirmed, and not
+  automatically sent. Update checking reads official stable-release metadata
+  but does not install or overwrite files.
+- ACT is the only runnable modality. Clinical, therapeutic, psychometric,
+  evaluator, rubric, analytics, and simulated-response validity have not been
+  established.
+- No penetration test or independent security review was performed. Bandit
+  findings and residual trust assumptions remain documented.
 
-English and Persian catalogs describe the same implemented behavior and
-limitations. RTL/LTR behavior and mixed-direction identifiers require browser
-review; automated parity checks do not replace a narrow-layout and
-screen-reader inspection. Beginner setup, data, backup, troubleshooting,
-credential, remote-provider, and package-limit guidance must remain consistent
-in both languages.
+## Publication boundary
 
-## Package verification status
-
-The Windows workflow must produce `TheraSim-v0.3.0-windows-x64.zip`, verify
-its migration resources against the source `.sql` allowlist, run the isolated
-temporary-profile smoke test, and calculate an SHA-256 checksum. A locally
-built candidate is not a public release asset. A clean-machine test is
-**unverified** unless performed with recorded Windows/runtime versions.
-
-## Publication gate
-
-No commit in this repository alone authorizes publication. Before any tag or
-GitHub Release:
-
-1. complete all focused security findings and release checks;
-2. run backend, frontend, dependency, localization, backup, migration, and
-   Windows package gates;
-3. verify the exact workflow-generated ZIP and sidecar checksum;
-4. confirm no existing database, credential, `.env`, log, backup, or
-   unrelated worktree file was included;
-5. confirm the official remote and upstream state are non-conflicting;
-6. obtain the maintainer's explicit authorization to push, tag, or publish.
+The package evidence above does not itself publish or authorize a release.
+Before users download v0.3.0, verify that the official GitHub release contains
+the expected ZIP and matching `.sha256` sidecar and that its Windows workflow
+completed successfully. Do not substitute any pre-existing local `dist/`
+archive for the freshly verified artifact.

@@ -3,6 +3,7 @@ import { AlertCircle, ClipboardCheck, LoaderCircle, Sparkles } from 'lucide-reac
 
 import type { Language } from '../../i18n'
 import type { SessionMessage } from '../sessions/types'
+import { localizedValue } from '../localizedValues'
 import { createSessionEvaluation, listSessionEvaluations } from './api'
 import { EvaluationReviewPanel } from './EvaluationReviewPanel'
 import type { EvaluationReport, EvaluationReview } from './types'
@@ -37,10 +38,10 @@ const copy = {
     description:
       'بازخورد آموزشی فقط بر پایه رونوشت است؛ این ارزیابی بالینی اعتبارسنجی‌شده یا جایگزین نظارت تخصصی نیست.',
     generate: 'تولید ارزیابی',
-    generating: 'در حال ارزیابی رونوشت...',
-    loading: 'در حال بارگذاری تاریخچه ارزیابی...',
+    generating: 'در حال ارزیابی رونوشت…',
+    loading: 'در حال بارگذاری سابقهٔ ارزیابی…',
     noReport: 'برای این جلسه گزارشی ثبت نشده است.',
-    summary: 'خلاصه کلی',
+    summary: 'خلاصهٔ کلی',
     competency: 'شایستگی',
     evidence: 'شواهد رونوشت',
     source: 'پیام منبع',
@@ -50,8 +51,8 @@ const copy = {
     confidence: 'میزان اطمینان',
     revision: 'بازنگری',
     reviewRequired: 'نیازمند بازبینی انسانی',
-    historical: 'سابقه قدیمی: منشأ ارزیاب در دسترس نیست؛ امتیازها نمایش داده نمی‌شوند.',
-    unavailable: 'ارزیاب در دسترس نیست. یک مدل محلی تنظیم و دوباره تلاش کن.',
+    historical: 'سابقهٔ پیشین: منشأ ارزیابی در دسترس نیست؛ امتیازها نمایش داده نمی‌شوند.',
+    unavailable: 'عامل ارزیاب در دسترس نیست. یک مدل محلی پیکربندی و دوباره تلاش کنید.',
     failed: 'تولید ارزیابی ناموفق بود و گزارشی ذخیره نشد.',
     emptyEvidence: 'شواهدی از پیام درمانگر ثبت نشده است.',
     noSource: 'پیام منبع در رونوشت بارگذاری‌شده وجود ندارد.',
@@ -221,7 +222,10 @@ export function EvaluationPanel({
             {report.items.map((item) => (
               <details className="evaluation-item" key={item.evaluation_item_id}>
                 <summary>
-                  <span>{item.competency_id.replaceAll('_', ' ')}</span>
+                  <span>
+                    <small>{labels.competency}: </small>
+                    {localizedValue(item.competency_id, language)}
+                  </span>
                   <strong>{item.rating_code}</strong>
                 </summary>
                 <div className="evaluation-item-content">

@@ -6,6 +6,26 @@ ignored migration backup. The v0.2.1 patch corrects the packaging allowlist.
 Zenodo v0.1.0 remains a documentation-only archive, not an executable source
 release.
 
+## v0.3.0 — Local-first model configuration and release hardening
+
+- Add per-provider patient-agent and evaluator-agent model overrides with a
+  general-model fallback, and keep evaluator report, rubric, transcript, and
+  exact-quote validation in the application regardless of provider output
+  constraints.
+- Add optional hardware inventory and document measured, model-specific
+  synthetic workflow results without claiming compatibility across devices
+  or recommending an ACT evaluator model.
+- Add bilingual provider settings, user-reviewed support diagnostics, and a
+  manual update check that verifies official release metadata without
+  downloading or installing files.
+- Protect saved Windows provider keys with the current user's DPAPI context;
+  keep environment-variable precedence and document non-Windows credential
+  limitations.
+- Unify the Windows x64 portable ZIP name, migration allowlist verification,
+  checksum/manifest generation, and isolated package smoke test.
+- Add bilingual installation and user guides. Continue to require synthetic
+  data and make no clinical, psychometric, or therapeutic efficacy claims.
+
 ## v0.2.1 — Corrective patch
 
 - Restrict the Windows package to explicit `.sql` migration files and verify

@@ -10,7 +10,7 @@ const text = {
   en: {
     title: 'Run analytics and export',
     description:
-      'Counts and records come from this Run’s persisted data. Identifiers link each item to its source record.',
+      'Counts and records come from this run’s persisted data. Identifiers link each item to its source record.',
     refresh: 'Refresh analytics',
     loading: 'Loading persisted Run analytics…',
     export: 'Download JSON',
@@ -40,7 +40,7 @@ const text = {
     rawChange: 'Raw rating-code change',
     insufficientComparison: 'At least two evaluable observations are required for a raw comparison.',
     chartAxes:
-      'X-axis: completed session number. Y-axis: raw rubric rating code (0–3). NE and missing observations are omitted, not plotted as zero. Each point links to its evaluation record.',
+      'X-axis: completed session number. Y-axis: raw rubric rating code (0–3). NE and unrecorded observations are omitted, not plotted as zero. Each point links to its evaluation record.',
     noChartData: 'No evaluable numeric observations in this session range.',
     openEvaluation: 'Open evaluation',
     evaluationStatus: 'Evaluation status',
@@ -52,8 +52,6 @@ const text = {
     plan: 'Active plan',
     goals: 'Goal status counts',
     record: 'Record',
-    status: 'Status',
-    type: 'Type',
     scope: 'Scope',
     timeRange: 'Data time range',
     generatedAt: 'Generated',
@@ -68,14 +66,14 @@ const text = {
   fa: {
     title: 'تحلیل و خروجی اجرا',
     description:
-      'شمارش‌ها و رکوردها از داده‌های ذخیره‌شده این اجرا می‌آیند. شناسه‌ها هر مورد را به رکورد منبع پیوند می‌دهند.',
+      'شمارش‌ها و رکوردها از داده‌های ذخیره‌شدهٔ این اجرا به دست می‌آیند. شناسه‌ها هر مورد را به رکورد منبع پیوند می‌دهند.',
     refresh: 'تازه‌سازی تحلیل',
     loading: 'در حال بارگذاری تحلیل داده‌های ذخیره‌شده…',
     export: 'دریافت JSON',
     privacy:
-      'خروجی شامل شناسه‌های عملیاتی حساس است؛ آن را با احتیاط نگهداری و به‌اشتراک بگذار.',
-    sessions: 'جلسات',
-    completedSessions: 'جلسات تکمیل‌شده',
+      'این خروجی شناسه‌های عملیاتی حساس دارد؛ آن را با احتیاط نگهداری و منتشر کنید.',
+    sessions: 'جلسه‌ها',
+    completedSessions: 'جلسه‌های تکمیل‌شده',
     events: 'رویدادهای رفتاری',
     memories: 'رکوردهای حافظه',
     transitions: 'گذارهای حالت شخصیت',
@@ -84,41 +82,39 @@ const text = {
     staleMark: 'قدیمی',
     competencyComparisons: 'مشاهده‌های شایستگی در جلسات',
     competencyComparisonNote:
-      'مشاهده‌های خام بر اساس نسخه و هش دقیق روبریک گروه‌بندی می‌شوند. امتیازها میانگین‌گیری یا به‌عنوان پیامد بالینی تفسیر نمی‌شوند.',
+      'مشاهده‌های خام بر اساس نسخه و هشِ دقیقِ معیارنامهٔ ارزیابی گروه‌بندی می‌شوند. امتیازها میانگین‌گیری نمی‌شوند و پیامد بالینی به‌شمار نمی‌آیند.',
     competency: 'شایستگی',
     rating: 'امتیاز',
     confidence: 'میزان اطمینان',
-    fromSession: 'از جلسه',
-    throughSession: 'تا جلسه',
+    fromSession: 'از جلسهٔ',
+    throughSession: 'تا جلسهٔ',
     evaluable: 'مشاهده‌های قابل ارزیابی',
     notEvaluable: 'غیرقابل ارزیابی (NE)',
-    missing: 'مشاهده‌های مفقود',
+    missing: 'مشاهده‌های ثبت‌نشده',
     evidenceCoverage: 'پوشش شواهد',
     reviewOutcomes: 'نتایج بازبینی انسانی',
     rawChange: 'تغییر خام کد امتیاز',
-    insufficientComparison: 'برای مقایسه خام دست‌کم دو مشاهده قابل ارزیابی لازم است.',
+    insufficientComparison: 'برای مقایسهٔ خام، دست‌کم دو مشاهدهٔ قابل ارزیابی لازم است.',
     chartAxes:
-      'محور افقی: شماره جلسه تکمیل‌شده. محور عمودی: کد خام روبریک (۰ تا ۳). موارد NE و مفقود حذف می‌شوند و صفر نیستند. هر نقطه به گزارش ارزیابی پیوند دارد.',
+      'محور افقی: شمارهٔ جلسهٔ تکمیل‌شده. محور عمودی: کد خام معیارنامهٔ ارزیابی (۰ تا ۳). موارد «غیرقابل ارزیابی» و مشاهده‌های ثبت‌نشده حذف می‌شوند و مقدار صفر نمی‌گیرند. هر نقطه به گزارش ارزیابی پیوند دارد.',
     noChartData: 'در این بازه جلسه، مشاهده عددی قابل ارزیابی وجود ندارد.',
     openEvaluation: 'بازکردن ارزیابی',
     evaluationStatus: 'وضعیت ارزیابی',
     evidenceMessages: 'شناسه پیام‌های شواهد',
     noCompetencyObservations: 'مشاهده شایستگی معتبر برای جلسات وجود ندارد.',
-    noEvaluationForRubric: 'ارزیابی با این نسخه روبریک وجود ندارد',
+    noEvaluationForRubric: 'ارزیابی‌ای با این نسخهٔ معیارنامه پیدا نشد.',
     evaluationNotReportable: 'ارزیابی در انتظار است یا نتیجه قابل گزارش نیست',
     competencyNotReported: 'شایستگی گزارش نشده است',
     plan: 'برنامه فعال',
     goals: 'شمارش وضعیت هدف‌ها',
     record: 'رکورد',
-    status: 'وضعیت',
-    type: 'نوع',
     scope: 'دامنه',
     timeRange: 'بازه زمانی داده',
     generatedAt: 'زمان تولید',
     transition: 'گذار حالت',
     memory: 'حافظه',
-    planRevision: 'نسخه برنامه',
-    noPlan: 'برنامه درمان فعال وجود ندارد.',
+    planRevision: 'نسخهٔ طرح درمان',
+    noPlan: 'طرح درمان فعالی وجود ندارد.',
     error: 'بارگذاری تحلیل داده‌های اجرا ناموفق بود.',
     limitations: 'محدودیت‌ها',
     session: 'جلسه',
@@ -131,9 +127,9 @@ const persianLimitations: Record<string, string> = {
   'Counts do not establish therapeutic effectiveness or competency.':
     'شمارش‌ها اثربخشی درمان یا صلاحیت درمانگر را اثبات نمی‌کنند.',
   'Competency observations are raw session-level rubric results grouped by exact rubric version; no trend score or average is calculated.':
-    'مشاهده‌های شایستگی، نتایج خام جلسات‌اند که بر اساس نسخه دقیق روبریک گروه‌بندی می‌شوند؛ امتیاز روندی یا میانگینی محاسبه نمی‌شود.',
+  'مشاهده‌های شایستگی، نتایج خام هر جلسه‌اند که بر اساس نسخهٔ دقیق معیارنامهٔ ارزیابی گروه‌بندی می‌شوند؛ امتیاز روندی یا میانگینی محاسبه نمی‌شود.',
   'Missing session observations mean no reportable score is available, not that the competency was absent.':
-    'نبود مشاهده برای جلسه یعنی امتیاز قابل گزارشی در دسترس نیست، نه اینکه شایستگی وجود نداشته است.',
+    'ثبت‌نشدن مشاهده برای جلسه یعنی امتیاز قابل گزارشی در دسترس نیست، نه اینکه شایستگی وجود نداشته است.',
   "Evaluation staleness follows the evaluator's stored transcript and Run-scope validation.":
     'قدیمی‌شدن ارزیابی بر اساس رونوشت ذخیره‌شده توسط ارزیاب و اعتبارسنجی در محدوده اجرا تعیین می‌شود.',
   'Transcript text and case details are intentionally excluded from this export.':
@@ -425,7 +421,7 @@ export function RunAnalyticsPanel({
                         key={trajectoryId(trajectory)}
                         value={trajectoryId(trajectory)}
                       >
-                        {trajectory.competency_id} · {trajectory.rubric_id}{' '}
+                        {localizedValue(trajectory.competency_id, language)} · {trajectory.rubric_id}{' '}
                         {trajectory.rubric_version} · {trajectory.rubric_version_id}
                       </option>
                     ))}
@@ -516,7 +512,7 @@ export function RunAnalyticsPanel({
                       className="run-analytics-chart"
                       viewBox={`0 0 ${chart.width} ${chart.height}`}
                       role="img"
-                      aria-label={`${selectedTrajectory.competency_id}. ${copy.chartAxes}`}
+                      aria-label={`${localizedValue(selectedTrajectory.competency_id, language)}. ${copy.chartAxes}`}
                     >
                       {[0, 1, 2, 3].map((rating) => (
                         <g key={rating}>
@@ -595,7 +591,7 @@ export function RunAnalyticsPanel({
                     key={trajectoryId(trajectory)}
                   >
                     <strong>
-                      {copy.competency}: {trajectory.competency_id} ·{' '}
+                      {copy.competency}: {localizedValue(trajectory.competency_id, language)} ·{' '}
                       {trajectory.rubric_id} {trajectory.rubric_version} ·{' '}
                       <bdi dir="ltr">{trajectory.rubric_version_id}</bdi>
                     </strong>

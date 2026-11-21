@@ -57,6 +57,7 @@ def test_chat_completion_is_parsed() -> None:
 
         payload = request.read().decode("utf-8")
         assert '"model":"test-model"' in payload.replace(" ", "")
+        assert '"response_format"' in payload
 
         return httpx.Response(
             200,
@@ -85,11 +86,35 @@ def test_chat_completion_is_parsed() -> None:
         messages=[
             {"role": "user", "content": "Hello"}
         ],
+        response_format={
+            "type": "json_schema",
+            "json_schema": {
+                "name": "sample",
+                "strict": True,
+                "schema": {"type": "object"},
+            },
+        },
     )
 
     assert result["content"] == "Hello from a mock model."
     assert result["model"] == "test-model"
     assert result["finish_reason"] == "stop"
+
+
+def test_json_schema_support_is_enabled_only_for_verified_provider():
+    ollama_client = make_client(
+        lambda request: httpx.Response(200, json={"data": []})
+    )
+    custom_config = Settings.from_environment({}).get_provider("custom")
+    custom_client = OpenAICompatibleClient(
+        config=custom_config,
+        transport=httpx.MockTransport(
+            lambda request: httpx.Response(200, json={"data": []})
+        ),
+    )
+
+    assert ollama_client.supports_json_schema
+    assert not custom_client.supports_json_schema
 
 
 def test_empty_final_content_is_rejected_safely() -> None:

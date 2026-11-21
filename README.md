@@ -7,7 +7,7 @@
 
 **A local-first research and educational prototype for psychotherapy-skills simulation**
 
-TheraSim is an experimental application for rehearsing therapist-client conversations with fictional cases. It combines a FastAPI backend, a React interface, SQLite persistence, and optional Ollama/LM Studio-compatible model endpoints. Endpoints are usually local, but the application does not enforce that a configured endpoint is on the same device.
+TheraSim is an experimental application for rehearsing therapist-client conversations with fictional cases. It combines a FastAPI backend, a React interface, SQLite persistence, and optional OpenAI-compatible endpoints for Ollama, LM Studio, llama.cpp servers, or a custom service. Endpoints default to loopback, but users can explicitly configure another host; the application does not enforce that a configured endpoint is on the same device.
 
 > **Use synthetic data only.** TheraSim is not psychotherapy, diagnosis, clinical advice, professional supervision, therapist certification, or a validated measure of competence. It is not a clinical product.
 
@@ -15,14 +15,14 @@ TheraSim is an experimental application for rehearsing therapist-client conversa
 
 The project explores whether fictional conversations, explicit information boundaries, longitudinal records, and transcript-linked formative feedback can support skills practice and software research. The current implementation is a prototype; it does not demonstrate improved clinical outcomes.
 
-The application supports a fictional ACT workflow. **Acceptance and Commitment Therapy (ACT) is the only runnable modality.** Other approaches shown in the interface are roadmap categories, not executable therapy modules. The published GitHub Release v0.2.0 is immutable and its Windows ZIP contains an unintended migration backup. The current Windows x64 package target is `TheraSim-v0.3.0-windows-x64.zip`; v0.3.0 is a local candidate, not a public release. Check the [GitHub Releases page](https://github.com/mohammadmahdialmasi/TheraSim/releases) and use only a published asset with its matching `.sha256` file after the release workflow has passed. A local build, even with a matching checksum, is not a published release.
+The application supports a fictional ACT workflow. **Acceptance and Commitment Therapy (ACT) is the only runnable modality.** Other approaches shown in the interface are roadmap categories, not executable therapy modules. The published GitHub Release v0.2.0 is immutable and its Windows ZIP contains an unintended migration backup. The current Windows x64 package target is `TheraSim-v0.3.0-Windows-x64-Portable.zip`. Check the [GitHub Releases page](https://github.com/mohammadmahdialmasi/TheraSim/releases) and use only a published asset with its matching `.sha256` file after the release workflow has passed. A local build, even with a matching checksum, is not a published release.
 
 ### Implemented capabilities
 
 - Create cases, runs, and sequential sessions; there is no universal session-count cap. Completed transcripts are read-only.
-- Generate fictional patient responses through a configured Ollama- or LM Studio-compatible service. A model endpoint is required for patient replies and evaluator generation; the application can start without one. The configured URL may be remote, so verify it before sending transcript text.
+- Generate fictional patient responses through a configured Ollama, LM Studio, llama.cpp, or custom OpenAI-compatible service. A model endpoint is required for patient replies and evaluator generation; the application can start without one. The configured URL may be remote, so verify it before sending any text.
 - Record review-gated memory, behavioral-event, character-state, and treatment-plan proposals with transcript provenance. Retrieval and cross-session suggestions use limited deterministic signals; they do not establish psychological realism.
-- Create experimental ACT session and longitudinal evaluator reports when a compatible local model is configured. Reports preserve rubric and transcript references, require human review, and do not establish that evidence semantically supports a rating.
+- Create experimental ACT session and longitudinal evaluator reports when a compatible model endpoint is configured. Reports preserve rubric and transcript references, require human review, and do not establish that evidence semantically supports a rating.
 - Review versioned treatment plans and propose evidence-linked revisions. Guidance is limited to available evidence; autonomous treatment adaptation and intervention selection are not implemented.
 - Inspect persisted run counts and rubric-compatible raw observations. Charts and exports are exploratory descriptions, not validated competency trends or clinical outcomes.
 
@@ -61,16 +61,48 @@ React + TypeScript + Vite
        |                         |
 operational SQLite       restricted case-vault SQLite
             |
- optional local Ollama / LM Studio provider
+ optional OpenAI-compatible provider endpoint (loopback by default)
 ```
 
 The backend uses Python, FastAPI, Pydantic, SQLite, and versioned migrations. The frontend is a React and TypeScript application. The operational database and restricted case vault are logically separated, not encrypted from other users or processes on the same device. Model access uses an OpenAI-compatible client to the configured provider URL; TheraSim does not require a TheraSim-hosted model API and does not restrict provider hosts to loopback.
+
+#### Local model provider settings
+
+Open **Settings** in the application to select Ollama, LM Studio, a llama.cpp
+server, or a custom OpenAI-compatible endpoint. Each provider has independent,
+editable protocol, host, port, API base path/URL, model, and optional API-key
+settings. Defaults use `127.0.0.1`; the suggested ports are editable presets,
+not fixed requirements. Use **Test connection** to check the endpoint and
+retrieve its model list when supported. If model listing is unavailable, enter
+the model identifier manually. Restart TheraSim to apply changed settings to
+Patient Agent and Evaluator Agent workflows.
+
+Settings persist in
+`%LOCALAPPDATA%\TheraSim\provider-settings.json` on Windows (or the user
+configuration directory on other platforms). API keys are optional and should
+only be entered when the selected service requires them. On Windows, entering
+a key in **Settings** saves it protected with DPAPI for the current Windows
+user; the settings file contains an encoded protected blob, not the plaintext
+key, and the settings API does not return key values. If a settings update
+omits `api_key`, the previous protected user-saved key is preserved. Provider
+environment keys override saved keys at runtime; an environment-only key is
+not newly added to the settings file by an update. Older plaintext `api_key`
+entries are migrated to the protected field on Windows startup and the
+plaintext field is removed.
+DPAPI is host/account protection, not a separate app secret or a
+hardware-backed guarantee. Non-Windows platforms do not support persistent
+provider-key storage; use provider-specific environment variables only.
+The UI sends connection tests and model requests to the configured URL; it
+may be remote. Non-loopback HTTP endpoints are rejected; configure HTTPS
+for remote services and use synthetic data only.
+Explicit provider environment variables take precedence over saved UI values
+at startup.
 
 ### Installation and execution
 
 **Windows development launcher:** install Python 3.11+ and Node.js LTS, then run `START_THERASIM.bat` from the repository root. The launcher offers setup for missing dependencies, initializes local databases without resetting existing data, and opens `http://127.0.0.1:5173`. On first use, create the single local reviewer account with a password of at least 12 characters. Use `STOP_THERASIM.bat` to stop only processes owned by the launcher.
 
-Windows executable users should follow [INSTALL_WINDOWS.md](INSTALL_WINDOWS.md). The distributable is a non-admin, one-folder Windows x64 portable ZIP named `TheraSim-v0.3.0-windows-x64.zip`, not an installer. It binds to loopback, keeps SQLite data and logs under `%LOCALAPPDATA%\TheraSim`, and does not bundle model weights. v0.3.0 remains a local candidate; download only a published asset and its matching checksum from GitHub Releases after its workflow verification. The installation guide also explains the in-app support preview and export.
+Windows executable users should follow [INSTALL_WINDOWS.md](INSTALL_WINDOWS.md). The distributable is a non-admin, one-folder Windows x64 portable ZIP named `TheraSim-v0.3.0-Windows-x64-Portable.zip`, not an installer. It binds to loopback, keeps SQLite data and logs under `%LOCALAPPDATA%\TheraSim`, and does not bundle model weights. Download only a published asset and its matching checksum from GitHub Releases after its workflow verification. The installation guide also explains the in-app support preview and export.
 
 Initial dependency installation, package downloads, or optional model downloads may require internet access; this project does not claim a fully air-gapped installation.
 
@@ -98,7 +130,13 @@ Set-Location frontend
 npm run dev -- --host 127.0.0.1
 ```
 
-For Ollama, configure the process environment before starting the backend; LM Studio can be configured similarly. `.env` files are not automatically loaded:
+Provider settings can be edited in the application **Settings** page. They
+are saved independently for each provider and take effect in Patient Agent
+and Evaluator Agent workflows after restarting TheraSim. Explicit provider
+environment variables override the saved values at startup. Alternatively,
+configure environment variables before starting the backend; `.env` files
+are not automatically loaded. The available prefixes are `OLLAMA`,
+`LM_STUDIO`, `LLAMA_CPP`, and `CUSTOM_OPENAI`:
 
 ```powershell
 $env:THERASIM_LLM_PROVIDER = "ollama"
@@ -106,7 +144,12 @@ $env:OLLAMA_BASE_URL = "http://127.0.0.1:11434/v1"
 $env:OLLAMA_MODEL = "your-installed-model"
 ```
 
-Backend tests run from `backend` with `..\.venv\Scripts\python.exe -m pytest -q`. Frontend checks run from `frontend` with `npm run lint` and `npm run build`. A frontend component-test runner is not configured.
+The UI is the recommended way to change endpoint settings. Provider ports in
+the defaults are examples only; configure the port actually used by your
+server. Ollama, LM Studio, and llama.cpp do not require API keys by default.
+Use a key only if your selected endpoint explicitly requires authentication.
+
+Backend tests run from `backend` with `..\.venv\Scripts\python.exe -m pytest -q`. Frontend checks run from `frontend` with `npm test`, `npm run lint`, and `npm run build`. The frontend has utility and translation-catalog tests, but no component-test runner.
 
 To build and smoke-test the Windows package, see [BUILD_WINDOWS.md](BUILD_WINDOWS.md). Package verification uses an isolated temporary local data directory and synthetic account; it does not use a user's existing SQLite data.
 
@@ -118,10 +161,10 @@ To build and smoke-test the Windows package, see [BUILD_WINDOWS.md](BUILD_WINDOW
 - Analytics exports omit transcript and case text but contain operational identifiers; review them before sharing.
 - ACT rubrics and evaluators are experimental. Exact transcript-reference checks do not prove semantic evidence support, evaluator reliability, clinical validity, or psychometric validity. Reports require human review and must not be used for certification.
 - Treatment plans are not autonomously adapted from longitudinal progress. Memory and character-state proposals remain subject to review and are not validated psychological measurements.
-- English and Persian are provided for the implemented application workflows. RTL layout and mixed-direction identifiers are handled in the interface, but comprehensive accessibility and clean-device usability verification remain incomplete.
+- English and Persian are provided for the implemented application workflows. A packaged-app browser check verified `fa/rtl` and `en/ltr` switching, reload persistence, a 346px narrow-layout check without horizontal overflow, and the complete support preview. Comprehensive accessibility and clean-device usability verification remain incomplete.
 - The Windows package uses local user data, but its usability has not been independently reviewed on a broad range of clean Windows devices. It is not an installer and does not bundle a language model.
 
-See the [implementation baseline](docs/IMPLEMENTATION_BASELINE.md), [security boundaries](docs/SECURITY_BOUNDARIES.md), [system architecture](docs/SYSTEM_ARCHITECTURE.md), and [backup/restore guide](docs/BACKUP_RESTORE.md) for details.
+See the [project architecture](docs/PROJECT_ARCHITECTURE.md), [repository audit](docs/REPOSITORY_AUDIT.md), [security audit](docs/SECURITY_AUDIT.md), [v0.3.0 integration audit](docs/V0.3.0_FINAL_INTEGRATION_AUDIT.md), [implementation baseline](docs/IMPLEMENTATION_BASELINE.md), [security boundaries](docs/SECURITY_BOUNDARIES.md), [system architecture](docs/SYSTEM_ARCHITECTURE.md), [installation guide](docs/INSTALLATION.md), [user guide](docs/USER_GUIDE.md), and [backup/restore guide](docs/BACKUP_RESTORE.md) for details. For local models, see the [English](docs/OLLAMA_SETUP.md) or [Persian](docs/OLLAMA_SETUP.fa.md) Ollama guide and the [limited model evaluation](docs/LOCAL_AI_MODEL_EVALUATION.md).
 
 ### Roadmap and contribution
 
@@ -131,13 +174,15 @@ The current roadmap remains ACT-first. Additional therapy categories shown in th
 
 `LICENSE.md` applies CC BY 4.0 to the original documentation and research materials identified there; **it does not license executable source code**. Unless a separate software license is introduced, source code remains under the copyright holder's exclusive rights. Third-party dependencies and materials retain their own licenses.
 
-Cite the project using [`CITATION.cff`](CITATION.cff). The published Zenodo `v0.1.0` record is a documentation-only archive ([version DOI: 10.5281/zenodo.24244882](https://doi.org/10.5281/zenodo.24244882); [concept DOI: 10.5281/zenodo.24244881](https://doi.org/10.5281/zenodo.24244881)). It is not an executable source release. GitHub Release v0.2.0 is published; its Windows ZIP contains the unintended migration backup noted above. The v0.3.0 Windows x64 ZIP is a local candidate, not a public release. No Zenodo v0.2.0 deposit has been made.
+Cite the project using [`CITATION.cff`](CITATION.cff). The published Zenodo `v0.1.0` record is a documentation-only archive ([version DOI: 10.5281/zenodo.24244882](https://doi.org/10.5281/zenodo.24244882); [concept DOI: 10.5281/zenodo.24244881](https://doi.org/10.5281/zenodo.24244881)). It is not an executable source release. GitHub Release v0.2.0 is published; its Windows ZIP contains the unintended migration backup noted above. No Zenodo v0.2.0 or v0.3.0 deposit is claimed.
 
 ### Project links
 
 - [GitHub repository](https://github.com/mohammadmahdialmasi/TheraSim)
-- [Changelog](CHANGELOG.md) · [v0.2.1 release notes](docs/RELEASE_NOTES_v0.2.1.md) · [Release checklist](docs/RELEASE_CHECKLIST.md) · [Security scan notes](docs/SECURITY_SCAN_NOTES.md) · [Windows installation](INSTALL_WINDOWS.md) · [Windows build](BUILD_WINDOWS.md)
+- [Changelog](CHANGELOG.md) · [v0.3.0 release notes](docs/RELEASE_NOTES_v0.3.0.md) · [v0.3.0 integration audit](docs/V0.3.0_FINAL_INTEGRATION_AUDIT.md) · [v0.2.1 release notes](docs/RELEASE_NOTES_v0.2.1.md) · [Release checklist](docs/RELEASE_CHECKLIST.md) · [Security scan notes](docs/SECURITY_SCAN_NOTES.md) · [Windows installation](INSTALL_WINDOWS.md) · [Windows build](BUILD_WINDOWS.md) · [Installation](docs/INSTALLATION.md) · [User guide](docs/USER_GUIDE.md)
 - [MVP decisions](docs/MVP_DECISIONS.md) · [Security boundaries](docs/SECURITY_BOUNDARIES.md)
+- [Ollama setup](docs/OLLAMA_SETUP.md) · [Local model evaluation](docs/LOCAL_AI_MODEL_EVALUATION.md) · [Troubleshooting](docs/TROUBLESHOOTING.md)
+- [Translation glossary](docs/TRANSLATION_GLOSSARY.md) · [I18n guidelines](docs/I18N_GUIDELINES.md)
 - [Documentation license](LICENSE.md) · [Copyright notice](COPYRIGHT.md) · [Citation metadata](CITATION.cff)
 - [Contributing](CONTRIBUTING.md) · [Support](.github/SUPPORT.md) · [Security](.github/SECURITY.md) · [Code of Conduct](CODE_OF_CONDUCT.md)
 - [Zenodo concept record](https://doi.org/10.5281/zenodo.24244881)
@@ -150,7 +195,7 @@ Cite the project using [`CITATION.cff`](CITATION.cff). The published Zenodo `v0.
 
 **نمونهٔ اولیهٔ پژوهشی و آموزشیِ محلی برای شبیه‌سازی مهارت‌های روان‌درمانی**
 
-TheraSim نرم‌افزاری آزمایشی برای تمرین گفت‌وگو میان درمانگر و مراجعان کاملاً داستانی است. این پروژه بک‌اند FastAPI، رابط React، ذخیره‌سازی SQLite و امکان اتصال به نشانی‌های سازگار با Ollama یا LM Studio را ترکیب می‌کند. این نشانی‌ها معمولاً محلی‌اند، اما برنامه محلی‌بودن آن‌ها را اعمال نمی‌کند.
+TheraSim نرم‌افزاری آزمایشی برای تمرین گفت‌وگو میان درمانگر و مراجعان کاملاً داستانی است. این پروژه بک‌اند FastAPI، رابط React، ذخیره‌سازی SQLite و امکان اتصال به نشانی‌های سازگار با OpenAI را برای Ollama،‏ LM Studio، سرور llama.cpp یا سرویس دلخواه فراهم می‌کند. مقدارهای پیش‌فرض به نشانی محلی رایانه محدودند، اما کاربر می‌تواند میزبان دیگری را صریحاً تنظیم کند؛ برنامه دوردست‌بودن نشانی را منع نمی‌کند.
 
 > **فقط از داده‌های ساختگی استفاده کنید.** TheraSim روان‌درمانی، تشخیص، توصیهٔ بالینی، نظارت حرفه‌ای، گواهی صلاحیت درمانگر یا سنجهٔ معتبر مهارت درمانگری ارائه نمی‌کند و محصول بالینی نیست.
 
@@ -158,16 +203,16 @@ TheraSim نرم‌افزاری آزمایشی برای تمرین گفت‌وگ�
 
 این پروژه بررسی می‌کند که آیا گفت‌وگوهای داستانی، مرزبندی روشن اطلاعات، ثبت پیوستگی میان جلسات و بازخورد تکوینیِ متصل به رونوشت می‌توانند به تمرین مهارت‌ها و پژوهش نرم‌افزاری کمک کنند یا نه. پیاده‌سازی فعلی نمونهٔ اولیه است و بهبود پیامدهای بالینی را نشان نمی‌دهد.
 
-برنامه از یک جریان کاری داستانی مبتنی بر درمان مبتنی بر پذیرش و تعهد پشتیبانی می‌کند. **ACT تنها رویکرد درمانیِ قابل اجرا در نسخهٔ فعلی است.** رویکردهای دیگری که در رابط دیده می‌شوند دسته‌های احتمالیِ آینده‌اند، نه ماژول‌های درمانیِ اجرایی. انتشار GitHub نسخهٔ ۰٫۲٫۰ منتشر و تغییرناپذیر است و ZIP ویندوز آن سهواً یک نسخهٔ پشتیبان مهاجرت را در بر دارد. هدف فعلی بستهٔ ویندوز x64 با نام `TheraSim-v0.3.0-windows-x64.zip` است؛ نسخهٔ ۰٫۳٫۰ نامزد محلی است، نه انتشار عمومی. [صفحهٔ GitHub Releases](https://github.com/mohammadmahdialmasi/TheraSim/releases) را بررسی کنید و فقط بستهٔ منتشرشده را همراه فایل `.sha256` متناظر، پس از موفقیت گردش‌کار انتشار دریافت کنید. حتی ساخت محلی با checksum مطابق نیز انتشار عمومی نیست.
+برنامه از یک جریان کاری داستانی مبتنی بر درمان مبتنی بر پذیرش و تعهد پشتیبانی می‌کند. **ACT تنها رویکرد درمانیِ قابل اجرا در نسخهٔ فعلی است.** رویکردهای دیگری که در رابط دیده می‌شوند دسته‌های احتمالیِ آینده‌اند، نه ماژول‌های درمانیِ اجرایی. انتشار GitHub نسخهٔ ۰٫۲٫۰ منتشر و تغییرناپذیر است و ZIP ویندوز آن سهواً یک نسخهٔ پشتیبان مهاجرت را در بر دارد. هدف فعلی بستهٔ ویندوز x64 با نام `TheraSim-v0.3.0-Windows-x64-Portable.zip` است. [صفحهٔ GitHub Releases](https://github.com/mohammadmahdialmasi/TheraSim/releases) را بررسی کنید و فقط بستهٔ منتشرشده را همراه فایل `.sha256` متناظر، پس از موفقیت گردش‌کار انتشار دریافت کنید. حتی ساخت محلی با checksum مطابق نیز انتشار عمومی نیست.
 
 ### قابلیت‌های پیاده‌سازی‌شده
 
 - ایجاد پرونده، اجرای شبیه‌سازی و جلسات پیاپی؛ سقف عمومی برای تعداد جلسات وجود ندارد. رونوشت جلسهٔ تکمیل‌شده فقط‌خواندنی است.
-- تولید پاسخ مراجع داستانی با سرویس سازگار با Ollama یا LM Studio. برای پاسخ مراجع و تولید ارزیابی، یک نشانی مدل لازم است؛ برنامه بدون آن هم اجرا می‌شود. نشانی پیکربندی‌شده ممکن است دوردست باشد؛ پیش از ارسال متن رونوشت، آن را بررسی کنید.
+- تولید پاسخ مراجع داستانی با سرویس سازگار با Ollama،‏ LM Studio،‏ llama.cpp یا OpenAI. برای پاسخ مراجع و تولید ارزیابی، یک نشانی مدل لازم است؛ برنامه بدون آن هم اجرا می‌شود. نشانی پیکربندی‌شده ممکن است دوردست باشد؛ پیش از ارسال هر متنی، آن را بررسی کنید.
 - ثبت پیشنهادهای حافظه، رویدادهای رفتاری، وضعیت شخصیت و طرح درمان که به رونوشت مستند شده و نیازمند بازبینی انسانی‌اند. بازیابی و پیشنهادهای میان‌جلسه‌ای از نشانه‌های قطعی و محدود استفاده می‌کنند و واقع‌گرایی روان‌شناختی را اثبات نمی‌کنند.
-- تولید گزارش‌های آزمایشی ارزیاب جلسه و ارزیابی طولی ACT، در صورت پیکربندی مدل محلی سازگار. گزارش‌ها پیوند به رونوشت و نسخهٔ rubric را نگه می‌دارند، به بازبینی انسانی نیاز دارند و ثابت نمی‌کنند که شواهد از نظر معنایی یک امتیاز را پشتیبانی می‌کنند.
+- تولید گزارش‌های آزمایشی ارزیاب جلسه و ارزیابی طولی ACT، در صورت پیکربندی نشانی مدل سازگار. گزارش‌ها پیوند به رونوشت و نسخهٔ معیارنامهٔ ارزیابی را نگه می‌دارند، به بازبینی انسانی نیاز دارند و ثابت نمی‌کنند که شواهد از نظر معنایی یک امتیاز را پشتیبانی می‌کنند.
 - بررسی طرح‌های نسخه‌بندی‌شدهٔ درمان و پیشنهاد اصلاح‌های مستند به شواهد. راهنمایی به شواهد موجود محدود است؛ انطباق خودکار درمان و انتخاب مداخلهٔ درمانی پیاده‌سازی نشده است.
-- مشاهدهٔ شمارش‌های ذخیره‌شدهٔ هر اجرا و داده‌های خامِ سازگار با rubric. نمودارها و خروجی‌ها توصیفی و اکتشافی‌اند، نه روند معتبر مهارت یا پیامد بالینی.
+- مشاهدهٔ شمارش‌های ذخیره‌شدهٔ هر اجرا و داده‌های خامِ سازگار با معیارنامهٔ ارزیابی. نمودارها و خروجی‌ها توصیفی و اکتشافی‌اند، نه روند معتبر مهارت یا پیامد بالینی.
 
 ### تصاویر برنامه
 
@@ -204,16 +249,49 @@ TheraSim نرم‌افزاری آزمایشی برای تمرین گفت‌وگ�
        |                         |
 SQLite عملیاتی       SQLite جداگانه برای پرونده‌های محدود
             |
- ارائه‌دهندهٔ محلی Ollama / LM Studio (اختیاری)
+ ارائه‌دهندهٔ سازگار با OpenAI (پیش‌فرض: نشانی محلی؛ اختیاری)
 ```
 
-بک‌اند با Python، FastAPI، Pydantic، SQLite و مهاجرت‌های نسخه‌بندی‌شده ساخته شده است. رابط کاربری React و TypeScript است. پایگاه دادهٔ عملیاتی و مخزن محدود پرونده‌ها از نظر منطقی جدا هستند، اما در برابر کاربران یا فرایندهای دیگر همان دستگاه رمزنگاری نشده‌اند. دسترسی مدل از طریق کلاینت سازگار با OpenAI به نشانی ارائه‌دهندهٔ تنظیم‌شده انجام می‌شود؛ TheraSim به API میزبانی‌شدهٔ مدل توسط خود پروژه نیاز ندارد و میزبان ارائه‌دهنده را به loopback محدود نمی‌کند.
+بک‌اند با Python، FastAPI، Pydantic، SQLite و مهاجرت‌های نسخه‌بندی‌شده ساخته شده است. رابط کاربری React و TypeScript است. پایگاه دادهٔ عملیاتی و مخزن محدود پرونده‌ها از نظر منطقی جدا هستند، اما در برابر کاربران یا فرایندهای دیگر همان دستگاه رمزنگاری نشده‌اند. دسترسی مدل از طریق کلاینت سازگار با OpenAI به نشانی ارائه‌دهندهٔ تنظیم‌شده انجام می‌شود؛ TheraSim به API میزبانی‌شدهٔ مدل توسط خود پروژه نیاز ندارد و میزبان ارائه‌دهنده را به نشانی محلی محدود نمی‌کند.
+
+#### تنظیمات ارائه‌دهندگان مدل
+
+در صفحهٔ **تنظیمات**، Ollama،‏ LM Studio، سرور llama.cpp یا یک نشانی سفارشی
+سازگار با API اوپن‌ای‌آی را انتخاب کنید. پروتکل، میزبان، درگاه، مسیر یا نشانی
+پایهٔ API، نام مدل و کلید احتمالی برای هر ارائه‌دهنده جداگانه تنظیم می‌شوند.
+مقدارهای پیش‌فرض به `127.0.0.1` اشاره می‌کنند؛ درگاه‌های پیشنهادی فقط مقدار
+آغازین‌اند و قابل ویرایش هستند. با دکمهٔ **آزمایش اتصال** می‌توانید ارتباط را
+بررسی و در صورت پشتیبانی سرور، فهرست مدل‌ها را دریافت کنید. اگر سرور فهرست
+مدل‌ها را ارائه نکند، نام مدل را دستی وارد کنید. برای اعمال تنظیمات جدید در
+جریان‌های کاری عامل مراجع و ارزیاب، TheraSim را دوباره راه‌اندازی کنید.
+
+در ویندوز، تنظیمات در
+`%LOCALAPPDATA%\TheraSim\provider-settings.json` ذخیره می‌شوند؛ در سیستم‌عامل‌های
+دیگر، از پوشهٔ پیکربندی کاربر استفاده می‌شود. کلید API اختیاری است و فقط در
+صورت نیاز سرویس باید وارد شود. در ویندوز، وارد کردن کلید در صفحهٔ **تنظیمات**
+آن را با DPAPI برای کاربر فعلی ویندوز به‌صورت محافظت‌شده ذخیره می‌کند؛ فایل
+تنظیمات به‌جای کلید متن ساده شامل blob محافظت‌شدهٔ کدگذاری‌شده است و API مقدار
+کلید را بازنمی‌گرداند. اگر به‌روزرسانی تنظیمات `api_key` را حذف کند، کلید
+محافظت‌شدهٔ قبلیِ ذخیره‌شده توسط کاربر حفظ می‌شود. کلیدهای محیطی ارائه‌دهنده فقط
+هنگام اجرا بر کلیدهای ذخیره‌شده اولویت دارند؛ اگر کلید فقط از محیط آمده باشد،
+به‌روزرسانی آن را به فایل تنظیمات اضافه نمی‌کند. ورودی‌های قدیمی
+متن سادهٔ `api_key` هنگام راه‌اندازی ویندوز به فیلد محافظت‌شده مهاجرت می‌کنند
+و فیلد متن ساده حذف می‌شود. DPAPI محافظت میزبان و حساب است، نه یک راز مستقل
+برنامه یا تضمین سخت‌افزاری. در سیستم‌عامل‌های غیرویندوز، ذخیره‌سازی دائمی
+کلید ارائه‌دهنده پشتیبانی نمی‌شود؛ فقط از متغیرهای محیطی مخصوص ارائه‌دهنده
+استفاده کنید.
+آزمایش اتصال و درخواست‌های مدل به
+نشانی تنظیم‌شده فرستاده می‌شوند که ممکن است دوردست باشد. نشانی HTTP غیرمحلی
+پذیرفته نمی‌شود؛ برای سرویس دوردست HTTPS تنظیم کنید و همیشه از داده‌های ساختگی
+استفاده کنید.
+متغیرهای محیطیِ صریح برای هر ارائه‌دهنده، هنگام راه‌اندازی بر مقدارهای ذخیره‌شده
+در رابط کاربری اولویت دارند.
 
 ### نصب و اجرا
 
 **راه‌انداز توسعه در ویندوز:** Python نسخهٔ 3.11 یا جدیدتر و Node.js LTS را نصب کنید و از ریشهٔ مخزن `START_THERASIM.bat` را اجرا کنید. راه‌انداز برای وابستگی‌های نصب‌نشده گزینهٔ آماده‌سازی ارائه می‌دهد، پایگاه‌دادهٔ محلی را بدون بازنشانی دادهٔ موجود مقداردهی می‌کند و نشانی `http://127.0.0.1:5173` را باز می‌کند. در نخستین اجرا، حساب تک‌کاربرهٔ محلی را با گذرواژه‌ای حداقل ۱۲ نویسه‌ای بسازید. برای توقف فقط فرایندهای متعلق به راه‌انداز، `STOP_THERASIM.bat` را اجرا کنید.
 
-برای اجرای نسخهٔ اجرایی ویندوز، [راهنمای نصب](INSTALL_WINDOWS.md) را ببینید. قالب بسته، ZIP قابل‌حمل پوشه‌ای و x64 با نام `TheraSim-v0.3.0-windows-x64.zip` است؛ نصب‌کننده نیست و به دسترسی مدیر نیاز ندارد. برنامه فقط به loopback متصل می‌شود، پایگاه‌داده و گزارش‌ها را در `%LOCALAPPDATA%\TheraSim` نگه می‌دارد و وزن مدل زبانی همراه آن نیست. نسخهٔ ۰٫۳٫۰ هنوز نامزد محلی است؛ فقط فایل منتشرشده و checksum متناظر را از GitHub Releases دریافت کنید، آن هم پس از تأیید گردش‌کار انتشار. راهنمای نصب، پیش‌نمایش و خروجی پشتیبانی درون‌برنامه‌ای را نیز توضیح می‌دهد.
+برای اجرای نسخهٔ اجرایی ویندوز، [راهنمای نصب](INSTALL_WINDOWS.md) را ببینید. قالب بسته، ZIP قابل‌حمل پوشه‌ای و x64 با نام `TheraSim-v0.3.0-Windows-x64-Portable.zip` است؛ نصب‌کننده نیست و به دسترسی مدیر نیاز ندارد. برنامه فقط به loopback متصل می‌شود، پایگاه‌داده و گزارش‌ها را در `%LOCALAPPDATA%\TheraSim` نگه می‌دارد و وزن مدل زبانی همراه آن نیست. فقط فایل منتشرشده و checksum متناظر را از GitHub Releases، پس از تأیید گردش‌کار انتشار، دریافت کنید. راهنمای نصب، پیش‌نمایش و خروجی پشتیبانی درون‌برنامه‌ای را نیز توضیح می‌دهد.
 
 نصب اولیهٔ وابستگی‌ها، دریافت بسته‌ها یا دریافت مدل اختیاری ممکن است به اینترنت نیاز داشته باشد؛ پروژه ادعای نصب کاملاً بدون اینترنت ندارد.
 
@@ -241,7 +319,13 @@ Set-Location frontend
 npm run dev -- --host 127.0.0.1
 ```
 
-برای Ollama، متغیرهای محیطی فرایند را پیش از اجرای بک‌اند تنظیم کنید؛ LM Studio نیز به شکل مشابه قابل تنظیم است. فایل‌های `.env` به‌طور خودکار بارگذاری نمی‌شوند:
+تنظیمات ارائه‌دهندگان را می‌توان از صفحهٔ **تنظیمات** برنامه و به‌صورت جداگانه
+برای هر ارائه‌دهنده تغییر داد. تغییر نشانی یا مدل برای جریان‌های کاری عامل
+مراجع و ارزیاب پس از راه‌اندازی دوبارهٔ TheraSim اعمال می‌شود. متغیرهای محیطیِ
+صریح برای هر ارائه‌دهنده بر مقدارهای ذخیره‌شده اولویت دارند. همچنین می‌توانید
+پیش از اجرای بک‌اند، متغیرهای محیطی را تنظیم کنید؛ فایل `.env` به‌طور خودکار
+بارگذاری نمی‌شود. پیشوندهای پشتیبانی‌شده عبارت‌اند از `OLLAMA`،‏ `LM_STUDIO`،‏
+`LLAMA_CPP` و `CUSTOM_OPENAI`:
 
 ```powershell
 $env:THERASIM_LLM_PROVIDER = "ollama"
@@ -249,7 +333,7 @@ $env:OLLAMA_BASE_URL = "http://127.0.0.1:11434/v1"
 $env:OLLAMA_MODEL = "your-installed-model"
 ```
 
-برای اجرای آزمون‌های بک‌اند، از پوشهٔ `backend` دستور `..\.venv\Scripts\python.exe -m pytest -q` را اجرا کنید. بررسی‌های فرانت‌اند از پوشهٔ `frontend` با `npm run lint` و `npm run build` انجام می‌شوند. در حال حاضر اجراکنندهٔ آزمون خودکار برای اجزای فرانت‌اند پیکربندی نشده است.
+برای اجرای آزمون‌های بک‌اند، از پوشهٔ `backend` دستور `..\.venv\Scripts\python.exe -m pytest -q` را اجرا کنید. بررسی‌های فرانت‌اند از پوشهٔ `frontend` با `npm test`،‏ `npm run lint` و `npm run build` انجام می‌شوند. آزمون‌های فرانت‌اند توابع کمکی و سازگاری واژه‌نامهٔ ترجمه را پوشش می‌دهند؛ آزمون‌گر اجزای رابط کاربری پیکربندی نشده است.
 
 برای ساخت و آزمون اولیهٔ بستهٔ ویندوز، [راهنمای ساخت](BUILD_WINDOWS.md) را ببینید. آزمون بسته از پوشهٔ دادهٔ موقت و حساب ساختگی استفاده می‌کند و به پایگاه‌دادهٔ SQLite موجود کاربر دسترسی نمی‌یابد.
 
@@ -259,12 +343,12 @@ $env:OLLAMA_MODEL = "your-installed-model"
 - سرویس‌های توسعه و نسخهٔ اجرایی به loopback متصل می‌شوند. درخواست مدل به نشانی ارائه‌دهندهٔ پیکربندی‌شده فرستاده می‌شود که ممکن است دوردست باشد؛ پیش از ارسال متن، نشانی را بررسی کنید. محلی‌بودن به معنی نصب کاملاً آفلاین یا استقرار امن نیست.
 - حساب بازبین محلی، سامانهٔ مجوزدهی چندکاربره نیست. نقش‌های چندکاربره، بازیابی گذرواژه، نگهداری خودکار داده و رمزنگاری پایگاه‌داده‌های SQLite زنده در حالت سکون پیاده‌سازی نشده‌اند. رمزنگاری اختیاری فقط نسخهٔ پشتیبان را محافظت می‌کند.
 - خروجی تحلیل، متن رونوشت یا پرونده را شامل نمی‌شود، اما شناسه‌های عملیاتی دارد؛ پیش از اشتراک‌گذاری آن را بازبینی کنید.
-- rubricها و ارزیاب‌های ACT آزمایشی‌اند. بررسی دقیق ارجاع به رونوشت، پشتیبانی معناییِ شواهد، پایایی ارزیاب، اعتبار بالینی یا اعتبار روان‌سنجی را ثابت نمی‌کند. گزارش‌ها نیازمند بازبینی انسانی‌اند و نباید برای گواهی صلاحیت استفاده شوند.
+- معیارنامه‌های ارزیابی و ارزیاب‌های ACT آزمایشی‌اند. بررسی ارجاع به رونوشت، پشتیبانی معنایی شواهد، پایایی ارزیاب، اعتبار بالینی یا اعتبار روان‌سنجی را ثابت نمی‌کند. گزارش‌ها نیازمند بازبینی انسانی‌اند و نباید برای گواهی صلاحیت استفاده شوند.
 - طرح درمان به‌طور خودکار بر اساس پیشرفت طولی تغییر نمی‌کند. پیشنهادهای حافظه و وضعیت شخصیت نیازمند بازبینی‌اند و سنجه‌های روان‌شناختیِ معتبر نیستند.
 - رابط فارسی و انگلیسی برای جریان‌های کاری پیاده‌سازی‌شده در دسترس است و چیدمان راست‌به‌چپ و شناسه‌های دوجهته در نظر گرفته شده‌اند؛ بااین‌حال بررسی جامع دسترس‌پذیری و تجربهٔ استفاده روی دستگاه‌های پاک و متنوع هنوز کامل نیست.
 - بستهٔ ویندوز داده‌های محلی کاربر را جدا نگه می‌دارد، اما تجربهٔ آن روی طیف گسترده‌ای از دستگاه‌های پاک ویندوز به‌طور مستقل ارزیابی نشده است. بسته نصب‌کننده نیست و مدل زبانی را همراه ندارد.
 
-برای جزئیات به [مبنای پیاده‌سازی](docs/IMPLEMENTATION_BASELINE.md)، [مرزهای امنیتی](docs/SECURITY_BOUNDARIES.md)، [معماری سامانه](docs/SYSTEM_ARCHITECTURE.md) و [راهنمای پشتیبان‌گیری و بازیابی](docs/BACKUP_RESTORE.md) مراجعه کنید.
+برای جزئیات به [معماری پروژه](docs/PROJECT_ARCHITECTURE.md)، [ممیزی مخزن](docs/REPOSITORY_AUDIT.md)، [ممیزی امنیتی](docs/SECURITY_AUDIT.md)، [ممیزی یکپارچه‌سازی نسخهٔ ۰٫۳٫۰](docs/V0.3.0_FINAL_INTEGRATION_AUDIT.md)، [مبنای پیاده‌سازی](docs/IMPLEMENTATION_BASELINE.md)، [مرزهای امنیتی](docs/SECURITY_BOUNDARIES.md)، [معماری سامانه](docs/SYSTEM_ARCHITECTURE.md)، [راهنمای نصب](docs/INSTALLATION.fa.md)، [راهنمای کاربر](docs/USER_GUIDE.fa.md) و [راهنمای پشتیبان‌گیری و بازیابی](docs/BACKUP_RESTORE.md) مراجعه کنید. راهنمای [راه‌اندازی Ollama به انگلیسی](docs/OLLAMA_SETUP.md) یا [به فارسی](docs/OLLAMA_SETUP.fa.md) و [ارزیابی محدود مدل محلی](docs/LOCAL_AI_MODEL_EVALUATION.md) نیز در دسترس است.
 
 ### نقشهٔ راه و مشارکت
 
@@ -274,13 +358,15 @@ $env:OLLAMA_MODEL = "your-installed-model"
 
 مجوز `LICENSE.md`، مجوز CC BY 4.0 را فقط برای مستندات و مواد پژوهشیِ اصیلِ مشخص‌شده در آن اعمال می‌کند؛ **این مجوز کد اجرایی را پوشش نمی‌دهد**. تا زمانی که مجوز نرم‌افزاری جداگانه‌ای معرفی نشود، حقوق کد منبع برای دارندهٔ حق نشر محفوظ است. وابستگی‌ها و مواد اشخاص ثالث تابع مجوزهای خود هستند.
 
-برای استناد از [`CITATION.cff`](CITATION.cff) استفاده کنید. رکورد منتشرشدهٔ Zenodo با نسخهٔ `v0.1.0` فقط آرشیوی از مستندات است ([DOI نسخه: 10.5281/zenodo.24244882](https://doi.org/10.5281/zenodo.24244882)، [DOI مفهومی: 10.5281/zenodo.24244881](https://doi.org/10.5281/zenodo.24244881)) و انتشار اجراییِ کد منبع نیست. انتشار GitHub نسخهٔ `v0.2.0` منتشر شده و فایل ZIP ویندوز آن نسخهٔ پشتیبان مهاجرتِ ناخواسته‌ای دارد که در بالا توضیح داده شد. بستهٔ ویندوز x64 نسخهٔ `v0.3.0` نامزد محلی است، نه انتشار عمومی. نسخهٔ `v0.2.0` در Zenodo سپرده نشده است.
+برای استناد از [`CITATION.cff`](CITATION.cff) استفاده کنید. رکورد منتشرشدهٔ Zenodo با نسخهٔ `v0.1.0` فقط آرشیوی از مستندات است ([DOI نسخه: 10.5281/zenodo.24244882](https://doi.org/10.5281/zenodo.24244882)، [DOI مفهومی: 10.5281/zenodo.24244881](https://doi.org/10.5281/zenodo.24244881)) و انتشار اجراییِ کد منبع نیست. انتشار GitHub نسخهٔ `v0.2.0` منتشر شده و فایل ZIP ویندوز آن نسخهٔ پشتیبان مهاجرتِ ناخواسته‌ای دارد که در بالا توضیح داده شد. نسخهٔ `v0.2.0` و `v0.3.0` در Zenodo سپرده نشده‌اند.
 
 ### پیوندهای پروژه
 
 - [مخزن GitHub](https://github.com/mohammadmahdialmasi/TheraSim)
-- [تاریخچهٔ تغییرات](CHANGELOG.md) · [یادداشت‌های انتشار ۰٫۲٫۱](docs/RELEASE_NOTES_v0.2.1.md) · [چک‌لیست انتشار](docs/RELEASE_CHECKLIST.md) · [یادداشت‌های بررسی امنیتی](docs/SECURITY_SCAN_NOTES.md) · [نصب ویندوز](INSTALL_WINDOWS.md) · [ساخت ویندوز](BUILD_WINDOWS.md)
+- [تاریخچهٔ تغییرات](CHANGELOG.md) · [یادداشت‌های انتشار ۰٫۳٫۰](docs/RELEASE_NOTES_v0.3.0.md) · [ممیزی یکپارچه‌سازی ۰٫۳٫۰](docs/V0.3.0_FINAL_INTEGRATION_AUDIT.md) · [یادداشت‌های انتشار ۰٫۲٫۱](docs/RELEASE_NOTES_v0.2.1.md) · [چک‌لیست انتشار](docs/RELEASE_CHECKLIST.md) · [یادداشت‌های بررسی امنیتی](docs/SECURITY_SCAN_NOTES.md) · [نصب ویندوز](INSTALL_WINDOWS.md) · [ساخت ویندوز](BUILD_WINDOWS.md) · [راهنمای نصب](docs/INSTALLATION.fa.md) · [راهنمای کاربر](docs/USER_GUIDE.fa.md)
 - [تصمیم‌های MVP](docs/MVP_DECISIONS.md) · [مرزهای امنیتی](docs/SECURITY_BOUNDARIES.md)
+- [راه‌اندازی Ollama](docs/OLLAMA_SETUP.fa.md) · [ارزیابی مدل محلی](docs/LOCAL_AI_MODEL_EVALUATION.md) · [عیب‌یابی](docs/TROUBLESHOOTING.fa.md)
+- [واژه‌نامهٔ ترجمه](docs/TRANSLATION_GLOSSARY.md) · [راهنمای چندزبانگی](docs/I18N_GUIDELINES.md)
 - [مجوز مستندات](LICENSE.md) · [اطلاعیهٔ حق نشر](COPYRIGHT.md) · [فرادادهٔ استناد](CITATION.cff)
 - [مشارکت](CONTRIBUTING.md) · [پشتیبانی](.github/SUPPORT.md) · [امنیت](.github/SECURITY.md) · [آیین رفتار](CODE_OF_CONDUCT.md)
 - [رکورد مفهومی Zenodo](https://doi.org/10.5281/zenodo.24244881)

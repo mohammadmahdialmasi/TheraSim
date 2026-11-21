@@ -87,9 +87,19 @@ class FakeClient:
     def __init__(self, content):
         self.content = content
         self.messages = None
+        self.response_format = None
 
-    def chat(self, *, model, messages, temperature, max_tokens):
+    def chat(
+        self,
+        *,
+        model,
+        messages,
+        temperature,
+        max_tokens,
+        response_format=None,
+    ):
         self.messages = messages
+        self.response_format = response_format
         return {
             "content": self.content,
             "model": model,
@@ -123,6 +133,90 @@ def test_evaluator_agent_accepts_exact_therapist_evidence():
         EVALUATOR_SYSTEM_PROMPT
     )
     assert "therapist-1" in client.messages[1]["content"]
+
+
+def test_evaluator_requests_strict_json_schema_when_supported():
+    agent, client = make_agent(report_payload())
+    client.supports_json_schema = True
+    rubric_definition, rubric_document, _ = agent.load_rubric()
+
+    agent.evaluate(
+        TRANSCRIPT,
+        rubric_definition=rubric_definition,
+        rubric_document=rubric_document,
+    )
+
+    response_format = client.response_format
+    assert response_format["type"] == "json_schema"
+    schema = response_format["json_schema"]["schema"]
+    assert schema["additionalProperties"] is False
+    assert schema["required"] == ["overall_summary", "competencies"]
+    assert schema["properties"]["competencies"]["minItems"] == len(
+        rubric_definition["competency_ids"]
+    )
+    assert schema["$defs"]["CompetencyAssessment"]["properties"][
+        "competency_id"
+    ]["enum"] == rubric_definition["competency_ids"]
+
+
+def test_evaluator_agent_normalizes_exact_competency_id_mapping():
+    payload = report_payload()
+    payload["competencies"] = {
+        item.pop("competency_id"): item
+        for item in payload["competencies"]
+    }
+    agent, _ = make_agent(payload)
+    rubric_definition, rubric_document, _ = agent.load_rubric()
+
+    result = agent.evaluate(
+        TRANSCRIPT,
+        rubric_definition=rubric_definition,
+        rubric_document=rubric_document,
+    )
+
+    assert [item.competency_id for item in result.competencies] == (
+        rubric_definition["competency_ids"]
+    )
+
+
+def test_evaluator_agent_rejects_competency_mapping_with_unknown_id():
+    payload = report_payload()
+    mapped = {
+        item.pop("competency_id"): item
+        for item in payload["competencies"]
+    }
+    mapped.pop(next(iter(mapped)))
+    mapped["invented_competency"] = {}
+    payload["competencies"] = mapped
+    agent, _ = make_agent(payload)
+    rubric_definition, rubric_document, _ = agent.load_rubric()
+
+    with pytest.raises(EvaluatorAgentError, match="omitted"):
+        agent.evaluate(
+            TRANSCRIPT,
+            rubric_definition=rubric_definition,
+            rubric_document=rubric_document,
+        )
+
+
+def test_evaluator_agent_rejects_conflicting_id_in_competency_mapping():
+    payload = report_payload()
+    mapped = {
+        item.pop("competency_id"): item
+        for item in payload["competencies"]
+    }
+    first_id = next(iter(mapped))
+    mapped[first_id]["competency_id"] = "different_competency"
+    payload["competencies"] = mapped
+    agent, _ = make_agent(payload)
+    rubric_definition, rubric_document, _ = agent.load_rubric()
+
+    with pytest.raises(EvaluatorAgentError, match="conflicts"):
+        agent.evaluate(
+            TRANSCRIPT,
+            rubric_definition=rubric_definition,
+            rubric_document=rubric_document,
+        )
 
 
 @pytest.mark.parametrize(

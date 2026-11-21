@@ -35,18 +35,18 @@ const copy = {
     initializeTitle: 'راه‌اندازی امن محلی',
     loginTitle: 'ورود به تراسیم',
     initializeDescription:
-      'حساب محلی بازبین را بساز. گذرواژه به‌صورت هش scrypt ذخیره می‌شود و هرگز از API بازگردانده نمی‌شود.',
+      'حساب محلی بازبین را ایجاد کنید. گذرواژه به‌صورت هش scrypt ذخیره می‌شود و هرگز از API بازگردانده نمی‌شود.',
     loginDescription:
-      'با گذرواژه بازبین محلی وارد شو. این نشست مرورگر پس از هشت ساعت منقضی می‌شود.',
+      'با گذرواژهٔ بازبین محلی وارد شوید. این نشست مرورگر پس از هشت ساعت منقضی می‌شود.',
     reviewerName: 'نام بازبین',
     password: 'گذرواژه',
-    passwordHelp: 'حداقل ۱۲ نویسه انتخاب کن.',
+    passwordHelp: 'گذرواژه‌ای با دست‌کم ۱۲ نویسه انتخاب کنید.',
     initialize: 'ساخت حساب',
     login: 'ورود',
-    submitting: 'لطفاً صبر کن...',
-    unavailable: 'اتصال به بک‌اند محلی برقرار نشد. آن را اجرا و دوباره تلاش کن.',
+    submitting: 'لطفاً صبر کنید…',
+    unavailable: 'اتصال به بک‌اند محلی برقرار نشد. آن را اجرا و دوباره تلاش کنید.',
     retry: 'تلاش دوباره',
-    failed: 'ورود ناموفق بود. اطلاعات را بررسی و دوباره تلاش کن.',
+    failed: 'ورود ناموفق بود. اطلاعات را بررسی و دوباره تلاش کنید.',
     loopbackOnly: 'ساخت حساب اولیه فقط از همین رایانه مجاز است.',
     switchLanguage: 'English',
   },
@@ -127,7 +127,11 @@ export function AuthPage({
               <div className="sessions-alert sessions-alert-error" role="alert">
                 <AlertCircle size={17} />
                 <span dir="auto">
-                  {error === 'loopback_setup_required' ? labels.loopbackOnly : error}
+                  {error === 'loopback_setup_required'
+                    ? labels.loopbackOnly
+                    : language === 'fa'
+                      ? labels.failed
+                      : error}
                 </span>
               </div>
             )}

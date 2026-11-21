@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 import re
-from typing import Literal, Sequence
+from typing import Any, Literal, Sequence
 
 from pydantic import BaseModel, ConfigDict, Field, StrictStr, field_validator
 
@@ -44,11 +44,14 @@ defensible rating; never turn missing evidence into zero.
 
 Return one JSON object with exactly these top-level keys:
 overall_summary, competencies.
+competencies must be a JSON array, not an object keyed by competency ID.
 Return exactly one competency object for every rubric competency, with exactly
 these keys:
 competency_id, rating_code, explanation, strengths, limitations,
 missing_evidence, confidence, uncertainty_notes, alternative_response,
 evidence.
+Set competency_id to the matching ID from the rubric. Use rating_code "0",
+"1", "2", "3", or "NE" only.
 Each evidence object must have exactly:
 message_id, excerpt, evidence_role, evidence_note.
 Evidence must quote an exact, contiguous substring from an actual therapist
@@ -79,6 +82,8 @@ therapist skill.
 
 Return the exact structured report requested by the supplied rubric. Every
 evidence excerpt must be an exact contiguous quote from a therapist message.
+The competencies field must be a JSON array, not an object keyed by competency
+ID; include the competency_id field on every item.
 Do not include Markdown fences or text outside the JSON object.
 """
 
@@ -137,6 +142,39 @@ class EvaluatorReport(BaseModel):
         if not value.strip():
             raise ValueError("Evaluator summary must not be blank.")
         return value
+
+
+def _json_schema_response_format(
+    competency_ids: list[str],
+) -> dict[str, Any]:
+    schema = EvaluatorReport.model_json_schema()
+
+    def make_strict(value: Any) -> None:
+        if isinstance(value, dict):
+            if value.get("type") == "object":
+                properties = value.get("properties", {})
+                value["required"] = list(properties)
+                value["additionalProperties"] = False
+            for child in value.values():
+                make_strict(child)
+        elif isinstance(value, list):
+            for child in value:
+                make_strict(child)
+
+    make_strict(schema)
+    schema["$defs"]["CompetencyAssessment"]["properties"][
+        "competency_id"
+    ]["enum"] = competency_ids
+    schema["properties"]["competencies"]["minItems"] = len(competency_ids)
+    schema["properties"]["competencies"]["maxItems"] = len(competency_ids)
+    return {
+        "type": "json_schema",
+        "json_schema": {
+            "name": "therasim_act_evaluation",
+            "strict": True,
+            "schema": schema,
+        },
+    }
 
 
 class EvaluatorAgent:
@@ -240,6 +278,21 @@ class EvaluatorAgent:
             "transcript": list(transcript),
         }
 
+        expected_ids = rubric_definition.get("competency_ids")
+        if not isinstance(expected_ids, list) or any(
+            not isinstance(item, str) or not item
+            for item in expected_ids
+        ):
+            raise EvaluatorAgentError(
+                "The evaluation rubric has an invalid competency list."
+            )
+
+        request_options: dict[str, Any] = {}
+        if getattr(self.client, "supports_json_schema", False):
+            request_options["response_format"] = (
+                _json_schema_response_format(expected_ids)
+            )
+
         try:
             result = self.client.chat(
                 model=self.model,
@@ -256,8 +309,14 @@ class EvaluatorAgent:
                 ],
                 temperature=0.0,
                 max_tokens=self.max_tokens,
+                **request_options,
             )
         except ProviderResponseError as exc:
+            if request_options:
+                raise EvaluatorAgentError(
+                    "The configured provider rejected structured evaluator "
+                    f"output (HTTP {exc.status_code or 'unknown'})."
+                ) from exc
             raise EvaluatorAgentError(
                 "The configured model returned an invalid evaluator response."
             ) from exc
@@ -271,17 +330,54 @@ class EvaluatorAgent:
             raise EvaluatorAgentError("The evaluator returned no report.")
 
         try:
-            report = EvaluatorReport.model_validate_json(content)
+            response_data = json.loads(content)
+        except json.JSONDecodeError as exc:
+            raise EvaluatorAgentError(
+                "Evaluator output did not match the report contract."
+            ) from exc
+
+        if (
+            isinstance(response_data, dict)
+            and isinstance(response_data.get("competencies"), dict)
+        ):
+            competency_map = response_data["competencies"]
+            if (
+                len(competency_map) != len(expected_ids)
+                or set(competency_map) != set(expected_ids)
+            ):
+                raise EvaluatorAgentError(
+                    "Evaluator output omitted, duplicated, or invented a competency."
+                )
+
+            normalized_competencies = []
+            for competency_id in expected_ids:
+                item = competency_map[competency_id]
+                if not isinstance(item, dict):
+                    raise EvaluatorAgentError(
+                        "Evaluator competency mapping contains an invalid item."
+                    )
+                if (
+                    "competency_id" in item
+                    and item["competency_id"] != competency_id
+                ):
+                    raise EvaluatorAgentError(
+                        "Evaluator competency mapping conflicts with its ID."
+                    )
+                normalized_item = dict(item)
+                normalized_item["competency_id"] = competency_id
+                normalized_competencies.append(normalized_item)
+            response_data["competencies"] = normalized_competencies
+
+        try:
+            report = EvaluatorReport.model_validate(response_data)
         except ValueError as exc:
             raise EvaluatorAgentError(
                 "Evaluator output did not match the report contract."
             ) from exc
 
-        expected_ids = rubric_definition["competency_ids"]
         actual_ids = [item.competency_id for item in report.competencies]
         if (
-            not isinstance(expected_ids, list)
-            or len(actual_ids) != len(set(actual_ids))
+            len(actual_ids) != len(set(actual_ids))
             or set(actual_ids) != set(expected_ids)
         ):
             raise EvaluatorAgentError(

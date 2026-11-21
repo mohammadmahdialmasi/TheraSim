@@ -111,11 +111,22 @@ def test_application_startup_wires_patient_agent_when_model_is_configured(
 
     data_dir = tmp_path / "configured-model-data"
     monkeypatch.setenv("THERASIM_DATA_DIR", str(data_dir))
+    monkeypatch.setenv(
+        "THERASIM_PROVIDER_SETTINGS_PATH",
+        str(tmp_path / "provider-settings.json"),
+    )
+    monkeypatch.setenv("OLLAMA_PATIENT_MODEL", "patient-role-model")
+    monkeypatch.setenv("OLLAMA_EVALUATOR_MODEL", "evaluator-role-model")
 
+    providers = dict(main_module.settings.providers)
+    providers["ollama"] = replace(
+        providers["ollama"],
+        model="local-test-model",
+    )
     configured_settings = replace(
         main_module.settings,
         llm_provider="ollama",
-        ollama_model="local-test-model",
+        providers=providers,
     )
     monkeypatch.setattr(main_module, "settings", configured_settings)
 
@@ -160,6 +171,12 @@ def test_application_startup_wires_patient_agent_when_model_is_configured(
             assert len(created_clients) == 1
             assert created_clients[0].config.model == "local-test-model"
             assert created_clients[0].timeout == configured_settings.request_timeout_seconds
+            assert app.state.patient_agent.model == "patient-role-model"
+            assert app.state.evaluator_agent.model == "evaluator-role-model"
+            assert (
+                app.state.memory_extraction_agent.model
+                == "patient-role-model"
+            )
 
     asyncio.run(exercise_lifespan())
     assert app.state.memory_extraction_worker is None

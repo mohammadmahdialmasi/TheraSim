@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { AlertCircle, ClipboardCheck, LoaderCircle, Sparkles } from 'lucide-react'
 
 import type { Language } from '../../i18n'
+import { localizedValue } from '../localizedValues'
 import { createRunEvaluation, listRunEvaluations } from './api'
 import { EvaluationReviewPanel } from './EvaluationReviewPanel'
 import type { EvaluationReport, EvaluationReview } from './types'
@@ -39,11 +40,11 @@ const copy = {
     description:
       'رفتار درمانگر را در جلسات تکمیل‌شده با استناد به شواهد رونوشت بررسی می‌کند. این ارزیابی بالینی اعتبارسنجی‌شده یا جایگزین نظارت تخصصی نیست.',
     generate: 'ارزیابی جلسات تکمیل‌شده',
-    generating: 'در حال ارزیابی تاریخچه جلسات...',
-    loading: 'در حال بارگذاری تاریخچه ارزیابی طولی...',
+    generating: 'در حال ارزیابی سابقهٔ جلسه‌ها…',
+    loading: 'در حال بارگذاری سابقهٔ ارزیابی طولی…',
     noReport: 'برای این اجرا ارزیابی طولی وجود ندارد.',
     needsSessions: 'حداقل دو جلسه تکمیل‌شده لازم است.',
-    stale: 'این گزارش به‌دلیل تغییر دامنه جلسات تکمیل‌شده قدیمی شده است. بازنگری تازه‌ای تولید کن.',
+    stale: 'این گزارش به‌دلیل تغییر دامنهٔ جلسه‌های تکمیل‌شده قدیمی شده است. نسخهٔ تازه‌ای از ارزیابی تولید کنید.',
     scope: 'جلسات مشمول',
     session: 'جلسه',
     revision: 'بازنگری',
@@ -56,10 +57,10 @@ const copy = {
     missing: 'شواهد موجود نیست',
     limitations: 'محدودیت‌ها',
     reviewRequired: 'نیازمند بازبینی انسانی',
-    unavailable: 'ارزیاب در دسترس نیست. یک مدل محلی تنظیم و دوباره تلاش کن.',
+    unavailable: 'عامل ارزیاب در دسترس نیست. یک مدل محلی پیکربندی و دوباره تلاش کنید.',
     failed: 'ارزیابی طولی ناموفق بود و گزارشی ذخیره نشد.',
     noEvidence: 'شواهدی از رونوشت ثبت نشده است.',
-    historical: 'سابقه قدیمی: منشأ ارزیاب در دسترس نیست؛ امتیازها نمایش داده نمی‌شوند.',
+    historical: 'سابقهٔ پیشین: منشأ ارزیابی در دسترس نیست؛ امتیازها نمایش داده نمی‌شوند.',
   },
 } as const
 
@@ -241,7 +242,10 @@ export function LongitudinalEvaluationPanel({
             {report.items.map((item) => (
               <details className="evaluation-item" key={item.evaluation_item_id}>
                 <summary>
-                  <span>{item.competency_id.replaceAll('_', ' ')}</span>
+                  <span>
+                    <small>{labels.competency}: </small>
+                    {localizedValue(item.competency_id, language)}
+                  </span>
                   <strong>{item.rating_code}</strong>
                 </summary>
                 <div className="evaluation-item-content">

@@ -8,9 +8,17 @@ from app.core.config import ProviderConfig
 class ProviderConnectionError(Exception):
     """The local model server could not be reached."""
 
+    def __init__(self, message: str, *, reason: str = "unavailable") -> None:
+        self.reason = reason
+        super().__init__(message)
+
 
 class ProviderResponseError(Exception):
     """The model server returned an invalid or unsuccessful response."""
+
+    def __init__(self, message: str, *, status_code: int | None = None) -> None:
+        self.status_code = status_code
+        super().__init__(message)
 
 
 class OpenAICompatibleClient:
@@ -25,6 +33,12 @@ class OpenAICompatibleClient:
         self.config = config
         self.timeout = timeout
         self.transport = transport
+
+    @property
+    def supports_json_schema(self) -> bool:
+        """Whether this provider adapter is verified for JSON-schema output."""
+
+        return self.config.name == "ollama"
 
     def _request(
         self,
@@ -61,7 +75,8 @@ class OpenAICompatibleClient:
 
         except httpx.TimeoutException as exc:
             raise ProviderConnectionError(
-                f"{self.config.name} request timed out."
+                f"{self.config.name} request timed out.",
+                reason="timeout",
             ) from exc
 
         except httpx.RequestError as exc:
@@ -72,7 +87,8 @@ class OpenAICompatibleClient:
         if not response.is_success:
             raise ProviderResponseError(
                 f"{self.config.name} returned HTTP "
-                f"{response.status_code}."
+                f"{response.status_code}.",
+                status_code=response.status_code,
             )
 
         try:
@@ -134,6 +150,7 @@ class OpenAICompatibleClient:
         messages: list[dict[str, str]],
         temperature: float | None = None,
         max_tokens: int | None = None,
+        response_format: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         payload: dict[str, Any] = {
             "model": model,
@@ -146,6 +163,9 @@ class OpenAICompatibleClient:
 
         if max_tokens is not None:
             payload["max_tokens"] = max_tokens
+
+        if response_format is not None:
+            payload["response_format"] = response_format
 
         data = self._request(
             "POST",

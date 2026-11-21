@@ -1,5 +1,6 @@
 import brandLogo from './assets/brand-logo.svg'
 import {
+  useCallback,
   useEffect,
   useRef,
   useState,
@@ -37,9 +38,16 @@ import {
 
 import type { LucideIcon } from 'lucide-react'
 
-import { translations, type Language, type Translation } from './i18n'
+import {
+  getInitialLanguage,
+  getTranslationCatalog,
+  persistLanguage,
+  type Language,
+  type Translation,
+} from './i18n'
 import { therapyModules, plannedTherapyCategories } from './data/therapyModules'
 import { SessionsPage } from './features/sessions/SessionsPage'
+import { SupportExport } from './features/settings/SupportExport'
 import { AuthPage } from './features/auth/AuthPage'
 import {
   getAuthStatus,
@@ -57,18 +65,32 @@ import {
 
 import {
   getHealth,
+  getHardwareAssessment,
   getModels,
   getProviders,
+  getUpdateMetadata,
+  getProviderSettings,
+  saveProviderSettings,
   sendChat,
+  testProviderConnection,
 } from './lib/api'
+import {
+  buildApiBaseUrl,
+  parseApiBaseUrl,
+} from './lib/providerSettings'
+import { verifySha256File } from './lib/downloadTools'
 
 import type {
   ChatMessage,
   ConnectionState,
+  HardwareAssessment,
   ModelInfo,
   ProviderCatalog,
   ProviderInfo,
+  ProviderEndpointSettings,
+  ProviderSettingsResponse,
   ProviderName,
+  UpdateMetadataResponse,
   TherapyModule,
   ViewKey,
 } from './types'
@@ -83,11 +105,18 @@ interface NavigationItem {
   icon: LucideIcon
 }
 
-const providerNames: ProviderName[] = ['ollama', 'lm_studio']
+const providerNames: ProviderName[] = [
+  'ollama',
+  'lm_studio',
+  'llama_cpp',
+  'custom',
+]
 
-const providerLabels: Record<ProviderName, string> = {
-  ollama: 'Ollama',
-  lm_studio: 'LM Studio',
+const providerLabelKeys: Record<ProviderName, TranslationKey> = {
+  ollama: 'providerOllama',
+  lm_studio: 'providerLmStudio',
+  llama_cpp: 'providerLlamaCpp',
+  custom: 'providerCustom',
 }
 
 const pageTitleKeys: Record<ViewKey, TranslationKey> = {
@@ -154,17 +183,7 @@ const initialBenchmark: BenchmarkState = {
 }
 
 const benchmarkPrompt =
-  'به زبان فارسی و در حداکثر ۸۰ کلمه توضیح بده پذیرش (Acceptance) در درمان مبتنی بر پذیرش و تعهد (ACT) چه تفاوتی با تسلیم‌شدن دارد. یک مثال روزمره و غیرتشخیصی بیاور. پاسخ را با دو بخش «تعریف» و «مثال» تنظیم کن.'
-
-function getInitialLanguage(): Language {
-  try {
-    return window.localStorage.getItem('therasim-language') === 'fa'
-      ? 'fa'
-      : 'en'
-  } catch {
-    return 'en'
-  }
-}
+  'به زبان فارسی و در حداکثر ۸۰ کلمه توضیح دهید پذیرش (Acceptance) در درمان مبتنی بر پذیرش و تعهد (ACT) چه تفاوتی با تسلیم‌شدن دارد. یک مثال روزمره و غیرتشخیصی بیاورید. پاسخ را در دو بخش «تعریف» و «مثال» تنظیم کنید.'
 
 function errorMessage(
   error: unknown,
@@ -193,9 +212,19 @@ function StatusDot({ status }: { status: ConnectionState }) {
   )
 }
 
+function formatHardwareBytes(
+  bytes: number | null,
+  unavailable = 'Unavailable',
+): string {
+  if (bytes === null || !Number.isFinite(bytes) || bytes < 0) {
+    return unavailable
+  }
+  return `${(bytes / (1024 ** 3)).toFixed(1)} GiB`
+}
+
 function App() {
   const [language, setLanguage] = useState<Language>(getInitialLanguage)
-  const t = translations[language]
+  const t = getTranslationCatalog(language)
   const direction = language === 'fa' ? 'rtl' : 'ltr'
   const [authMode, setAuthMode] = useState<
     'checking' | 'initialize' | 'login' | 'authenticated' | 'unavailable'
@@ -208,6 +237,7 @@ function App() {
   const [view, setView] = useState<ViewKey>('dashboard')
   const [backendStatus, setBackendStatus] =
     useState<ConnectionState>('checking')
+  const [appVersion, setAppVersion] = useState('')
 
   const [providers, setProviders] = useState<ProviderInfo[]>([])
   const [provider, setProvider] = useState<ProviderName>('ollama')
@@ -216,12 +246,16 @@ function App() {
     useState<Record<ProviderName, ModelInfo[]>>({
       ollama: [],
       lm_studio: [],
+      llama_cpp: [],
+      custom: [],
     })
 
   const [providerStates, setProviderStates] =
     useState<Record<ProviderName, ConnectionState>>({
       ollama: 'checking',
       lm_studio: 'checking',
+      llama_cpp: 'checking',
+      custom: 'checking',
     })
 
   const [selectedModel, setSelectedModel] = useState('')
@@ -235,6 +269,12 @@ function App() {
 
   const [benchmark, setBenchmark] =
     useState<BenchmarkState>(initialBenchmark)
+  const [hardwareAssessment, setHardwareAssessment] =
+    useState<HardwareAssessment | null>(null)
+  const [hardwareAssessmentLoading, setHardwareAssessmentLoading] =
+    useState(false)
+  const [hardwareAssessmentFailed, setHardwareAssessmentFailed] =
+    useState(false)
 
   const currentModels = modelsByProvider[provider]
   const currentProviderState = providerStates[provider]
@@ -243,11 +283,7 @@ function App() {
     document.documentElement.lang = language
     document.documentElement.dir = direction
 
-    try {
-      window.localStorage.setItem('therasim-language', language)
-    } catch {
-      // The interface still works if browser storage is unavailable.
-    }
+    persistLanguage(language)
   }, [language, direction])
 
   useEffect(() => {
@@ -334,6 +370,7 @@ function App() {
       if (!active) return
 
       if (healthResult.status === 'fulfilled') {
+        setAppVersion(healthResult.value.version)
         setBackendStatus(
           healthResult.value.status === 'ok' ? 'online' : 'offline',
         )
@@ -377,11 +414,15 @@ function App() {
       const nextModels: Record<ProviderName, ModelInfo[]> = {
         ollama: [],
         lm_studio: [],
+        llama_cpp: [],
+        custom: [],
       }
 
       const nextStates: Record<ProviderName, ConnectionState> = {
         ollama: 'offline',
         lm_studio: 'offline',
+        llama_cpp: 'offline',
+        custom: 'offline',
       }
 
       for (const result of checks) {
@@ -399,7 +440,7 @@ function App() {
       setSelectedModel(
         nextModels[catalog.active_provider].find(
           (item) => item.id === preferred,
-        )?.id ?? nextModels[catalog.active_provider][0]?.id ?? '',
+        )?.id ?? preferred ?? nextModels[catalog.active_provider][0]?.id ?? '',
       )
     }
 
@@ -455,7 +496,9 @@ function App() {
   function changeProvider(nextProvider: ProviderName) {
     setProvider(nextProvider)
     setSelectedModel(
-      modelsByProvider[nextProvider][0]?.id ?? '',
+      providers.find((item) => item.name === nextProvider)?.default_model ??
+        modelsByProvider[nextProvider][0]?.id ??
+        '',
     )
     setChatError('')
   }
@@ -493,6 +536,18 @@ function App() {
       }))
     } finally {
       setRefreshing(false)
+    }
+  }
+
+  async function loadHardwareAssessment() {
+    setHardwareAssessmentLoading(true)
+    setHardwareAssessmentFailed(false)
+    try {
+      setHardwareAssessment(await getHardwareAssessment())
+    } catch {
+      setHardwareAssessmentFailed(true)
+    } finally {
+      setHardwareAssessmentLoading(false)
     }
   }
 
@@ -885,6 +940,10 @@ function App() {
               benchmark={benchmark}
               onRunBenchmark={runModelBenchmark}
               onExportBenchmark={exportBenchmark}
+              hardwareAssessment={hardwareAssessment}
+              hardwareAssessmentLoading={hardwareAssessmentLoading}
+              hardwareAssessmentFailed={hardwareAssessmentFailed}
+              onAssessHardware={loadHardwareAssessment}
             />
           )}
 
@@ -919,10 +978,20 @@ function App() {
           {view === 'settings' && (
             <SettingsPage
               t={t}
-              providers={providers}
-              providerStates={providerStates}
+              language={language}
+              appVersion={appVersion}
               backendStatus={backendStatus}
               startupError={startupError}
+              onProviderSaved={(saved) => {
+                setProvider(saved.active_provider)
+                const active = saved.providers.find(
+                  (item) => item.name === saved.active_provider,
+                )
+                setSelectedModel(active?.model ?? '')
+                void getProviders()
+                  .then((catalog) => setProviders(catalog.providers))
+                  .catch(() => setStartupError(t.noStartupConnection))
+              }}
             />
           )}
         </main>
@@ -1054,7 +1123,7 @@ function Dashboard({
         <MetricCard
           icon={Cpu}
           label={t.metricProvidersLabel}
-          value={`${connectedProviderCount} / ${providers.length || 2}`}
+          value={`${connectedProviderCount} / ${providers.length || providerNames.length}`}
           valueDirection="ltr"
           description={t.providerDescription}
           t={t}
@@ -1095,7 +1164,7 @@ function Dashboard({
                 {name === 'ollama' ? <Cpu size={19} /> : <Wifi size={19} />}
               </span>
               <div className="provider-copy">
-                <strong>{providerLabels[name]}</strong>
+                <strong>{t[providerLabelKeys[name]]}</strong>
                 <span dir="ltr">
                   {providers.find((item) => item.name === name)?.base_url
                     ?? (name === 'ollama'
@@ -1233,6 +1302,10 @@ function Studio({
   benchmark,
   onRunBenchmark,
   onExportBenchmark,
+  hardwareAssessment,
+  hardwareAssessmentLoading,
+  hardwareAssessmentFailed,
+  onAssessHardware,
 }: {
   t: Translation
   providers: ProviderInfo[]
@@ -1257,6 +1330,10 @@ function Studio({
   benchmark: BenchmarkState
   onRunBenchmark: () => void
   onExportBenchmark: () => void
+  hardwareAssessment: HardwareAssessment | null
+  hardwareAssessmentLoading: boolean
+  hardwareAssessmentFailed: boolean
+  onAssessHardware: () => void
 }) {
   const messageEndRef = useRef<HTMLDivElement>(null)
 
@@ -1334,7 +1411,7 @@ function Studio({
               >
                 {providers.map((item) => (
                   <option key={item.name} value={item.name}>
-                    {providerLabels[item.name]}
+                    {t[providerLabelKeys[item.name]]}
                   </option>
                 ))}
               </select>
@@ -1348,10 +1425,15 @@ function Studio({
               <select
                 value={selectedModel}
                 onChange={(event) => onModelChange(event.target.value)}
-                disabled={chatModels.length === 0}
+                disabled={chatModels.length === 0 && !selectedModel}
               >
-                {chatModels.length === 0 && (
+                {chatModels.length === 0 && !selectedModel && (
                   <option value="">{t.noModels}</option>
+                )}
+                {selectedModel && !chatModels.some(
+                  (item) => item.id === selectedModel,
+                ) && (
+                  <option value={selectedModel}>{selectedModel}</option>
                 )}
                 {chatModels.map((item) => (
                   <option key={item.id} value={item.id}>
@@ -1386,6 +1468,111 @@ function Studio({
         </div>
       </section>
 
+      <section className="surface-card hardware-assessment">
+        <div className="benchmark-heading">
+          <div className="card-heading">
+            <span className="heading-icon">
+              <Cpu size={19} />
+            </span>
+            <div>
+              <h3>{t.hardwareAssessmentTitle}</h3>
+              <p>{t.hardwareAssessmentDescription}</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={onAssessHardware}
+            disabled={hardwareAssessmentLoading || backendStatus !== 'online'}
+          >
+            {hardwareAssessmentLoading
+              ? t.hardwareAssessmentLoading
+              : t.hardwareAssessmentButton}
+          </button>
+        </div>
+
+        {hardwareAssessmentFailed && (
+          <div className="hardware-error" role="alert">
+            {t.hardwareAssessmentFailed}
+          </div>
+        )}
+
+        {hardwareAssessment && (
+          <dl className="hardware-facts">
+            <div>
+              <dt>{t.hardwareOperatingSystem}</dt>
+              <dd>
+                {hardwareAssessment.operating_system.name}{' '}
+                {hardwareAssessment.operating_system.version} (
+                {hardwareAssessment.operating_system.architecture})
+              </dd>
+            </div>
+            <div>
+              <dt>{t.hardwareCpu}</dt>
+              <dd>
+                {hardwareAssessment.cpu.name || t.hardwareUnavailable}
+                {hardwareAssessment.cpu.logical_processors !== null &&
+                  ` · ${hardwareAssessment.cpu.logical_processors} ${t.hardwareLogicalProcessors}`}
+              </dd>
+            </div>
+            <div>
+              <dt>{t.hardwareMemory}</dt>
+              <dd>
+                {formatHardwareBytes(
+                  hardwareAssessment.memory.total_bytes,
+                  t.hardwareUnavailable,
+                )}{' '}
+                ({t.hardwareAvailable}:{' '}
+                {formatHardwareBytes(
+                  hardwareAssessment.memory.available_bytes,
+                  t.hardwareUnavailable,
+                )})
+              </dd>
+            </div>
+            <div>
+              <dt>{t.hardwareGpu}</dt>
+              <dd>
+                {hardwareAssessment.gpus.length > 0
+                  ? hardwareAssessment.gpus
+                    .map((gpu) =>
+                      `${gpu.name} (${formatHardwareBytes(gpu.total_vram_bytes, t.hardwareUnavailable)}; ${t.hardwareAvailable}: ${formatHardwareBytes(gpu.available_vram_bytes, t.hardwareUnavailable)})`,
+                    )
+                    .join(', ')
+                  : t.hardwareGpuUnknown}
+              </dd>
+            </div>
+            <div>
+              <dt>{t.hardwareDisk}</dt>
+              <dd>
+                {formatHardwareBytes(
+                  hardwareAssessment.disk.free_bytes,
+                  t.hardwareUnavailable,
+                )}{' '}
+                {t.hardwareFreeOf}{' '}
+                {formatHardwareBytes(
+                  hardwareAssessment.disk.total_bytes,
+                  t.hardwareUnavailable,
+                )}
+              </dd>
+            </div>
+            <div>
+              <dt>{t.hardwareOllama}</dt>
+              <dd>
+                {hardwareAssessment.ollama.server_available === true
+                  ? `${t.connected}${hardwareAssessment.ollama.server_version
+                    ? ` · ${hardwareAssessment.ollama.server_version}`
+                    : ''}`
+                  : hardwareAssessment.ollama.server_available === false
+                    ? t.unavailable
+                    : t.hardwareUnavailable}
+              </dd>
+            </div>
+          </dl>
+        )}
+
+        <p className="hardware-guidance">{t.hardwareModelGuidance}</p>
+      </section>
+
       <section className="surface-card chat-panel">
         <div className="chat-header">
           <div className="chat-heading">
@@ -1394,7 +1581,7 @@ function Studio({
             </span>
             <div>
               <h3>{t.chatTitle}</h3>
-              <p>{selectedModel || providerLabels[provider]}</p>
+              <p>{selectedModel || t[providerLabelKeys[provider]]}</p>
             </div>
           </div>
           <span className="request-mode">{t.chatMode}</span>
@@ -1612,7 +1799,7 @@ function Studio({
                         : t.benchmarkFailed}
                   </div>
                   <strong>{result.model}</strong>
-                  <span>{providerLabels[result.provider]}</span>
+                  <span>{t[providerLabelKeys[result.provider]]}</span>
                   {result.error && (
                     <small className="result-error">{result.error}</small>
                   )}
@@ -1794,22 +1981,367 @@ function ComingSoonPage({
 
 /* ---------------- Settings ---------------- */
 
+interface ProviderDraft extends ProviderEndpointSettings {
+  protocol: 'http' | 'https'
+  portText: string
+  api_key: string
+  clear_api_key: boolean
+}
+
+function providerSettingsToDrafts(
+  response: ProviderSettingsResponse,
+): Record<ProviderName, ProviderDraft> {
+  const drafts = {} as Record<ProviderName, ProviderDraft>
+  for (const item of response.providers) {
+    const parsed = parseApiBaseUrl(item.base_url)
+    drafts[item.name] = {
+      ...item,
+      protocol: parsed.protocol,
+      portText: String(item.port),
+      api_key: '',
+      clear_api_key: false,
+    }
+  }
+  return drafts
+}
+
+function providerValidationMessage(error: unknown, t: Translation) {
+  return error instanceof Error
+    && error.message === 'Non-loopback HTTP endpoints require HTTPS.'
+    ? t.remoteHttpRequiresHttps
+    : t.invalidProviderSettings
+}
+
 function SettingsPage({
   t,
-  providers,
-  providerStates,
+  language,
+  appVersion,
   backendStatus,
   startupError,
+  onProviderSaved,
 }: {
   t: Translation
-  providers: ProviderInfo[]
-  providerStates: Record<ProviderName, ConnectionState>
+  language: Language
+  appVersion: string
   backendStatus: ConnectionState
   startupError: string
+  onProviderSaved: (settings: ProviderSettingsResponse) => void
 }) {
   const backendAddress = window.location.port === '5173'
     ? '127.0.0.1:8000'
     : window.location.host
+  const [settings, setSettings] = useState<ProviderSettingsResponse | null>(null)
+  const [drafts, setDrafts] =
+    useState<Record<ProviderName, ProviderDraft> | null>(null)
+  const [activeProvider, setActiveProvider] = useState<ProviderName>('ollama')
+  const [localOnlyMode, setLocalOnlyMode] = useState(true)
+  const [remoteEndpointConfirmed, setRemoteEndpointConfirmed] = useState(false)
+  const [models, setModels] = useState<ModelInfo[]>([])
+  const [connectionStatus, setConnectionStatus] =
+    useState<ConnectionState>('checking')
+  const [connectionMessage, setConnectionMessage] = useState('')
+  const [modelListingSupported, setModelListingSupported] =
+    useState<boolean | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [testing, setTesting] = useState(false)
+  const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
+  const [validationError, setValidationError] = useState('')
+  const [updateBusy, setUpdateBusy] = useState(false)
+  const [updateError, setUpdateError] = useState('')
+  const [updateInfo, setUpdateInfo] =
+    useState<UpdateMetadataResponse | null>(null)
+  const [verificationMessage, setVerificationMessage] = useState('')
+  const [verificationBusy, setVerificationBusy] = useState(false)
+
+  const loadModels = useCallback(async (
+    providerName: ProviderName,
+    baseUrl: string,
+    model: string,
+    apiKey?: string,
+  ) => {
+    setTesting(true)
+    setConnectionStatus('checking')
+    setConnectionMessage('')
+    setError('')
+    try {
+      const result = await testProviderConnection(
+        providerName,
+        baseUrl,
+        model,
+        apiKey,
+      )
+      setModels(result.models)
+      setModelListingSupported(result.model_listing_supported)
+      setConnectionStatus(result.success ? 'online' : 'offline')
+      setConnectionMessage({
+        connected: model ? t.providerModelAvailable : t.providerConnectionSucceeded,
+        model_available: t.providerModelAvailable,
+        model_required: t.providerModelRequired,
+        model_unavailable: t.providerModelUnavailable,
+        authentication_failed: t.providerAuthenticationFailed,
+        timeout: t.providerTimeout,
+        unavailable: t.providerUnavailable,
+        provider_error: t.providerError,
+        remote_blocked: t.providerRemoteBlocked,
+      }[result.status])
+    } catch {
+      setModels([])
+      setModelListingSupported(null)
+      setConnectionStatus('offline')
+      setConnectionMessage(t.providerConnectionFailed)
+    } finally {
+      setTesting(false)
+    }
+  }, [
+    t.providerAuthenticationFailed,
+    t.providerConnectionFailed,
+    t.providerConnectionSucceeded,
+    t.providerError,
+    t.providerModelAvailable,
+    t.providerModelRequired,
+    t.providerModelUnavailable,
+    t.providerRemoteBlocked,
+    t.providerTimeout,
+    t.providerUnavailable,
+  ])
+
+  useEffect(() => {
+    let active = true
+    void getProviderSettings()
+      .then((response) => {
+        if (!active) return
+        setSettings(response)
+        setDrafts(providerSettingsToDrafts(response))
+        setActiveProvider(response.active_provider)
+        setLocalOnlyMode(response.local_only)
+        const selected = response.providers.find(
+          (item) => item.name === response.active_provider,
+        )
+        if (selected) {
+          void loadModels(
+            response.active_provider,
+            selected.base_url,
+            selected.model,
+          )
+        }
+      })
+      .catch(() => {
+        if (active) setError(t.settingsLoadFailed)
+      })
+      .finally(() => {
+        if (active) setLoading(false)
+      })
+    return () => {
+      active = false
+    }
+  }, [loadModels, t.settingsLoadFailed])
+
+  const currentDraft = drafts?.[activeProvider]
+
+  function updateDraft(
+    providerName: ProviderName,
+    update: Partial<ProviderDraft>,
+  ) {
+    setDrafts((current) => current
+      ? {
+          ...current,
+          [providerName]: {
+            ...current[providerName],
+            ...update,
+          },
+        }
+      : current)
+    setError('')
+    setSuccess('')
+  }
+
+  function handleProviderChange(providerName: ProviderName) {
+    setActiveProvider(providerName)
+    setModels([])
+    setModelListingSupported(null)
+    setValidationError('')
+    const draft = drafts?.[providerName]
+    if (draft) void loadModels(providerName, draft.base_url, draft.model)
+  }
+
+  function updateHostPortPath(
+    field: 'host' | 'portText' | 'api_base_path' | 'protocol',
+    value: string,
+  ) {
+    if (!currentDraft) return
+    const update: Partial<ProviderDraft> = { [field]: value }
+    const next = { ...currentDraft, ...update }
+    try {
+      const baseUrl = buildApiBaseUrl(
+        next.host,
+        next.portText,
+        next.api_base_path,
+        next.protocol,
+      )
+      update.base_url = baseUrl
+      setValidationError('')
+    } catch (validationError) {
+      setValidationError(providerValidationMessage(validationError, t))
+    }
+    updateDraft(activeProvider, update)
+  }
+
+  function handleBaseUrlChange(value: string) {
+    if (!currentDraft) return
+    const update: Partial<ProviderDraft> = { base_url: value }
+    try {
+      const parsed = parseApiBaseUrl(value)
+      update.protocol = parsed.protocol
+      update.host = parsed.host
+      update.port = parsed.port
+      update.portText = String(parsed.port)
+      update.api_base_path = parsed.apiBasePath
+      setValidationError('')
+    } catch (validationError) {
+      setValidationError(providerValidationMessage(validationError, t))
+    }
+    updateDraft(activeProvider, update)
+  }
+
+  async function saveSettings(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (!drafts) return
+    setError('')
+    setSuccess('')
+    if (!localOnlyMode && !remoteEndpointConfirmed) {
+      setError(t.remoteConfirmationRequired)
+      return
+    }
+
+    let baseUrl: string
+    try {
+      const fieldBaseUrl = buildApiBaseUrl(
+        currentDraft?.host ?? '',
+        currentDraft?.portText ?? '',
+        currentDraft?.api_base_path ?? '',
+        currentDraft?.protocol ?? 'http',
+      )
+      const parsedBaseUrl = parseApiBaseUrl(currentDraft?.base_url ?? '')
+      const enteredBaseUrl = buildApiBaseUrl(
+        parsedBaseUrl.host,
+        parsedBaseUrl.port,
+        parsedBaseUrl.apiBasePath,
+        parsedBaseUrl.protocol,
+      )
+      if (fieldBaseUrl !== enteredBaseUrl) {
+        throw new Error('Endpoint fields do not match the API base URL.')
+      }
+      baseUrl = fieldBaseUrl
+      setValidationError('')
+    } catch (validationError) {
+      const message = providerValidationMessage(validationError, t)
+      setValidationError(message)
+      setError(message)
+      return
+    }
+
+    setSaving(true)
+    try {
+      const result = await saveProviderSettings({
+        active_provider: activeProvider,
+        local_only: localOnlyMode,
+        confirm_remote_endpoints: !localOnlyMode && remoteEndpointConfirmed,
+        providers: providerNames.map((name) => {
+          const draft = drafts[name]
+          return {
+            name,
+            base_url: name === activeProvider ? baseUrl : draft.base_url,
+            model: draft.model,
+            patient_model: draft.patient_model,
+            evaluator_model: draft.evaluator_model,
+            ...(draft.api_key
+              ? { api_key: draft.api_key }
+              : {}),
+            ...(draft.clear_api_key
+              ? { clear_api_key: true }
+              : {}),
+          }
+        }),
+      })
+      setSettings(result)
+      setDrafts(providerSettingsToDrafts(result))
+      setLocalOnlyMode(result.local_only)
+      setRemoteEndpointConfirmed(false)
+      setSuccess(
+        result.restart_required
+          ? `${t.providerSettingsSaved} ${t.providerRestartRequired}`
+          : t.providerSettingsSaved,
+      )
+      onProviderSaved(result)
+      const savedActive = result.providers.find(
+        (item) => item.name === result.active_provider,
+      )
+      if (savedActive) {
+        void loadModels(
+          result.active_provider,
+          savedActive.base_url,
+          savedActive.model,
+        )
+      }
+    } catch {
+      setError(t.providerSaveFailed)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function testCurrentConnection() {
+    if (!currentDraft) return
+    let baseUrl: string
+    try {
+      baseUrl = buildApiBaseUrl(
+        currentDraft.host,
+        currentDraft.portText,
+        currentDraft.api_base_path,
+        currentDraft.protocol,
+      )
+      setValidationError('')
+    } catch (validationError) {
+      const message = providerValidationMessage(validationError, t)
+      setValidationError(message)
+      setError(message)
+      return
+    }
+    const apiKey = currentDraft.clear_api_key
+      ? ''
+      : currentDraft.api_key || undefined
+    await loadModels(activeProvider, baseUrl, currentDraft.model, apiKey)
+  }
+
+  async function checkForUpdates() {
+    setUpdateBusy(true)
+    setUpdateError('')
+    setVerificationMessage('')
+    try {
+      setUpdateInfo(await getUpdateMetadata())
+    } catch {
+      setUpdateError(t.updateUnavailable)
+    } finally {
+      setUpdateBusy(false)
+    }
+  }
+
+  async function verifySelectedFile(file?: File) {
+    const asset = updateInfo?.release.assets?.[0]
+    if (!asset || !file) return
+    setVerificationBusy(true)
+    setVerificationMessage('')
+    try {
+      const matches = await verifySha256File(file, asset.sha256)
+      setVerificationMessage(matches ? t.updateVerified : t.updateVerifyFailed)
+    } catch {
+      setVerificationMessage(t.updateVerifyFailed)
+    } finally {
+      setVerificationBusy(false)
+    }
+  }
 
   return (
     <section className="secondary-view">
@@ -1836,22 +2368,385 @@ function SettingsPage({
           </span>
         </div>
 
-        {providers.map((item) => (
-          <div className="settings-row" key={item.name}>
-            <div>
-              <strong>{providerLabels[item.name]}</strong>
-              <small>{item.base_url}</small>
-            </div>
-            <span className={`connection-label ${providerStates[item.name]}`}>
-              <StatusDot status={providerStates[item.name]} />
-              {statusText(providerStates[item.name], t)}
-            </span>
-          </div>
-        ))}
-
         {startupError && (
           <div className="error-banner" role="alert">
             {startupError}
+          </div>
+        )}
+      </section>
+
+      <form className="surface-card provider-settings-form" onSubmit={(event) => void saveSettings(event)}>
+        <div className="card-heading">
+          <span className="heading-icon"><Cpu size={19} /></span>
+          <div>
+            <h3>{t.providerSettingsTitle}</h3>
+            <p>{t.providerSettingsDescription}</p>
+          </div>
+        </div>
+
+        {loading && <p role="status">{t.settingsLoading}</p>}
+
+        {!loading && settings && drafts && currentDraft && (
+          <>
+            <div className="provider-settings-grid">
+              <label className="field">
+                <span>{t.activeProvider}</span>
+                <div className="select-box">
+                  <select
+                    value={activeProvider}
+                    onChange={(event) =>
+                      handleProviderChange(event.target.value as ProviderName)
+                    }
+                  >
+                    {providerNames.map((name) => (
+                      <option key={name} value={name}>
+                        {t[providerLabelKeys[name]]}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown size={16} />
+                </div>
+              </label>
+
+              <label className="field">
+                <span>{t.endpointProtocol}</span>
+                <div className="select-box">
+                  <select
+                    value={currentDraft.protocol}
+                    onChange={(event) =>
+                      updateHostPortPath(
+                        'protocol',
+                        event.target.value as 'http' | 'https',
+                      )
+                    }
+                  >
+                    <option value="http">HTTP</option>
+                    <option value="https">HTTPS</option>
+                  </select>
+                  <ChevronDown size={16} />
+                </div>
+              </label>
+
+              <label className="field">
+                <span>{t.endpointHost}</span>
+                <input
+                  autoComplete="off"
+                  dir="ltr"
+                  value={currentDraft.host}
+                  onChange={(event) =>
+                    updateHostPortPath('host', event.target.value)
+                  }
+                />
+              </label>
+
+              <label className="field">
+                <span>{t.endpointPort}</span>
+                <input
+                  inputMode="numeric"
+                  min={1}
+                  max={65535}
+                  type="number"
+                  dir="ltr"
+                  value={currentDraft.portText}
+                  onChange={(event) =>
+                    updateHostPortPath('portText', event.target.value)
+                  }
+                />
+              </label>
+
+              <label className="field">
+                <span>{t.apiBasePath}</span>
+                <input
+                  dir="ltr"
+                  value={currentDraft.api_base_path}
+                  onChange={(event) =>
+                    updateHostPortPath('api_base_path', event.target.value)
+                  }
+                />
+              </label>
+
+              <label className="field provider-base-url">
+                <span>{t.apiBaseUrl}</span>
+                <input
+                  autoComplete="url"
+                  dir="ltr"
+                  value={currentDraft.base_url}
+                  onChange={(event) => handleBaseUrlChange(event.target.value)}
+                />
+              </label>
+
+              <label className="field">
+                <span>{t.modelName}</span>
+                <input
+                  list="provider-model-options"
+                  dir="auto"
+                  value={currentDraft.model}
+                  onChange={(event) =>
+                    updateDraft(activeProvider, { model: event.target.value })
+                  }
+                />
+                <datalist id="provider-model-options">
+                  {models.map((model) => (
+                    <option key={model.id} value={model.id} />
+                  ))}
+                </datalist>
+                <small>{t.modelNameHelp}</small>
+              </label>
+
+              <label className="field">
+                <span>{t.patientAgentModel}</span>
+                <input
+                  list="provider-model-options"
+                  dir="auto"
+                  value={currentDraft.patient_model}
+                  onChange={(event) =>
+                    updateDraft(activeProvider, {
+                      patient_model: event.target.value,
+                    })
+                  }
+                />
+                <small>{t.roleModelHelp}</small>
+              </label>
+
+              <label className="field">
+                <span>{t.evaluatorAgentModel}</span>
+                <input
+                  list="provider-model-options"
+                  dir="auto"
+                  value={currentDraft.evaluator_model}
+                  onChange={(event) =>
+                    updateDraft(activeProvider, {
+                      evaluator_model: event.target.value,
+                    })
+                  }
+                />
+                <small>{t.roleModelHelp}</small>
+              </label>
+
+              <label className="field">
+                <span>{t.apiKey}</span>
+                <input
+                  autoComplete="new-password"
+                  type="password"
+                  value={currentDraft.api_key}
+                  onChange={(event) =>
+                    updateDraft(activeProvider, {
+                      api_key: event.target.value,
+                      clear_api_key: false,
+                    })
+                  }
+                />
+                <small>{t.apiKeyHelp}</small>
+              </label>
+            </div>
+
+            <label className="provider-api-key-clear">
+              <input
+                type="checkbox"
+                checked={localOnlyMode}
+                onChange={(event) => {
+                  setLocalOnlyMode(event.target.checked)
+                  setRemoteEndpointConfirmed(false)
+                }}
+              />
+              <span>
+                <strong>{t.localOnlyMode}</strong>
+                <small>{t.localOnlyModeHelp}</small>
+              </span>
+            </label>
+
+            {!localOnlyMode && (
+              <label className="provider-api-key-clear">
+                <input
+                  type="checkbox"
+                  checked={remoteEndpointConfirmed}
+                  onChange={(event) =>
+                    setRemoteEndpointConfirmed(event.target.checked)
+                  }
+                />
+                <span>
+                  <strong>{t.allowRemoteEndpoint}</strong>
+                  <small>{t.allowRemoteEndpointHelp}</small>
+                </span>
+              </label>
+            )}
+
+            {currentDraft.api_key_configured && (
+              <label className="provider-api-key-clear">
+                <input
+                  type="checkbox"
+                  checked={currentDraft.clear_api_key}
+                  onChange={(event) =>
+                    updateDraft(activeProvider, {
+                      clear_api_key: event.target.checked,
+                      api_key: '',
+                    })
+                  }
+                />
+                <span>{t.clearApiKey}</span>
+              </label>
+            )}
+
+            <p className="provider-settings-note">{t.modelsSupported}</p>
+            <p className="provider-settings-note">{t.providerEndpointPrivacy}</p>
+
+            {validationError && (
+              <p className="provider-settings-error" role="alert">
+                {validationError}
+              </p>
+            )}
+            {error && <div className="error-banner" role="alert">{error}</div>}
+            {success && <div className="provider-settings-success" role="status">{success}</div>}
+
+            {connectionMessage && (
+              <div
+                className={`provider-settings-result ${connectionStatus}`}
+                role="status"
+                aria-live="polite"
+              >
+                {connectionMessage}
+              </div>
+            )}
+            {connectionStatus === 'checking' && testing && (
+              <p role="status">{t.testingConnection}</p>
+            )}
+            {models.length === 0 && modelListingSupported && !testing && (
+              <p className="provider-settings-note">{t.noModelsListed}</p>
+            )}
+
+            <div className="provider-settings-actions">
+              <span className={`connection-label ${connectionStatus}`}>
+                <StatusDot status={connectionStatus} />
+                {statusText(connectionStatus, t)}
+              </span>
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={() => void testCurrentConnection()}
+                disabled={testing || saving}
+              >
+                {testing
+                  ? <LoaderCircle className="spin" size={16} />
+                  : <Wifi size={16} />}
+                {testing ? t.testingConnection : t.testConnection}
+              </button>
+              <button
+                type="submit"
+                className="primary-button"
+                disabled={saving || testing}
+              >
+                {saving
+                  ? <LoaderCircle className="spin" size={16} />
+                  : <Check size={16} />}
+                {saving ? t.savingProviderSettings : t.saveProviderSettings}
+              </button>
+            </div>
+          </>
+        )}
+      </form>
+
+      <SupportExport language={language} t={t} />
+
+      <section className="surface-card support-card">
+        <div className="card-heading">
+          <span className="heading-icon"><RefreshCw size={19} /></span>
+          <div>
+            <h3>{t.updateTitle}</h3>
+            <p>{t.updateDescription}</p>
+          </div>
+        </div>
+        <p className="provider-settings-note">
+          {t.updateInstalledVersion}:{' '}
+          <bdi dir="ltr">{updateInfo?.current_version || appVersion || '—'}</bdi>
+        </p>
+        <p className="provider-settings-note">{t.updateNoAutoInstall}</p>
+        <button
+          type="button"
+          className="secondary-button"
+          disabled={updateBusy}
+          onClick={() => void checkForUpdates()}
+        >
+          {updateBusy
+            ? <LoaderCircle className="spin" size={16} />
+            : <RefreshCw size={16} />}
+          {updateBusy ? t.updateChecking : t.updateCheck}
+        </button>
+        {updateError && <p role="alert" className="provider-settings-error">{updateError}</p>}
+        {updateInfo && (
+          <div className="update-metadata" aria-live="polite">
+            {updateInfo.release.status === 'unavailable' ? (
+              <p role="status">{t.updateUnavailable}</p>
+            ) : (
+              <>
+                <p role="status">
+                  {updateInfo.release.update_available
+                    ? t.updateAvailable
+                    : t.updateCurrent}
+                </p>
+                <p>
+                  {t.updateVersion}:{' '}
+                  <bdi dir="ltr">{updateInfo.release.version}</bdi>
+                </p>
+                <p>
+                  {t.updatePublished}:{' '}
+                  <bdi dir="ltr">{updateInfo.release.published_at}</bdi>
+                </p>
+                {updateInfo.release.release_url && (
+                  <a
+                    className="secondary-button"
+                    href={updateInfo.release.release_url}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    {t.updateDownload}
+                  </a>
+                )}
+                {updateInfo.release.notes && (
+                  <details>
+                    <summary>{t.updateNotes}</summary>
+                    <pre dir="auto">{updateInfo.release.notes}</pre>
+                  </details>
+                )}
+                {updateInfo.release.assets?.[0] ? (
+                  <div className="update-asset">
+                    <p>{t.updateChecksum}</p>
+                    <code dir="ltr">{updateInfo.release.assets[0].sha256}</code>
+                    <p className="provider-settings-note">{t.updateVerifyPrompt}</p>
+                    <label className="secondary-button">
+                      {t.updateVerifyFile}
+                      <input
+                        type="file"
+                        accept=".zip,application/zip"
+                        onChange={(event) =>
+                          void verifySelectedFile(event.currentTarget.files?.[0])
+                        }
+                      />
+                    </label>
+                    {verificationBusy && <p role="status">{t.updateChecking}</p>}
+                    {verificationMessage && (
+                      <p role="status" className="provider-settings-result">
+                        {verificationMessage}
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <p>{t.updateNoVerifiedAsset}</p>
+                )}
+              </>
+            )}
+            {updateInfo.source_checkout?.available ? (
+              <div className="source-checkout-info">
+                <strong>{t.updateSourceCheckout}</strong>
+                <p>{t.updateBranch}: <bdi dir="ltr">{updateInfo.source_checkout.branch}</bdi></p>
+                <p>{t.updateCommit}: <bdi dir="ltr">{updateInfo.source_checkout.commit}</bdi></p>
+                <p>
+                  {t.updateDirty}:{' '}
+                  {updateInfo.source_checkout.dirty ? t.updateDirtyYes : t.updateDirtyNo}
+                </p>
+              </div>
+            ) : updateInfo.source_checkout ? (
+              <p>{t.updateSourceUnavailable}</p>
+            ) : null}
           </div>
         )}
       </section>

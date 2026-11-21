@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
     [string]$PythonExe = (Join-Path $PSScriptRoot "..\.venv\Scripts\python.exe"),
-    [string]$OutputZip = (Join-Path $PSScriptRoot "..\dist\TheraSim-v0.2.1-windows-x64.zip")
+    [string]$OutputZip = (Join-Path $PSScriptRoot "..\dist\TheraSim-v0.3.0-Windows-x64-Portable.zip")
 )
 
 $ErrorActionPreference = "Stop"
@@ -32,8 +32,13 @@ if ([version]$nodeVersion -lt [version]"22.0") {
 }
 
 $output = [System.IO.Path]::GetFullPath($OutputZip)
-if (Test-Path $output) {
-    throw "Refusing to overwrite an existing package: $output"
+$manifestPath = [System.IO.Path]::ChangeExtension($output, ".manifest.json")
+if (
+    (Test-Path $output) -or
+    (Test-Path "$output.sha256") -or
+    (Test-Path $manifestPath)
+) {
+    throw "Refusing to overwrite an existing package or sidecar: $output"
 }
 New-Item -ItemType Directory -Force -Path (Split-Path $output) | Out-Null
 $staging = Join-Path ([System.IO.Path]::GetTempPath()) "TheraSim-build-$PID"
@@ -47,6 +52,8 @@ try {
     try {
         & npm.cmd ci
         if ($LASTEXITCODE -ne 0) { throw "npm ci failed." }
+        & npm.cmd test
+        if ($LASTEXITCODE -ne 0) { throw "Frontend tests failed." }
         & npm.cmd run lint
         if ($LASTEXITCODE -ne 0) { throw "Frontend lint failed." }
         & npm.cmd run build -- --outDir (Join-Path $staging "frontend") --emptyOutDir
@@ -85,8 +92,31 @@ try {
     Compress-Archive -Path $packageDir -DestinationPath $output -CompressionLevel Optimal
     $hash = (Get-FileHash -Algorithm SHA256 $output).Hash.ToLowerInvariant()
     Set-Content -Path "$output.sha256" -Value "$hash  $(Split-Path $output -Leaf)" -Encoding ascii
+    $packageInfo = Get-Item -LiteralPath $output
+    $manifest = [ordered]@{
+        schema_version = 1
+        application = "TheraSim"
+        version = "0.3.0"
+        package_file = $packageInfo.Name
+        architecture = "x64"
+        format = "portable one-folder ZIP"
+        size_bytes = $packageInfo.Length
+        checksum_algorithm = "SHA-256"
+        checksum = $hash
+        python_build_version = $pythonVersion
+        node_build_version = $nodeVersion
+        model_weights_included = $false
+        built_at_utc = [DateTimeOffset]::UtcNow.ToString("o")
+    }
+    $manifestJson = $manifest | ConvertTo-Json
+    [System.IO.File]::WriteAllText(
+        $manifestPath,
+        "$manifestJson`n",
+        [System.Text.UTF8Encoding]::new($false)
+    )
     Write-Output "Package: $output"
     Write-Output "SHA-256: $hash"
+    Write-Output "Manifest: $manifestPath"
 } finally {
     if (Test-Path $staging) {
         Remove-Item -LiteralPath $staging -Recurse -Force

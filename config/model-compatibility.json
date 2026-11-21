@@ -1,0 +1,140 @@
+{
+  "schema_version": 1,
+  "last_updated": "2026-11-21",
+  "scope": "Observed local smoke tests only; not a global recommendation.",
+  "test_environment": {
+    "operating_system": "Windows 11 Pro, build 10.0.26300, x64",
+    "cpu": "12th Gen Intel Core i7-12650H, 10 cores, 16 logical processors",
+    "system_ram_gib": 15.6,
+    "gpu": "NVIDIA GeForce RTX 3060 Laptop GPU, 6 GiB VRAM",
+    "other_gpu": "Intel UHD Graphics; inference acceleration not tested",
+    "ollama_version": "0.34.4",
+    "coverage_limit": "One development machine; other operating systems and hardware were not tested."
+  },
+  "models": [
+    {
+      "model_tag": "gemma-4-E2B:latest",
+      "ollama_model_id": "32632e5db6f6",
+      "provider": "Ollama OpenAI-compatible API",
+      "architecture": "gemma4",
+      "parameters": "4.6B",
+      "quantization": "Q4_K_M",
+      "ollama_list_size": "3.4 GB",
+      "metadata_context_tokens": 131072,
+      "runtime_context_tokens_observed": 65536,
+      "license_status": "Exact legacy tag license text was not exposed by `ollama show --license`; verify terms before use.",
+      "hardware_tested": "Windows 11 x64; 15.6 GiB RAM; RTX 3060 Laptop GPU, 6 GiB VRAM",
+      "roles": {
+        "simulated_client": {
+          "status": "verified_smoke",
+          "runs": 1,
+          "successes": 1,
+          "latency_seconds": 10.62,
+          "notes": "Actual PatientAgent returned a schema-valid synthetic response. Language quality was not systematically reviewed."
+        },
+        "act_evaluator": {
+          "status": "failed",
+          "runs": 3,
+          "successes": 0,
+          "latency_seconds": [
+            33.67,
+            41.52
+          ],
+          "notes": "Unconstrained output had invalid list-field types. A production JSON-schema request failed evidence-speaker/source validation. A further schema-constrained run also failed the report contract."
+        }
+      }
+    },
+    {
+      "model_tag": "qwen2.5:3b",
+      "ollama_model_id": "357c53fb659c",
+      "provider": "Ollama OpenAI-compatible API",
+      "architecture": "qwen2",
+      "parameters": "3.1B",
+      "quantization": "Q4_K_M",
+      "ollama_list_size": "1.9 GB",
+      "metadata_context_tokens": 32768,
+      "runtime_context_tokens_observed": 32768,
+      "license_status": "Ollama model metadata identifies the Qwen Research License Agreement; review its terms, especially commercial-use restrictions.",
+      "hardware_tested": "Windows 11 x64; 15.6 GiB RAM; RTX 3060 Laptop GPU, 6 GiB VRAM",
+      "runtime_residency_observed": "100% GPU; `ollama ps` reported 3.4 GB runtime size",
+      "roles": {
+        "simulated_client": {
+          "status": "verified_smoke",
+          "runs": 7,
+          "successes": 7,
+          "latency_seconds": [
+            6.95,
+            5.598,
+            2.627,
+            0.976,
+            0.905,
+            1.169,
+            2.961
+          ],
+          "notes": "Actual PatientAgent returned schema-valid synthetic responses in both English and Persian cases, including three benchmark repetitions per case plus one separate smoke call. Broader language quality and persona consistency remain unverified."
+        },
+        "act_evaluator": {
+          "status": "not_recommended; repeated_contract_failures",
+          "benchmark_runs": 6,
+          "benchmark_successes": 4,
+          "benchmark_failures": 2,
+          "benchmark_scenarios": [
+            "english_workplace_values",
+            "persian_workplace_values"
+          ],
+          "repetitions_per_scenario": 3,
+          "benchmark_mean_latency_seconds": 42.144,
+          "additional_structured_contract_smoke": {
+            "successes": 2,
+            "runs": 2,
+            "latency_seconds": [
+              49.59,
+              51.52
+            ]
+          },
+          "unconstrained_contract_smoke": {
+            "successes": 0,
+            "runs": 1,
+            "latency_seconds": 14.09
+          },
+          "notes": "The strict Ollama JSON-schema request passed four of six reports across two synthetic cases repeated three times. Two reports failed exact transcript-quote validation. Two additional separate structured reports passed, while one unconstrained report failed. Invalid reports were rejected; rating accuracy was not independently judged."
+        }
+      }
+    },
+    {
+      "model_tag": "Qwen3.5:9b",
+      "ollama_model_id": "8c7bea6dc9b3",
+      "provider": "Ollama",
+      "architecture": "qwen35",
+      "parameters": "9.0B",
+      "quantization": "Q4_K_M",
+      "ollama_list_size": "5.6 GB",
+      "metadata_context_tokens": 262144,
+      "runtime_context_tokens_observed": 65536,
+      "license_status": "Ollama model metadata exposes restrictive research/non-commercial terms; verify the exact agreement.",
+      "hardware_tested": "Windows 11 x64; 15.6 GiB RAM; RTX 3060 Laptop GPU, 6 GiB VRAM",
+      "runtime_residency_observed": "About 4.2 GB GPU memory reported at 65536 context",
+      "roles": {
+        "simulated_client": {
+          "status": "failed",
+          "runs": 1,
+          "successes": 0,
+          "latency_seconds": 119,
+          "notes": "Actual PatientAgent received no valid visible response."
+        },
+        "act_evaluator": {
+          "status": "failed",
+          "runs": 1,
+          "successes": 0,
+          "latency_seconds": 600,
+          "notes": "The actual evaluator workflow timed out."
+        }
+      }
+    }
+  ],
+  "recommendations": {
+    "global": "None. A single Windows workstation and a small number of synthetic runs cannot establish broad compatibility.",
+    "simulated_client": "qwen2.5:3b and gemma-4-E2B:latest passed one local synthetic PatientAgent smoke call each; neither has broad language-quality verification.",
+    "act_evaluator": "None. qwen2.5:3b passed 4/6 reports across two synthetic cases repeated three times, plus two separate contract smoke runs, but two benchmark reports failed exact evidence validation. The other tested models failed. No model is reliable enough to recommend."
+  }
+}

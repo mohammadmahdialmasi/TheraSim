@@ -19,7 +19,10 @@ from app.api.routes.interactions import router as interactions_router
 from app.api.routes.memories import router as memories_router
 from app.api.routes.events import router as events_router
 from app.api.routes.treatment_plans import router as treatment_plans_router
+from app.api.routes.support import router as support_router
+from app.api.routes.updates import router as updates_router
 from app.core.config import settings
+from app.core.provider_settings import ProviderSettingsStore
 from app.llm.client import OpenAICompatibleClient
 from app.llm.evaluator_agent import EvaluatorAgent
 from app.llm.memory_extraction_agent import MemoryExtractionAgent
@@ -46,6 +49,9 @@ from app.services.run_analytics import RunAnalyticsService
 async def lifespan(application: FastAPI) -> AsyncIterator[None]:
     """Initialize local databases before the API starts serving requests."""
 
+    provider_settings_store = ProviderSettingsStore(settings)
+    provider_settings_store.load()
+    application.state.provider_settings_store = provider_settings_store
     database_manager = DatabaseManager()
     applied_migrations = database_manager.initialize()
 
@@ -67,6 +73,9 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
         MemoryExtractionStatusService(database_manager)
     )
     application.state.memory_extraction_worker = None
+    application.state.provider_client = None
+    application.state.evaluator_agent = None
+    application.state.memory_extraction_agent = None
     application.state.patient_agent = None
     application.state.interaction_service = None
     evaluator_agent = None
@@ -76,34 +85,45 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
     # No provider request is made during application startup.
     provider_config = settings.active_provider
 
-    if provider_config.model:
+    patient_model = provider_settings_store.model_for_role("patient")
+    evaluator_model = provider_settings_store.model_for_role("evaluator")
+
+    if provider_config.model or patient_model or evaluator_model:
         provider_client = OpenAICompatibleClient(
             config=provider_config,
             timeout=settings.request_timeout_seconds,
         )
-        patient_agent = PatientAgent(provider_client)
-        evaluator_agent = EvaluatorAgent(
-            provider_client,
-            model=provider_config.model,
-        )
-
-        application.state.patient_agent = patient_agent
-        application.state.interaction_service = InteractionService(
-            database_manager,
-            patient_agent,
-            request_timeout_seconds=settings.request_timeout_seconds,
-        )
-        memory_worker = MemoryExtractionWorker(
-            database_manager,
-            application.state.memory_service,
-            MemoryExtractionAgent(provider_client),
-            request_timeout_seconds=settings.request_timeout_seconds,
-        )
-        application.state.memory_extraction_worker = memory_worker
-        memory_worker_task = asyncio.create_task(
-            memory_worker.run_forever(),
-            name="therasim-memory-extraction",
-        )
+        application.state.provider_client = provider_client
+        if patient_model:
+            patient_agent = PatientAgent(provider_client, model=patient_model)
+            memory_extraction_agent = MemoryExtractionAgent(
+                provider_client,
+                model=patient_model,
+            )
+            application.state.patient_agent = patient_agent
+            application.state.interaction_service = InteractionService(
+                database_manager,
+                patient_agent,
+                request_timeout_seconds=settings.request_timeout_seconds,
+            )
+            application.state.memory_extraction_agent = memory_extraction_agent
+            memory_worker = MemoryExtractionWorker(
+                database_manager,
+                application.state.memory_service,
+                memory_extraction_agent,
+                request_timeout_seconds=settings.request_timeout_seconds,
+            )
+            application.state.memory_extraction_worker = memory_worker
+            memory_worker_task = asyncio.create_task(
+                memory_worker.run_forever(),
+                name="therasim-memory-extraction",
+            )
+        if evaluator_model:
+            evaluator_agent = EvaluatorAgent(
+                provider_client,
+                model=evaluator_model,
+            )
+            application.state.evaluator_agent = evaluator_agent
 
     application.state.evaluation_service = EvaluationService(
         database_manager,
@@ -121,6 +141,10 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
             application.state.memory_extraction_worker.request_stop()
             await memory_worker_task
         application.state.memory_extraction_worker = None
+        application.state.provider_settings_store = None
+        application.state.provider_client = None
+        application.state.evaluator_agent = None
+        application.state.memory_extraction_agent = None
         application.state.memory_extraction_status_service = None
         application.state.interaction_request_status_service = None
         application.state.interaction_service = None
@@ -164,6 +188,8 @@ app.include_router(memories_router, dependencies=protected)
 app.include_router(events_router, dependencies=protected)
 app.include_router(treatment_plans_router, dependencies=protected)
 app.include_router(analytics_router, dependencies=protected)
+app.include_router(support_router, dependencies=protected)
+app.include_router(updates_router, dependencies=protected)
 
 
 def _configure_frontend() -> None:

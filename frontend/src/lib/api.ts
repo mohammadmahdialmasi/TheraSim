@@ -1,11 +1,20 @@
 import type {
   ChatResponse,
   HealthResponse,
+  HardwareAssessment,
   ModelListResponse,
   ProviderCatalog,
+  ProviderConnectionTestResponse,
+  ProviderSettingsResponse,
   ProviderName,
+  UpdateMetadataResponse,
 } from '../types'
 import { clearAuthToken, getAuthToken } from './authSession'
+import {
+  createSupportExportRequest,
+  getSupportPreviewUrl,
+  parseSupportArchiveResponse,
+} from './supportDiagnostics'
 
 export async function request<T>(
   url: string,
@@ -81,6 +90,69 @@ export function getModels(provider: ProviderName) {
   )
 }
 
+export function getHardwareAssessment() {
+  return request<HardwareAssessment>('/api/v1/llm/hardware')
+}
+
+export function getProviderSettings() {
+  return request<ProviderSettingsResponse>(
+    '/api/v1/llm/providers/settings',
+  )
+}
+
+export function saveProviderSettings(
+  payload: {
+    active_provider: ProviderName
+    local_only: boolean
+    confirm_remote_endpoints: boolean
+    providers: Array<{
+      name: ProviderName
+      base_url: string
+      model: string
+      patient_model: string
+      evaluator_model: string
+      api_key?: string
+      clear_api_key?: boolean
+    }>
+  },
+) {
+  return request<ProviderSettingsResponse>(
+    '/api/v1/llm/providers/settings',
+    {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    },
+  )
+}
+
+export function testProviderConnection(
+  provider: ProviderName,
+  baseUrl: string,
+  model: string,
+  apiKey?: string,
+) {
+  return request<ProviderConnectionTestResponse>(
+    `/api/v1/llm/providers/${provider}/test`,
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        base_url: baseUrl,
+        ...(model ? { model } : {}),
+        ...(apiKey !== undefined ? { api_key: apiKey } : {}),
+      }),
+    },
+    30000,
+  )
+}
+
+export function getUpdateMetadata() {
+  return request<UpdateMetadataResponse>(
+    '/api/v1/updates/check',
+    {},
+    10000,
+  )
+}
+
 export interface SupportPreviewResponse {
   language: 'en' | 'fa'
   application: Record<string, unknown>
@@ -93,7 +165,7 @@ export interface SupportPreviewResponse {
 
 export function getSupportPreview(language: 'en' | 'fa') {
   return request<SupportPreviewResponse>(
-    `/api/v1/support/preview?language=${encodeURIComponent(language)}`,
+    getSupportPreviewUrl(language),
   )
 }
 
@@ -101,15 +173,10 @@ export async function downloadSupportArchive(
   language: 'en' | 'fa',
 ): Promise<{ blob: Blob; filename: string }> {
   const token = getAuthToken()
-  const response = await fetch('/api/v1/support/export', {
-    method: 'POST',
-    headers: {
-      Accept: 'application/zip',
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    body: JSON.stringify({ confirmed: true, language }),
-  })
+  const response = await fetch(
+    '/api/v1/support/export',
+    createSupportExportRequest(language, token),
+  )
   if (!response.ok) {
     if (response.status === 401) {
       clearAuthToken()
@@ -117,14 +184,7 @@ export async function downloadSupportArchive(
     }
     throw new Error('Support diagnostics export failed.')
   }
-  const blob = await response.blob()
-  const disposition = response.headers.get('Content-Disposition') ?? ''
-  const filenameMatch = disposition.match(/filename="?([^";]+)"?/i)
-  const filename = filenameMatch?.[1]
-    ?? (language === 'fa'
-      ? 'TheraSim-support-diagnostics-fa.zip'
-      : 'TheraSim-support-diagnostics.zip')
-  return { blob, filename }
+  return parseSupportArchiveResponse(response, language)
 }
 
 export function sendChat(

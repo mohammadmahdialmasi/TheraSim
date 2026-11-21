@@ -106,7 +106,9 @@ def test_support_preview_and_persian_export_are_language_aware():
         json={"confirmed": True, "language": "fa"},
     )
     assert response.status_code == 200
-    assert "TheraSim-support-diagnostics-fa.zip" in response.headers["content-disposition"]
+    assert "TheraSim-support-diagnostics-fa.zip" in response.headers[
+        "content-disposition"
+    ]
 
     with ZipFile(BytesIO(response.content)) as archive:
         readme = archive.read("README.txt").decode("utf-8")

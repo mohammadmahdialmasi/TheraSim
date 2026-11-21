@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 
 from app.core.paths import project_root
-from app.desktop import load_local_config, user_data_dir
+from app.desktop import _open_browser, load_local_config, user_data_dir
 
 
 def test_local_config_loads_only_allowlisted_values(tmp_path: Path) -> None:
@@ -53,3 +53,15 @@ def test_source_resource_root_contains_current_act_rubric() -> None:
     assert (
         project_root() / "rubrics" / "act" / "ACT_RUBRIC_V0.json"
     ).is_file()
+
+
+def test_browser_can_be_disabled_for_headless_package_smoke(
+    monkeypatch,
+) -> None:
+    def unexpected_browser_open(_url: str) -> bool:
+        raise AssertionError("The headless check must not open a browser.")
+
+    monkeypatch.setenv("THERASIM_OPEN_BROWSER", "0")
+    monkeypatch.setattr("app.desktop.webbrowser.open", unexpected_browser_open)
+
+    _open_browser("http://127.0.0.1:8765/")

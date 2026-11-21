@@ -22,6 +22,12 @@ CONFIG_KEYS = frozenset(
         "LM_STUDIO_BASE_URL",
         "LM_STUDIO_MODEL",
         "LM_STUDIO_API_KEY",
+        "LLAMA_CPP_BASE_URL",
+        "LLAMA_CPP_MODEL",
+        "LLAMA_CPP_API_KEY",
+        "CUSTOM_OPENAI_BASE_URL",
+        "CUSTOM_OPENAI_MODEL",
+        "CUSTOM_OPENAI_API_KEY",
     }
 )
 DEFAULT_PORT = 8765
@@ -119,6 +125,22 @@ def _port_from_environment() -> int:
     return port
 
 
+def _open_browser(url: str) -> None:
+    if os.environ.get("THERASIM_OPEN_BROWSER", "1").strip().lower() in {
+        "0",
+        "false",
+        "no",
+        "off",
+    }:
+        return
+    try:
+        webbrowser.open(url)
+    except Exception:
+        logging.getLogger(__name__).exception(
+            "Could not open a browser automatically; use %s", url
+        )
+
+
 async def _serve(port: int) -> None:
     # Import after applying the per-user runtime configuration so Settings and
     # the optional frontend mount are initialized from the intended paths.
@@ -153,12 +175,7 @@ async def _serve(port: int) -> None:
 
     url = f"http://127.0.0.1:{port}/"
     logging.getLogger(__name__).info("TheraSim is ready at %s", url)
-    try:
-        webbrowser.open(url)
-    except Exception:
-        logging.getLogger(__name__).exception(
-            "Could not open a browser automatically; use %s", url
-        )
+    _open_browser(url)
 
     await server_task
 

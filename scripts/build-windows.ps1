@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
     [string]$PythonExe = (Join-Path $PSScriptRoot "..\.venv\Scripts\python.exe"),
-    [string]$OutputZip = (Join-Path $PSScriptRoot "..\dist\TheraSim-v0.3.0-Windows-x64-Portable.zip")
+    [string]$OutputZip = (Join-Path $PSScriptRoot "..\dist\TheraSim-v0.3.1-Windows-x64-Portable.zip")
 )
 
 $ErrorActionPreference = "Stop"
@@ -96,7 +96,7 @@ try {
     $manifest = [ordered]@{
         schema_version = 1
         application = "TheraSim"
-        version = "0.3.0"
+        version = "0.3.1"
         package_file = $packageInfo.Name
         architecture = "x64"
         format = "portable one-folder ZIP"

@@ -58,7 +58,7 @@ TheraSim is secure or vulnerability-free.
 ## Portable package runtime check
 
 Artifact:
-`TheraSim-v0.3.0-Windows-x64-Portable.zip` (portable one-folder ZIP, Windows
+`TheraSim-v0.3.1-Windows-x64-Portable.zip` (portable one-folder ZIP, Windows
 x64); SHA-256:
 `df1be242f0040b67b9b15ad7e7d7f52e136ed260f690f79370716200d9715319`.
 The 26,345,293-byte archive matched its `.sha256` sidecar and JSON manifest.

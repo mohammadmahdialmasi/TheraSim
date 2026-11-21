@@ -15,7 +15,7 @@ TheraSim is an experimental application for rehearsing therapist-client conversa
 
 The project explores whether fictional conversations, explicit information boundaries, longitudinal records, and transcript-linked formative feedback can support skills practice and software research. The current implementation is a prototype; it does not demonstrate improved clinical outcomes.
 
-The application supports a fictional ACT workflow. **Acceptance and Commitment Therapy (ACT) is the only runnable modality.** Other approaches shown in the interface are roadmap categories, not executable therapy modules. The published GitHub Release v0.2.0 is immutable and its Windows ZIP contains an unintended migration backup. The current Windows x64 package target is `TheraSim-v0.3.0-Windows-x64-Portable.zip`. Check the [GitHub Releases page](https://github.com/mohammadmahdialmasi/TheraSim/releases) and use only a published asset with its matching `.sha256` file after the release workflow has passed. A local build, even with a matching checksum, is not a published release.
+The application supports a fictional ACT workflow. **Acceptance and Commitment Therapy (ACT) is the only runnable modality.** Other approaches shown in the interface are roadmap categories, not executable therapy modules. The published GitHub Release v0.2.0 is immutable and its Windows ZIP contains an unintended migration backup. The current Windows x64 package target is `TheraSim-v0.3.1-Windows-x64-Portable.zip`. Check the [GitHub Releases page](https://github.com/mohammadmahdialmasi/TheraSim/releases) and use only a published asset with its matching `.sha256` file after the release workflow has passed. A local build, even with a matching checksum, is not a published release.
 
 ### Implemented capabilities
 
@@ -102,7 +102,7 @@ at startup.
 
 **Windows development launcher:** install Python 3.11+ and Node.js LTS, then run `START_THERASIM.bat` from the repository root. The launcher offers setup for missing dependencies, initializes local databases without resetting existing data, and opens `http://127.0.0.1:5173`. On first use, create the single local reviewer account with a password of at least 12 characters. Use `STOP_THERASIM.bat` to stop only processes owned by the launcher.
 
-Windows executable users should follow [INSTALL_WINDOWS.md](INSTALL_WINDOWS.md). The distributable is a non-admin, one-folder Windows x64 portable ZIP named `TheraSim-v0.3.0-Windows-x64-Portable.zip`, not an installer. It binds to loopback, keeps SQLite data and logs under `%LOCALAPPDATA%\TheraSim`, and does not bundle model weights. Download only a published asset and its matching checksum from GitHub Releases after its workflow verification. The installation guide also explains the in-app support preview and export.
+Windows executable users should follow [INSTALL_WINDOWS.md](INSTALL_WINDOWS.md). The distributable is a non-admin, one-folder Windows x64 portable ZIP named `TheraSim-v0.3.1-Windows-x64-Portable.zip`, not an installer. It binds to loopback, keeps SQLite data and logs under `%LOCALAPPDATA%\TheraSim`, and does not bundle model weights. Download only a published asset and its matching checksum from GitHub Releases after its workflow verification. The installation guide also explains the in-app support preview and export.
 
 Initial dependency installation, package downloads, or optional model downloads may require internet access; this project does not claim a fully air-gapped installation.
 
@@ -179,7 +179,7 @@ Cite the project using [`CITATION.cff`](CITATION.cff). The published Zenodo `v0.
 ### Project links
 
 - [GitHub repository](https://github.com/mohammadmahdialmasi/TheraSim)
-- [Changelog](CHANGELOG.md) · [v0.3.0 release notes](docs/RELEASE_NOTES_v0.3.0.md) · [v0.3.0 integration audit](docs/V0.3.0_FINAL_INTEGRATION_AUDIT.md) · [v0.2.1 release notes](docs/RELEASE_NOTES_v0.2.1.md) · [Release checklist](docs/RELEASE_CHECKLIST.md) · [Security scan notes](docs/SECURITY_SCAN_NOTES.md) · [Windows installation](INSTALL_WINDOWS.md) · [Windows build](BUILD_WINDOWS.md) · [Installation](docs/INSTALLATION.md) · [User guide](docs/USER_GUIDE.md)
+- [Changelog](CHANGELOG.md) · [v0.3.1 release notes](docs/RELEASE_NOTES_v0.3.1.md) · [v0.3.0 release notes](docs/RELEASE_NOTES_v0.3.0.md) · [v0.3.0 integration audit](docs/V0.3.0_FINAL_INTEGRATION_AUDIT.md) · [v0.2.1 release notes](docs/RELEASE_NOTES_v0.2.1.md) · [Release checklist](docs/RELEASE_CHECKLIST.md) · [Security scan notes](docs/SECURITY_SCAN_NOTES.md) · [Windows installation](INSTALL_WINDOWS.md) · [Windows build](BUILD_WINDOWS.md) · [Installation](docs/INSTALLATION.md) · [User guide](docs/USER_GUIDE.md)
 - [MVP decisions](docs/MVP_DECISIONS.md) · [Security boundaries](docs/SECURITY_BOUNDARIES.md)
 - [Ollama setup](docs/OLLAMA_SETUP.md) · [Local model evaluation](docs/LOCAL_AI_MODEL_EVALUATION.md) · [Troubleshooting](docs/TROUBLESHOOTING.md)
 - [Translation glossary](docs/TRANSLATION_GLOSSARY.md) · [I18n guidelines](docs/I18N_GUIDELINES.md)
@@ -203,7 +203,7 @@ TheraSim نرم‌افزاری آزمایشی برای تمرین گفت‌وگ�
 
 این پروژه بررسی می‌کند که آیا گفت‌وگوهای داستانی، مرزبندی روشن اطلاعات، ثبت پیوستگی میان جلسات و بازخورد تکوینیِ متصل به رونوشت می‌توانند به تمرین مهارت‌ها و پژوهش نرم‌افزاری کمک کنند یا نه. پیاده‌سازی فعلی نمونهٔ اولیه است و بهبود پیامدهای بالینی را نشان نمی‌دهد.
 
-برنامه از یک جریان کاری داستانی مبتنی بر درمان مبتنی بر پذیرش و تعهد پشتیبانی می‌کند. **ACT تنها رویکرد درمانیِ قابل اجرا در نسخهٔ فعلی است.** رویکردهای دیگری که در رابط دیده می‌شوند دسته‌های احتمالیِ آینده‌اند، نه ماژول‌های درمانیِ اجرایی. انتشار GitHub نسخهٔ ۰٫۲٫۰ منتشر و تغییرناپذیر است و ZIP ویندوز آن سهواً یک نسخهٔ پشتیبان مهاجرت را در بر دارد. هدف فعلی بستهٔ ویندوز x64 با نام `TheraSim-v0.3.0-Windows-x64-Portable.zip` است. [صفحهٔ GitHub Releases](https://github.com/mohammadmahdialmasi/TheraSim/releases) را بررسی کنید و فقط بستهٔ منتشرشده را همراه فایل `.sha256` متناظر، پس از موفقیت گردش‌کار انتشار دریافت کنید. حتی ساخت محلی با checksum مطابق نیز انتشار عمومی نیست.
+برنامه از یک جریان کاری داستانی مبتنی بر درمان مبتنی بر پذیرش و تعهد پشتیبانی می‌کند. **ACT تنها رویکرد درمانیِ قابل اجرا در نسخهٔ فعلی است.** رویکردهای دیگری که در رابط دیده می‌شوند دسته‌های احتمالیِ آینده‌اند، نه ماژول‌های درمانیِ اجرایی. انتشار GitHub نسخهٔ ۰٫۲٫۰ منتشر و تغییرناپذیر است و ZIP ویندوز آن سهواً یک نسخهٔ پشتیبان مهاجرت را در بر دارد. هدف فعلی بستهٔ ویندوز x64 با نام `TheraSim-v0.3.1-Windows-x64-Portable.zip` است. [صفحهٔ GitHub Releases](https://github.com/mohammadmahdialmasi/TheraSim/releases) را بررسی کنید و فقط بستهٔ منتشرشده را همراه فایل `.sha256` متناظر، پس از موفقیت گردش‌کار انتشار دریافت کنید. حتی ساخت محلی با checksum مطابق نیز انتشار عمومی نیست.
 
 ### قابلیت‌های پیاده‌سازی‌شده
 
@@ -291,7 +291,7 @@ SQLite عملیاتی       SQLite جداگانه برای پرونده‌های
 
 **راه‌انداز توسعه در ویندوز:** Python نسخهٔ 3.11 یا جدیدتر و Node.js LTS را نصب کنید و از ریشهٔ مخزن `START_THERASIM.bat` را اجرا کنید. راه‌انداز برای وابستگی‌های نصب‌نشده گزینهٔ آماده‌سازی ارائه می‌دهد، پایگاه‌دادهٔ محلی را بدون بازنشانی دادهٔ موجود مقداردهی می‌کند و نشانی `http://127.0.0.1:5173` را باز می‌کند. در نخستین اجرا، حساب تک‌کاربرهٔ محلی را با گذرواژه‌ای حداقل ۱۲ نویسه‌ای بسازید. برای توقف فقط فرایندهای متعلق به راه‌انداز، `STOP_THERASIM.bat` را اجرا کنید.
 
-برای اجرای نسخهٔ اجرایی ویندوز، [راهنمای نصب](INSTALL_WINDOWS.md) را ببینید. قالب بسته، ZIP قابل‌حمل پوشه‌ای و x64 با نام `TheraSim-v0.3.0-Windows-x64-Portable.zip` است؛ نصب‌کننده نیست و به دسترسی مدیر نیاز ندارد. برنامه فقط به loopback متصل می‌شود، پایگاه‌داده و گزارش‌ها را در `%LOCALAPPDATA%\TheraSim` نگه می‌دارد و وزن مدل زبانی همراه آن نیست. فقط فایل منتشرشده و checksum متناظر را از GitHub Releases، پس از تأیید گردش‌کار انتشار، دریافت کنید. راهنمای نصب، پیش‌نمایش و خروجی پشتیبانی درون‌برنامه‌ای را نیز توضیح می‌دهد.
+برای اجرای نسخهٔ اجرایی ویندوز، [راهنمای نصب](INSTALL_WINDOWS.md) را ببینید. قالب بسته، ZIP قابل‌حمل پوشه‌ای و x64 با نام `TheraSim-v0.3.1-Windows-x64-Portable.zip` است؛ نصب‌کننده نیست و به دسترسی مدیر نیاز ندارد. برنامه فقط به loopback متصل می‌شود، پایگاه‌داده و گزارش‌ها را در `%LOCALAPPDATA%\TheraSim` نگه می‌دارد و وزن مدل زبانی همراه آن نیست. فقط فایل منتشرشده و checksum متناظر را از GitHub Releases، پس از تأیید گردش‌کار انتشار، دریافت کنید. راهنمای نصب، پیش‌نمایش و خروجی پشتیبانی درون‌برنامه‌ای را نیز توضیح می‌دهد.
 
 نصب اولیهٔ وابستگی‌ها، دریافت بسته‌ها یا دریافت مدل اختیاری ممکن است به اینترنت نیاز داشته باشد؛ پروژه ادعای نصب کاملاً بدون اینترنت ندارد.
 
@@ -363,7 +363,7 @@ $env:OLLAMA_MODEL = "your-installed-model"
 ### پیوندهای پروژه
 
 - [مخزن GitHub](https://github.com/mohammadmahdialmasi/TheraSim)
-- [تاریخچهٔ تغییرات](CHANGELOG.md) · [یادداشت‌های انتشار ۰٫۳٫۰](docs/RELEASE_NOTES_v0.3.0.md) · [ممیزی یکپارچه‌سازی ۰٫۳٫۰](docs/V0.3.0_FINAL_INTEGRATION_AUDIT.md) · [یادداشت‌های انتشار ۰٫۲٫۱](docs/RELEASE_NOTES_v0.2.1.md) · [چک‌لیست انتشار](docs/RELEASE_CHECKLIST.md) · [یادداشت‌های بررسی امنیتی](docs/SECURITY_SCAN_NOTES.md) · [نصب ویندوز](INSTALL_WINDOWS.md) · [ساخت ویندوز](BUILD_WINDOWS.md) · [راهنمای نصب](docs/INSTALLATION.fa.md) · [راهنمای کاربر](docs/USER_GUIDE.fa.md)
+- [تاریخچهٔ تغییرات](CHANGELOG.md) · [یادداشت‌های انتشار ۰٫۳٫۱](docs/RELEASE_NOTES_v0.3.1.md) · [یادداشت‌های انتشار ۰٫۳٫۰](docs/RELEASE_NOTES_v0.3.0.md) · [ممیزی یکپارچه‌سازی ۰٫۳٫۰](docs/V0.3.0_FINAL_INTEGRATION_AUDIT.md) · [یادداشت‌های انتشار ۰٫۲٫۱](docs/RELEASE_NOTES_v0.2.1.md) · [چک‌لیست انتشار](docs/RELEASE_CHECKLIST.md) · [یادداشت‌های بررسی امنیتی](docs/SECURITY_SCAN_NOTES.md) · [نصب ویندوز](INSTALL_WINDOWS.md) · [ساخت ویندوز](BUILD_WINDOWS.md) · [راهنمای نصب](docs/INSTALLATION.fa.md) · [راهنمای کاربر](docs/USER_GUIDE.fa.md)
 - [تصمیم‌های MVP](docs/MVP_DECISIONS.md) · [مرزهای امنیتی](docs/SECURITY_BOUNDARIES.md)
 - [راه‌اندازی Ollama](docs/OLLAMA_SETUP.fa.md) · [ارزیابی مدل محلی](docs/LOCAL_AI_MODEL_EVALUATION.md) · [عیب‌یابی](docs/TROUBLESHOOTING.fa.md)
 - [واژه‌نامهٔ ترجمه](docs/TRANSLATION_GLOSSARY.md) · [راهنمای چندزبانگی](docs/I18N_GUIDELINES.md)

@@ -5,7 +5,7 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-EXPECTED = "0.3.0"
+EXPECTED = "0.3.1"
 
 
 def read(path: str) -> str:
@@ -37,16 +37,16 @@ checks = [
     ),
     (
         "frontend/src/App.tsx",
-        "TheraSim · 0.3.0" in read("frontend/src/App.tsx"),
+        "TheraSim · 0.3.1" in read("frontend/src/App.tsx"),
     ),
     (
         "build script",
-        "TheraSim-v0.3.0-Windows-x64-Portable.zip"
+        "TheraSim-v0.3.1-Windows-x64-Portable.zip"
         in read("scripts/build-windows.ps1"),
     ),
     (
         "Windows workflow",
-        "TheraSim-v0.3.0-Windows-x64-Portable"
+        "TheraSim-v0.3.1-Windows-x64-Portable"
         in read(".github/workflows/windows-package.yml"),
     ),
 ]

@@ -29,7 +29,7 @@ py -3.13 -m venv .venv
 The build runs `npm ci`, frontend lint and TypeScript/production build, installs
 the pinned backend/build dependencies, then creates a PyInstaller one-folder
 package. The default output is
-`dist\TheraSim-v0.3.0-Windows-x64-Portable.zip`, accompanied by a SHA-256
+`dist\TheraSim-v0.3.1-Windows-x64-Portable.zip`, accompanied by a SHA-256
 sidecar and JSON build manifest. The manifest records the artifact name, version,
 architecture, package format, build-runtime versions, byte size, checksum,
 and that model weights are excluded.
@@ -44,7 +44,7 @@ To select another Python executable or output path:
 ```powershell
 .\scripts\build-windows.ps1 `
   -PythonExe .\.venv\Scripts\python.exe `
-  -OutputZip "$env:TEMP\TheraSim-v0.3.0-Windows-x64-Portable.zip"
+  -OutputZip "$env:TEMP\TheraSim-v0.3.1-Windows-x64-Portable.zip"
 ```
 
 ## Verify the actual package
@@ -53,7 +53,7 @@ Run the smoke test against the resulting archive:
 
 ```powershell
 .\scripts\verify-windows-package.ps1 `
-  -PackageZip .\dist\TheraSim-v0.3.0-Windows-x64-Portable.zip
+  -PackageZip .\dist\TheraSim-v0.3.1-Windows-x64-Portable.zip
 ```
 
 The smoke test extracts the package into a unique temporary directory,
@@ -70,7 +70,7 @@ synthetic chat, run:
 
 ```powershell
 .\scripts\verify-windows-package.ps1 `
-  -PackageZip .\dist\TheraSim-v0.3.0-Windows-x64-Portable.zip `
+  -PackageZip .\dist\TheraSim-v0.3.1-Windows-x64-Portable.zip `
   -TestOllama `
   -OllamaModel "gemma-4-E2B:latest"
 ```

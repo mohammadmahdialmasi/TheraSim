@@ -32,7 +32,7 @@ def test_support_export_contains_only_allowlisted_sanitized_diagnostics(
         "settings",
         SimpleNamespace(
             app_name="TheraSim API",
-            app_version="0.3.0",
+            app_version="0.3.1",
             llm_provider="custom",
             providers={
                 name: SimpleNamespace(

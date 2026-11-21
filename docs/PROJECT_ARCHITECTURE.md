@@ -1,7 +1,7 @@
 # TheraSim Project Architecture
 
 **Verified against source:** 2026-11-21
-**Application version:** 0.3.0
+**Application version:** 0.3.1
 
 ## System overview
 

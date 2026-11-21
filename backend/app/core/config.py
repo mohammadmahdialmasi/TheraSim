@@ -173,7 +173,7 @@ class Settings:
 
         return cls(
             app_name="TheraSim API",
-            app_version="0.3.0",
+            app_version="0.3.1",
             llm_provider=cast(ProviderName, provider_value),
             providers=providers,
             request_timeout_seconds=timeout,

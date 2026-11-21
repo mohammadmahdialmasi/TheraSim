@@ -84,7 +84,7 @@ on all hardware.
   replaceable binaries. A clean-machine installation, physical network
   isolation, non-Windows credential-storage implementation, and other GPU
   vendors remain unverified.
-- Release metadata is versioned to `0.3.0`; rubric/protocol schema versions
+- Release metadata is versioned to `0.3.1`; rubric/protocol schema versions
   remain independently versioned by design.
 
 ## Product and research limitations

@@ -66,7 +66,7 @@ def test_update_check_returns_stable_metadata_and_sha256_asset(monkeypatch):
         ),
     )
 
-    result = update_metadata.get_latest_release_metadata("0.3.0")
+    result = update_metadata.get_latest_release_metadata("0.3.1")
 
     assert result["status"] == "available"
     assert result["version"] == "v0.4.0"
@@ -104,7 +104,7 @@ def test_update_check_rejects_unstable_or_unverified_asset(monkeypatch):
         lambda *_args, **_kwargs: FakeResponse(json.dumps(payload).encode()),
     )
 
-    result = update_metadata.get_latest_release_metadata("0.3.0")
+    result = update_metadata.get_latest_release_metadata("0.3.1")
 
     assert result["status"] == "unavailable"
     assert "assets" not in result
@@ -122,7 +122,7 @@ def test_update_check_is_offline_safe_and_does_not_raise(monkeypatch):
 
     monkeypatch.setattr(update_metadata, "urlopen", offline)
 
-    result = update_metadata.get_latest_release_metadata("0.3.0")
+    result = update_metadata.get_latest_release_metadata("0.3.1")
 
     assert result["status"] == "unavailable"
     assert "network unavailable" not in str(result)

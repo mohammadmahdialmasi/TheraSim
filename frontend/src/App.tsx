@@ -843,7 +843,7 @@ function App() {
 
           <div className="sidebar-version">
             <span className="version-indicator" />
-            TheraSim · 0.3.0
+            TheraSim · 0.3.1
           </div>
         </div>
       </aside>

@@ -6,6 +6,15 @@ ignored migration backup. The v0.2.1 patch corrects the packaging allowlist.
 Zenodo v0.1.0 remains a documentation-only archive, not an executable source
 release.
 
+## v0.3.1 — Release consistency update
+
+- Align active application, frontend, packaging, workflow, documentation, and
+  validation metadata to `0.3.1`.
+- Preserve the immutable `v0.3.0` release history and existing historical
+  changelog and DOI records.
+- Strengthen CI with an automated release-version consistency check.
+- Update and verify the Windows x64 portable package workflow.
+
 ## v0.3.0 — Local-first model configuration and release hardening
 
 - Add per-provider patient-agent and evaluator-agent model overrides with a

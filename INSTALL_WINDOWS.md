@@ -3,15 +3,15 @@
 ## Download and verify
 
 The current Windows x64 package target is
-`TheraSim-v0.3.0-Windows-x64-Portable.zip`, with a matching `.sha256` sidecar.
+`TheraSim-v0.3.1-Windows-x64-Portable.zip`, with a matching `.sha256` sidecar.
 Download the ZIP and sidecar only from an official GitHub Release after its
 Windows workflow has passed; if that asset is not listed there, do not treat a
 local `dist/` copy as a release download. Before extracting a published asset,
 verify its hash in PowerShell:
 
 ```powershell
-$expected = (Get-Content .\TheraSim-v0.3.0-Windows-x64-Portable.zip.sha256).Split()[0]
-$actual = (Get-FileHash .\TheraSim-v0.3.0-Windows-x64-Portable.zip -Algorithm SHA256).Hash.ToLowerInvariant()
+$expected = (Get-Content .\TheraSim-v0.3.1-Windows-x64-Portable.zip.sha256).Split()[0]
+$actual = (Get-FileHash .\TheraSim-v0.3.1-Windows-x64-Portable.zip -Algorithm SHA256).Hash.ToLowerInvariant()
 if ($actual -ne $expected) { throw "SHA-256 verification failed." }
 ```
 
@@ -161,7 +161,7 @@ See [`BUILD_WINDOWS.md`](BUILD_WINDOWS.md) to build the package yourself.
 ### دریافت و تأیید
 
 هدف فعلی بستهٔ ویندوز x64، فایل
-`TheraSim-v0.3.0-Windows-x64-Portable.zip` و فایل `.sha256` متناظر آن است. ZIP و
+`TheraSim-v0.3.1-Windows-x64-Portable.zip` و فایل `.sha256` متناظر آن است. ZIP و
 فایل checksum را فقط پس از موفقیت گردش‌کار ویندوز از
 [صفحهٔ GitHub Releases](https://github.com/mohammadmahdialmasi/TheraSim/releases)
 دریافت کنید؛ اگر فایل در آن صفحه فهرست نشده، نسخهٔ محلی پوشهٔ `dist/` را بستهٔ
@@ -169,8 +169,8 @@ See [`BUILD_WINDOWS.md`](BUILD_WINDOWS.md) to build the package yourself.
 بررسی کنید:
 
 ```powershell
-$expected = (Get-Content .\TheraSim-v0.3.0-Windows-x64-Portable.zip.sha256).Split()[0]
-$actual = (Get-FileHash .\TheraSim-v0.3.0-Windows-x64-Portable.zip -Algorithm SHA256).Hash.ToLowerInvariant()
+$expected = (Get-Content .\TheraSim-v0.3.1-Windows-x64-Portable.zip.sha256).Split()[0]
+$actual = (Get-FileHash .\TheraSim-v0.3.1-Windows-x64-Portable.zip -Algorithm SHA256).Hash.ToLowerInvariant()
 if ($actual -ne $expected) { throw "SHA-256 verification failed." }
 ```
 

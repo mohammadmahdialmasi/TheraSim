@@ -66,16 +66,16 @@ ollama list
 ollama run qwen2.5:3b
 ```
 
-The installed `qwen2.5:3b` passed seven synthetic PatientAgent output checks
-including three repetitions of two English/Persian cases on one Windows
-workstation. Its license is
-the Qwen Research License Agreement; review those terms before use. Its
-EvaluatorAgent report passed four of six structured-output runs, while two
-reports failed exact transcript-evidence validation. Two additional
-structured smoke reports passed, but this is insufficient to recommend it
-for evaluator use. The tested Gemma tag also failed evaluator validation.
-These results are hardware- and tag-specific smoke evidence, not a global
-model recommendation; see [the model evaluation record](LOCAL_AI_MODEL_EVALUATION.md).
+In the 2026-11-22 rerun, exact local `qwen2.5:3b` passed 6/6 synthetic
+PatientAgent runs and 2/6 strict evaluator reports; `gemma-4-E2B:latest`
+passed 6/6 patient runs and 0/6 evaluator reports; `Qwen3.5:9b` passed 0/2
+patient runs and timed out on 0/2 evaluator runs at 600 seconds. Qwen2.5's
+locally exposed license is the Qwen Research License Agreement; commercial use
+requires separate authorization. Gemma and Qwen3.5 exact upstream
+identity/license correspondence remains unverified. Historical reports of
+Qwen2.5 4/6 evaluator success are separate and must not be merged with this
+rerun. These results are hardware- and tag-specific smoke evidence, not a
+global model recommendation; see [the model evaluation record](LOCAL_AI_MODEL_EVALUATION.md).
 
 At the interactive prompt, type a fictional test message; use `Ctrl+C` to
 leave. Check running model and processor placement with:

@@ -100,6 +100,7 @@ public static class TheraSimConsoleControl
             cb = Marshal.SizeOf<StartupInfo>()
         };
         var commandLine = new StringBuilder("\"" + executable + "\"");
+        ProcessInformation processInformation;
         if (!CreateProcess(
             executable,
             commandLine,
@@ -110,7 +111,7 @@ public static class TheraSimConsoleControl
             IntPtr.Zero,
             System.IO.Path.GetDirectoryName(executable),
             ref startupInfo,
-            out var processInformation))
+            out processInformation))
         {
             throw new Win32Exception(Marshal.GetLastWin32Error());
         }
@@ -127,6 +128,17 @@ Add-Type -AssemblyName System.IO.Compression.FileSystem
 $zip = [System.IO.Compression.ZipFile]::OpenRead($archive)
 try {
     $migrationPrefix = "TheraSim/_internal/app/persistence/migrations/"
+    foreach ($entry in $zip.Entries) {
+        $entryName = $entry.FullName.Replace('\', '/')
+        if (
+            [string]::IsNullOrWhiteSpace($entryName) -or
+            $entryName.StartsWith("/") -or
+            $entryName -match "^[A-Za-z]:/" -or
+            $entryName -match "(^|/)\.{2}(/|$)"
+        ) {
+            throw "The package contains an unsafe archive path: $entryName"
+        }
+    }
     $migrationEntries = @(
         $zip.Entries | Where-Object {
             ($_.FullName.Replace('\', '/').StartsWith($migrationPrefix)) -and
@@ -438,6 +450,10 @@ try {
     Write-Output "PASS: package starts with a system-only PATH, serves its UI, and preserves synthetic account initialization across restart and replacement-directory extraction."
     Write-Output "PASS: both package runs handled a targeted console-break signal and left no listener."
     Write-Output "No patient data or existing local SQLite content was read."
+} catch {
+    $failureMessage = $_.Exception.Message
+    Write-Error "FAIL: package verification failed: $failureMessage"
+    $script:verifierFailed = $true
 } finally {
     if ($process -and -not $process.HasExited) {
         # Stop only the process started by this smoke test.
@@ -452,4 +468,8 @@ try {
         )
     }
     Remove-Item -LiteralPath $scratch -Recurse -Force -ErrorAction SilentlyContinue
+}
+
+if ($script:verifierFailed) {
+    exit 1
 }

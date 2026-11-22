@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "last_updated": "2026-11-21",
+  "last_updated": "2026-11-22",
   "scope": "Observed local smoke tests only; not a global recommendation.",
   "test_environment": {
     "operating_system": "Windows 11 Pro, build 10.0.26300, x64",
@@ -10,6 +10,51 @@
     "other_gpu": "Intel UHD Graphics; inference acceleration not tested",
     "ollama_version": "0.34.4",
     "coverage_limit": "One development machine; other operating systems and hardware were not tested."
+  },
+  "rerun_2026_11_22": {
+    "commit": "e2b9a880e61cfaaefc69caca22212fc117739247",
+    "benchmark_script_sha256": "6ccb3b849fe3f282450b5e1042c221e2da48741dc7827f9c703804cc284fa814",
+    "patient_temperature": 0.7,
+    "patient_max_tokens": 1024,
+    "evaluator_temperature": 0.0,
+    "evaluator_max_tokens": 8192,
+    "synthetic_cases": ["english_workplace_values", "persian_workplace_values"],
+    "qwen2.5:3b": {
+      "model_digest": "357c53fb659c5076de1d65ccb0b397446227b71a42be9d1603d46168015c9e4b",
+      "repetitions": 3,
+      "patient_successes": 6,
+      "patient_runs": 6,
+      "patient_mean_latency_seconds": 1.934,
+      "evaluator_successes": 2,
+      "evaluator_failures": 4,
+      "evaluator_runs": 6,
+      "evaluator_mean_latency_seconds": 40.76,
+      "failure_category": "exact transcript-evidence validation"
+    },
+    "gemma-4-E2B:latest": {
+      "model_digest": "32632e5db6f6dced10c15c0e70dfbb91c0bf90ab12edf2883e45dc18ae8b29ef",
+      "repetitions": 3,
+      "patient_successes": 6,
+      "patient_runs": 6,
+      "patient_mean_latency_seconds": 7.226,
+      "evaluator_successes": 0,
+      "evaluator_failures": 6,
+      "evaluator_runs": 6,
+      "evaluator_mean_latency_seconds": 36.518,
+      "failure_category": "missing evidence or evidence not linked to therapist transcript"
+    },
+    "Qwen3.5:9b": {
+      "model_digest": "8c7bea6dc9b36904594d83bb45ae9674a58527afb202132995312854c58c79e9",
+      "repetitions": 1,
+      "patient_successes": 0,
+      "patient_runs": 2,
+      "patient_mean_latency_seconds": 104.177,
+      "evaluator_successes": 0,
+      "evaluator_failures": 2,
+      "evaluator_runs": 2,
+      "evaluator_mean_latency_seconds": 600.176,
+      "failure_category": "empty PatientAgent final answers and 600-second evaluator timeouts"
+    }
   },
   "models": [
     {
@@ -134,7 +179,7 @@
   ],
   "recommendations": {
     "global": "None. A single Windows workstation and a small number of synthetic runs cannot establish broad compatibility.",
-    "simulated_client": "qwen2.5:3b and gemma-4-E2B:latest passed one local synthetic PatientAgent smoke call each; neither has broad language-quality verification.",
-    "act_evaluator": "None. qwen2.5:3b passed 4/6 reports across two synthetic cases repeated three times, plus two separate contract smoke runs, but two benchmark reports failed exact evidence validation. The other tested models failed. No model is reliable enough to recommend."
+    "simulated_client": "2026-11-22 rerun: qwen2.5:3b passed 6/6 and gemma-4-E2B:latest passed 6/6 synthetic PatientAgent runs; Qwen3.5:9b passed 0/2. Schema success does not establish language quality or persona fidelity.",
+    "act_evaluator": "2026-11-22 rerun: qwen2.5:3b passed 2/6 strict reports, gemma-4-E2B:latest passed 0/6, and Qwen3.5:9b timed out on both evaluator runs. No model is reliable enough to recommend. Historical 4/6 Qwen2.5 results remain a separate historical run."
   }
 }

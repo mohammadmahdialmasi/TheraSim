@@ -10,6 +10,12 @@ release.
 
 - Align active application, frontend, packaging, workflow, documentation, and
   validation metadata to `0.3.1`.
+- Repaired the Windows package verifier's legacy C# console/process bridge,
+  added archive traversal guards and explicit failure exits, and verified the
+  public v0.3.1 ZIP under Windows PowerShell 5.1 and PowerShell 7.
+- Added reusable evidence privacy/redaction utilities and tests, and separate
+  sanitized evidence exports. Corrected benchmark documentation to distinguish
+  the 2026-11-22 rerun from earlier historical runs.
 - Preserve the immutable `v0.3.0` release history and existing historical
   changelog and DOI records.
 - Strengthen CI with an automated release-version consistency check.

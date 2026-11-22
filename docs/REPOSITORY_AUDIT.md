@@ -62,10 +62,13 @@ Observed in this checkout:
   metadata, and bounded subprocess calls. They were reviewed and not
   suppressed; details and residual trust assumptions are in
   [Security audit](SECURITY_AUDIT.md).
-- The fresh package passed isolated startup, UI delivery, synthetic account
-  initialization, restart/re-extraction persistence, graceful shutdown, and
-  one local Ollama synthetic chat. See the integration audit for size, digest,
-  machine scope, and archive-content review.
+- The public v0.3.1 package with size 25,212,406 bytes and SHA-256
+  1431c9610692f365af396188a68ba72c667b03e741b3ff7ad293758ecea60608 passed
+  the repaired normal verifier under Windows PowerShell 5.1 and the available
+  PowerShell 7 runtime: startup, UI delivery, synthetic account
+  initialization, restart/re-extraction persistence, and graceful shutdown.
+  An optional isolated Ollama synthetic chat with gemma-4-E2B:latest passed.
+  These results use one workstation and synthetic data only.
 
 All automated checks are limited evidence. They do not establish clinical or
 psychometric validity, security certification, accessibility, or compatibility

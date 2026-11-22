@@ -58,20 +58,28 @@ TheraSim is secure or vulnerability-free.
 ## Portable package runtime check
 
 Artifact:
-`TheraSim-v0.3.1-Windows-x64-Portable.zip` (portable one-folder ZIP, Windows
-x64); SHA-256:
-`df1be242f0040b67b9b15ad7e7d7f52e136ed260f690f79370716200d9715319`.
-The 26,345,293-byte archive matched its `.sha256` sidecar and JSON manifest.
+`TheraSim-v0.3.1-Windows-x64-Portable.zip` (public portable one-folder ZIP,
+Windows x64); published size `25,212,406` bytes; published SHA-256:
+`1431c9610692f365af396188a68ba72c667b03e741b3ff7ad293758ecea60608`.
+The repository-audit archive with SHA-256
+`df1be242f0040b67b9b15ad7e7d7f52e136ed260f690f79370716200d9715319` and size
+`26,345,293` bytes is a different archive and is not described as the public
+asset.
 
-The fresh archive contained 1,110 entries under one top-level `TheraSim/`
+The public ZIP contained 532 entries under one top-level `TheraSim/`
 directory and 19 allowed SQL migrations. Inspection found no database,
-database sidecar, backup, `.env`, provider settings, API-key, model-weight, or
-unsafe absolute/traversal archive path. The fresh extraction test on Windows
-11 Pro x64 used system-only `PATH`, synthetic temporary data, and no existing
-user database. It verified startup, UI delivery, local-account persistence
-across restart/re-extraction, graceful shutdown, and one synthetic chat
-through the already-installed local Ollama `qwen2.5:3b` model. No real patient
-data was used. This is not a clean-device or network-disconnection test.
+database sidecar, backup, `.env`, provider setting containing credentials,
+model-weight, or unsafe absolute/traversal archive path. The filename
+`TheraSim/_internal/fastapi/security/api_key.py` is a dependency module and
+is not by itself evidence of an exposed credential.
+
+The repaired normal verifier passed under Windows PowerShell 5.1 and
+PowerShell 7.1/7.7: startup, UI delivery, synthetic local-account
+initialization, persistence across restart/re-extraction, and graceful
+shutdown. A separate run with `-TestOllama` and the already-installed
+`gemma-4-E2B:latest` passed one local synthetic chat. All tests used isolated
+temporary data and no real patient data. Ollama chat was not inferred from the
+normal verifier pass and was verified only in the optional synthetic run.
 
 ## Release-blocking considerations and user guidance
 

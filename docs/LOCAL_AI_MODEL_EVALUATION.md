@@ -1,6 +1,6 @@
 # Local AI Model Evaluation
 
-**Run date:** 2026-11-20
+**Run dates:** 2026-11-20 historical; 2026-11-22 rerun
 **Purpose:** small, reproducible engineering smoke test for local TheraSim
 model use. This is not a clinical trial, clinical validation, psychometric
 validation, or evidence of therapeutic effectiveness.
@@ -27,14 +27,13 @@ The installed model list also showed `gemma-4-E2B-it:latest` with the same
 Ollama ID; it is an alias of the same installed model content, not an
 independent candidate.
 
-The current Ollama library lists the canonical `gemma4:e2b` variant as
-Q4_K_M, about 4.6 GB for that quantized model package, and publishes an
-Apache-2.0 license on its model page. That canonical tag was **not** installed
-or tested here. `ollama show --license` returned no license text for the
-locally installed legacy-named tag, so verify the exact tag's terms before
-redistribution. TheraSim does not redistribute or bundle model weights.
-References: [Ollama Gemma 4 model page](https://ollama.com/library/gemma4:e2b)
-and [Gemma 4 Apache 2.0 license](https://gemma.ai/resources/apache-2/).
+The exact upstream identity/license correspondence for the locally installed
+legacy-named Gemma 4 tag is **unverified**. `ollama show --license` returned
+no license text, and no license should be inferred from the canonical
+`gemma4:e2b` registry page or family name. The Ollama Gemma 4 registry page is
+https://ollama.com/library/gemma4:e2b. The locally installed digest must be
+matched to an exact upstream manifest/license file before a license conclusion
+is published. TheraSim does not redistribute or bundle model weights.
 
 ## Reproducible methodology
 
@@ -76,6 +75,26 @@ synthetic and are not written to a database.
 
 ## Measured smoke results
 
+### 2026-11-22 actual-workflow rerun
+
+The exact v0.3.1 source was rerun in a detached worktree at
+`e2b9a880e61cfaaefc69caca22212fc117739247`. The benchmark implementation and
+ACT rubric blobs were identical at the earlier benchmark commit
+`d10339402fabe67622a6e5499d76dfb5ba797f07` and the release commit. This
+source equivalence does not prove that an earlier run used the release commit.
+
+| Model/tag | PatientAgent rerun | EvaluatorAgent rerun | Interpretation |
+|---|---|---|---|
+| `qwen2.5:3b` | 6/6; 3 repetitions x 2 synthetic cases; mean 1.934 s | 2/6; 4 exact transcript-evidence failures; mean 40.760 s | Patient schema success only; evaluator not recommended |
+| `gemma-4-E2B:latest` | 6/6; 3 repetitions x 2 synthetic cases; mean 7.226 s | 0/6; missing or therapist-source-invalid evidence; mean 36.518 s | Patient schema success only; evaluator failed |
+| `Qwen3.5:9b` | 0/2; empty final answers; mean 104.177 s | 0/2; both 600-second timeouts; mean 600.176 s | Exploratory run; not suitable on this configuration |
+
+PatientAgent temperature was `0.7` and max tokens was `1024`. EvaluatorAgent
+temperature was `0.0` and max tokens was `8192`. Ollama was `0.34.4`. These
+are small synthetic smoke tests, not clinical, psychometric, or reliability
+validation. Schema success does not establish language quality or persona
+fidelity. Strict evaluator success does not establish rating accuracy.
+
 | Case | Latency | Prompt / generated tokens | Observation |
 |---|---:|---:|---|
 | English persona | 0.979 s | 87 / 66 | Stayed in the invented help-avoidance role and did not give advice in this sample. |
@@ -100,7 +119,10 @@ presented as a valid evaluation. Other provider adapters do not receive this
 Ollama-specific capability because they have not been verified with this
 contract.
 
-Results on the single workstation described above:
+### Historical results on the single workstation described above
+
+The following table is retained as historical evidence and must not be merged
+with the 2026-11-22 rerun above.
 
 | Model/tag | PatientAgent | EvaluatorAgent | Interpretation |
 |---|---|---|---|
@@ -145,10 +167,11 @@ results are in [`config/model-compatibility.json`](../config/model-compatibility
   This does not measure reliability across repeated evaluator reports.
 - **Emotional/interpersonal response:** one sample expressed plausible
   reluctance; no calibrated naturalness scale was used.
-- **Evaluation response consistency:** no model is recommended. In three
-  repetitions of each synthetic scenario, `qwen2.5:3b` passed four of six
-  complete structural/evidence contracts; two outputs failed exact-quote
-  validation. `gemma-4-E2B:latest` and `Qwen3.5:9b` failed actual evaluation runs.
+- **Evaluation response consistency:** no model is recommended. In the
+  2026-11-22 rerun, three repetitions of each synthetic scenario passed two
+  of six strict reports for `qwen2.5:3b`; Gemma passed zero of six, and
+  Qwen3.5 timed out on both runs. These historical and rerun samples must not
+  be presented as one experiment.
 - **Speed and resources:** the four short prompts returned in 0.112–0.979 s
   while the model was already loaded and GPU-resident. This is not a cold
   start or sustained-load result.
@@ -161,12 +184,15 @@ passed one real synthetic PatientAgent schema smoke test on this workstation.
 Treat these as test candidates, not global recommendations. Qwen's exposed
 license is a research license; review it before use. The exact license for the
 legacy Gemma tag could not be retrieved from the installed metadata.
+`Qwen3.5:9b` is a different family/build and is also **unverified** for exact
+upstream identity/license correspondence:
+https://ollama.com/library/qwen3.5:9b
 
-**Evaluator guidance:** no model is recommended. Qwen2.5:3b passed four of
-six structured reports across two synthetic cases repeated three times, but
-two reports failed exact quote validation and no rating accuracy comparison
-was performed. Two additional structured smoke reports passed, but this does
-not establish repeatable reliability. The application allows
+**Evaluator guidance:** no model is recommended. In the 2026-11-22 rerun,
+Qwen2.5:3b passed 2/6 strict reports, Gemma passed 0/6, and Qwen3.5:9b
+timed out on 0/2. Historical results showing 4/6 for Qwen2.5 are separate
+and must be labeled as such. No rerun establishes rating accuracy or
+repeatable reliability. The application allows
 separate patient/evaluator model IDs and falls back to one shared model when
 role-specific fields are blank. This changes configuration only and does not
 keep two models loaded simultaneously; the provider controls model residency.
